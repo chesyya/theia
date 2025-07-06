@@ -26,6 +26,7 @@ import { Deferred } from '@theia/core/lib/common/promise-util';
 import { HostedPluginLocalizationService } from './hosted-plugin-localization-service';
 import { Stopwatch } from '@theia/core/lib/common';
 import { PluginUninstallationManager } from '../../main/node/plugin-uninstallation-manager';
+import { PluginDocumentationServer } from '../../main/node/plugin-documentation-server';
 
 @injectable()
 export class PluginDeployerHandlerImpl implements PluginDeployerHandler {
@@ -43,6 +44,9 @@ export class PluginDeployerHandlerImpl implements PluginDeployerHandler {
 
     @inject(PluginUninstallationManager)
     protected readonly uninstallationManager: PluginUninstallationManager;
+
+    @inject(PluginDocumentationServer)
+    protected readonly documentationServer: PluginDocumentationServer;
 
     private readonly deployedLocations = new Map<PluginIdentifiers.VersionedId, Set<string>>();
     protected readonly sourceLocations = new Map<PluginIdentifiers.VersionedId, Set<string>>();
@@ -192,6 +196,12 @@ export class PluginDeployerHandlerImpl implements PluginDeployerHandler {
             deployed.contributes = await this.reader.readContribution(manifest);
             await this.localizationService.deployLocalizations(deployed);
             deployedPlugins.set(id, deployed);
+
+            // 注册插件文档
+            if (deployed.contributes?.helpDocumentation) {
+                this.documentationServer.registerPluginDocumentation(deployed);
+            }
+
             deployPlugin.debug(`Deployed ${entryPoint} plugin "${id}" from "${metadata.model.entryPoint[entryPoint] || pluginPath}"`);
         } catch (e) {
             deployPlugin.error(`Failed to deploy ${entryPoint} plugin from '${pluginPath}' path`, e);
@@ -243,6 +253,9 @@ export class PluginDeployerHandlerImpl implements PluginDeployerHandler {
     }
 
     async undeployPlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean> {
+        // 注销插件文档
+        this.documentationServer.unregisterPluginDocumentation(pluginId);
+
         this.deployedBackendPlugins.delete(pluginId);
         this.deployedFrontendPlugins.delete(pluginId);
         const deployedLocations = this.deployedLocations.get(pluginId);

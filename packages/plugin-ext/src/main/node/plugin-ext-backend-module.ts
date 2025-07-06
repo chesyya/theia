@@ -46,6 +46,8 @@ import { PluginRemoteCliContribution } from './plugin-remote-cli-contribution';
 import { RemoteCliContribution } from '@theia/core/lib/node/remote/remote-cli-contribution';
 import { PluginRemoteCopyContribution } from './plugin-remote-copy-contribution';
 import { RemoteCopyContribution } from '@theia/core/lib/node/remote/remote-copy-contribution';
+import { PluginDocumentationServer } from './plugin-documentation-server';
+import { PluginDocumentationService, pluginDocumentationServicePath } from '../browser/plugin-documentation-frontend-service';
 
 export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind): void {
     bind(PluginApiContribution).toSelf().inSingletonScope();
@@ -102,5 +104,15 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
     bind(BackendApplicationContribution).toService(WebviewBackendSecurityWarnings);
 
     rebind(LocalizationServerImpl).to(PluginLocalizationServer).inSingletonScope();
+
+    // Plugin Documentation Server
+    bind(PluginDocumentationServer).toSelf().inSingletonScope();
+    bind(BackendApplicationContribution).toService(PluginDocumentationServer);
+    bind(PluginDocumentationService).toService(PluginDocumentationServer);
+    bind(ConnectionHandler).toDynamicValue(ctx =>
+        new RpcConnectionHandler(pluginDocumentationServicePath, () =>
+            ctx.container.get(PluginDocumentationService)
+        )
+    ).inSingletonScope();
 
 }

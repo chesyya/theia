@@ -104,6 +104,7 @@ export interface PluginPackageContribution {
     notebooks?: PluginPackageNotebook[];
     notebookRenderer?: PluginNotebookRendererContribution[];
     notebookPreload?: PluginPackageNotebookPreload[];
+    helpDocumentation?: PluginHelpDocumentation;
 }
 
 export interface PluginPackageNotebook {
@@ -619,6 +620,7 @@ export interface PluginContribution {
     notebooks?: NotebookContribution[];
     notebookRenderer?: NotebookRendererContribution[];
     notebookPreload?: notebookPreloadContribution[];
+    helpDocumentation?: PluginHelpDocumentation;
 }
 export interface NotebookContribution {
     type: string;
@@ -1101,4 +1103,29 @@ export interface ServerPluginRunner {
 export const PluginHostEnvironmentVariable = Symbol('PluginHostEnvironmentVariable');
 export interface PluginHostEnvironmentVariable {
     process(env: NodeJS.ProcessEnv): void;
+}
+
+/**
+ * This interface describes a plugin help documentation contribution.
+ */
+export interface PluginHelpDocumentation {
+    /**
+     * The path to the help documentation file (e.g., "HELPDOC.md")
+     */
+    path: string;
+
+    /**
+     * The base URL for the documentation web server
+     */
+    baseUrl?: string;
+
+    /**
+     * Additional paths that can be used for navigation within the documentation
+     */
+    navigationPaths?: string[];
+
+    /**
+     * The title to display in the menubar
+     */
+    title?: string;
 }

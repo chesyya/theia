@@ -26,7 +26,7 @@ import {
     noopWidgetStatusBarContribution,
     WidgetStatusBarContribution
 } from '@theia/core/lib/browser';
-import { MaybePromise, CommandContribution, ResourceResolver, bindContributionProvider, URI, generateUuid } from '@theia/core/lib/common';
+import { MaybePromise, CommandContribution, ResourceResolver, bindContributionProvider, URI, generateUuid, MenuContribution } from '@theia/core/lib/common';
 import { WebSocketConnectionProvider } from '@theia/core/lib/browser/messaging';
 import { HostedPluginSupport } from '../../hosted/browser/hosted-plugin';
 import { HostedPluginWatcher } from '../../hosted/browser/hosted-plugin-watcher';
@@ -79,6 +79,8 @@ import { AuthenticationService } from '@theia/core/lib/browser/authentication-se
 import { bindTreeViewDecoratorUtilities, TreeViewDecoratorService } from './view/tree-view-decorator-service';
 import { CodeEditorWidgetUtil } from './menus/vscode-theia-menu-mappings';
 import { PluginMenuCommandAdapter } from './menus/plugin-menu-command-adapter';
+import { PluginMenubarAnalyzer } from './menus/plugin-menubar-analyzer';
+import { PluginMenubarCommandContribution } from './menus/plugin-menubar-command';
 import './theme-icon-override';
 import { PluginIconService } from './plugin-icon-service';
 import { PluginTerminalRegistry } from './plugin-terminal-registry';
@@ -91,9 +93,15 @@ import { CellOutputWebviewImpl, createCellOutputWebviewContainer } from './noteb
 import { ArgumentProcessorContribution } from './command-registry-main';
 import { WebviewSecondaryWindowSupport } from './webview/webview-secondary-window-support';
 import { CustomEditorUndoRedoHandler } from './custom-editors/custom-editor-undo-redo-handler';
+import { PluginDocumentationCommandContribution } from './menus/plugin-documentation-command';
+import { PluginDocumentationFrontendService, PluginDocumentationService } from './plugin-documentation-frontend-service';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
 
+    bind(PluginMenubarAnalyzer).toSelf().inSingletonScope();
+    bind(PluginMenubarCommandContribution).toSelf().inSingletonScope();
+    bind(CommandContribution).toService(PluginMenubarCommandContribution);
+    bind(FrontendApplicationContribution).toService(PluginMenubarCommandContribution);
     bind(LanguagesMainImpl).toSelf().inTransientScope();
     bind(LanguagesMainFactory).toFactory(context => (rpc: RPCProtocol) => {
         const child = context.container.createChild();
@@ -288,5 +296,11 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
         createCellOutputWebviewContainer(ctx.container).get(CellOutputWebviewImpl)
     );
     bindContributionProvider(bind, ArgumentProcessorContribution);
+
+    bind(PluginDocumentationFrontendService).toSelf().inSingletonScope();
+    bind(PluginDocumentationService).toService(PluginDocumentationFrontendService);
+    bind(PluginDocumentationCommandContribution).toSelf().inSingletonScope();
+    bind(CommandContribution).toService(PluginDocumentationCommandContribution);
+    bind(MenuContribution).toService(PluginDocumentationCommandContribution);
 
 });

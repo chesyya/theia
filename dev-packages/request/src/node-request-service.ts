@@ -16,7 +16,7 @@
 
 import * as http from 'http';
 import * as https from 'https';
-import { getProxyAgent, ProxyAgent } from './proxy';
+import { getProxyAgent } from './proxy';
 import { Headers, RequestConfiguration, RequestContext, RequestOptions, RequestService, CancellationToken } from './common-request-service';
 import { createGunzip } from 'zlib';
 
@@ -25,7 +25,7 @@ export interface RawRequestFunction {
 }
 
 export interface NodeRequestOptions extends RequestOptions {
-    agent?: ProxyAgent;
+    agent?: any;
     strictSSL?: boolean;
     getRawRequest?(options: NodeRequestOptions): RawRequestFunction;
 };
@@ -64,7 +64,7 @@ export class NodeRequestService implements RequestService {
             proxyUrl: await this.getProxyUrl(options.url),
             strictSSL: options.strictSSL
         });
-        options.agent = agent;
+        options.agent = agent as any;
 
         const authorization = options.proxyAuthorization || this.authorization;
         if (authorization) {

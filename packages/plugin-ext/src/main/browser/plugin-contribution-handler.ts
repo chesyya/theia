@@ -54,6 +54,7 @@ import { ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 import { LanguageService } from '@theia/core/lib/browser/language-service';
 import { ThemeIcon } from '@theia/monaco-editor-core/esm/vs/base/common/themables';
 
+
 // The enum export is missing from `vscode-textmate@9.2.0`
 const enum StandardTokenType {
     Other = 0,
@@ -150,6 +151,8 @@ export class PluginContributionHandler {
 
     @inject(ContextKeyService)
     protected readonly contextKeyService: ContextKeyService;
+
+
 
     protected readonly commandHandlers = new Map<string, CommandHandler['execute'] | undefined>();
 
@@ -461,6 +464,8 @@ export class PluginContributionHandler {
                 );
             }
         }
+
+
 
         return toDispose;
     }

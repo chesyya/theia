@@ -17,7 +17,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { inject, injectable, optional } from '@theia/core/shared/inversify';
-import { MenuPath, CommandRegistry, Disposable, DisposableCollection, ActionMenuNode, MenuCommandAdapterRegistry, Emitter, nls } from '@theia/core';
+import { MenuPath, CommandRegistry, Disposable, DisposableCollection, ActionMenuNode, MenuCommandAdapterRegistry, Emitter, nls, MAIN_MENU_BAR } from '@theia/core';
 import { MenuModelRegistry } from '@theia/core/lib/common';
 import { TabBarToolbarRegistry } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { DeployedPlugin, IconUrl, Menu } from '../../../common';
@@ -32,6 +32,8 @@ import { ContextKeyExpr } from '@theia/monaco-editor-core/esm/vs/platform/contex
 import { ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 import { PluginSharedStyle } from '../plugin-shared-style';
 import { ThemeIcon } from '@theia/monaco-editor-core/esm/vs/base/common/themables';
+import { PluginMenubarCommandContribution } from './plugin-menubar-command';
+import { PluginDocumentationService } from '../plugin-documentation-frontend-service';
 
 @injectable()
 export class MenusContributionPointHandler {
@@ -46,6 +48,11 @@ export class MenusContributionPointHandler {
     @inject(PluginSharedStyle) protected readonly style: PluginSharedStyle;
     @inject(QuickCommandService) @optional()
     private readonly quickCommandService: QuickCommandService;
+
+    @inject(PluginMenubarCommandContribution)
+    protected readonly menubarCommandContribution: PluginMenubarCommandContribution;
+    @inject(PluginDocumentationService)
+    protected readonly documentationService: PluginDocumentationService;
 
     protected readonly titleContributionContextKeys = new ReferenceCountingSet();
     protected readonly onDidChangeTitleContributionEmitter = new Emitter<void>();
@@ -74,6 +81,41 @@ export class MenusContributionPointHandler {
         return codeToTheiaMappings.get(contributionPoint);
     }
 
+
+
+    /**
+     * 为包含menubar/plugin配置的插件注册顶层menubar菜单
+     */
+    private registerPluginMenubar(plugin: DeployedPlugin, toDispose: DisposableCollection): void {
+        const pluginId = plugin.metadata.model.id;
+        const pluginName = plugin.metadata.model.displayName || plugin.metadata.model.name;
+        const pluginMenuPath = [...MAIN_MENU_BAR, `plugin_${pluginId}`];
+
+        // 注册插件主菜单
+        toDispose.push(this.menuRegistry.registerSubmenu(pluginMenuPath, pluginName));
+
+        // 处理menubar/plugin贡献点
+        const pluginMenus = plugin.contributes?.menus?.['menubar/plugin'];
+        if (pluginMenus) {
+            for (const item of pluginMenus) {
+                try {
+                    if (item.command) {
+                        toDispose.push(this.menuRegistry.registerMenuAction(pluginMenuPath, {
+                            commandId: item.command,
+                            label: item.command,
+                            order: item.group || '1'
+                        }));
+                    }
+                } catch (error) {
+                    console.warn(`Failed to register a menu item for plugin ${plugin.metadata.model.id} contributed to menubar/plugin`, item);
+                    console.debug(error);
+                }
+            }
+        }
+
+        console.log(`Registered plugin menubar for: ${pluginName} (${pluginId})`);
+    }
+
     handle(plugin: DeployedPlugin): Disposable {
         const allMenus = plugin.contributes?.menus;
         if (!allMenus) {
@@ -83,6 +125,10 @@ export class MenusContributionPointHandler {
             this.initialize();
         }
         const toDispose = new DisposableCollection();
+
+        // 检查并注册插件menubar
+        this.registerPluginMenubar(plugin, toDispose);
+
         const submenus = plugin.contributes?.submenus ?? [];
         for (const submenu of submenus) {
             const iconClass = submenu.icon && this.toIconClass(submenu.icon, toDispose);

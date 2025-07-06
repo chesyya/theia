@@ -259,6 +259,14 @@ export class TheiaPluginScanner extends AbstractPluginScanner {
         }
 
         try {
+            if (rawPlugin.contributes.helpDocumentation) {
+                contributions.helpDocumentation = rawPlugin.contributes.helpDocumentation;
+            }
+        } catch (err) {
+            console.error(`Could not read '${rawPlugin.name}' contribution 'helpDocumentation'.`, rawPlugin.contributes.helpDocumentation, err);
+        }
+
+        try {
             if (rawPlugin.contributes.views) {
                 contributions.views = {};
 

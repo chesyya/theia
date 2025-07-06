@@ -265,7 +265,7 @@ export class CellEditor extends React.Component<CellEditorProps, {}> {
     }
 
     override render(): React.ReactNode {
-        return <div className='theia-notebook-cell-editor' onResize={this.handleResize} id={this.props.cell.uri.toString()}
+        return <div className='theia-notebook-cell-editor' id={this.props.cell.uri.toString()}
             ref={container => this.setContainer(container)} style={{ height: this.editor ? undefined : this.estimateHeight() }}>
         </div >;
     }
