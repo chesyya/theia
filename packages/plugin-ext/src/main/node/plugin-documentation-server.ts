@@ -70,6 +70,7 @@ export class PluginDocumentationServer implements BackendApplicationContribution
     private readonly DOCS_BASE_PATH = '/plugindoc';
     private docUrlMap = new Map<string, { filePath: string, pluginId: string }>();
     private commandUrlMap = new Map<string, string>();
+    private docMappings = new Map<string, { pluginId: string, main: { url: string, filePath: string, commands: string[] }, pages: Array<{ url: string, filePath: string, commands: string[] }> }>();
 
     configure(app: express.Application): void {
         // 新路由：/usermanual/:pluginId/:mainMdNameWithoutExt/:subPath(*)
@@ -98,6 +99,11 @@ export class PluginDocumentationServer implements BackendApplicationContribution
             `);
         });
 
+        app.get('/usermanual/api/docs', (req, res) => {
+            res.json(this.getAllDocMappings());
+        });
+
+
         // API路由 - 获取插件文档信息
         app.get(`${this.DOCS_BASE_PATH}/api/plugins`, (req, res) => {
             const plugins = Array.from(this.pluginDocs.values()).map(doc => ({
@@ -111,6 +117,10 @@ export class PluginDocumentationServer implements BackendApplicationContribution
         });
     }
 
+
+    getAllDocMappings(): Array<{ pluginId: string, main: { url: string, filePath: string, commands: string[] }, pages: Array<{ url: string, filePath: string, commands: string[] }> }> {
+        return Array.from(this.docMappings.values());
+    }
     /**
      * 注册插件的文档信息
      */
@@ -119,7 +129,6 @@ export class PluginDocumentationServer implements BackendApplicationContribution
         if (!helpDoc) {
             return;
         }
-
         const pluginId = plugin.metadata.model.id;
         const pluginName = plugin.metadata.model.displayName || plugin.metadata.model.name;
         const basePath = (helpDoc as any).basePath || '';
@@ -131,31 +140,40 @@ export class PluginDocumentationServer implements BackendApplicationContribution
         if (!mainMd) return;
         const mainMdName = mainMd.replace(/\.md$/, '');
         const mainFilePath = path.resolve(plugin.metadata.model.packagePath, basePath, mainMd);
-        const mainUrlKey = `${pluginId}/${mainMdName}`;
-        this.docUrlMap.set(mainUrlKey, { filePath: mainFilePath, pluginId });
+        const mainUrl = `/usermanual/${pluginId}/${mainMdName}`;
+        const main = {
+            url: mainUrl,
+            filePath: mainFilePath,
+            commands: Array.isArray(mainObj.commands) ? mainObj.commands : []
+        };
         // 主文档命令映射
         if (Array.isArray(mainObj.commands)) {
             for (const cmd of mainObj.commands) {
-                this.commandUrlMap.set(cmd, `/usermanual/${pluginId}/${mainMdName}`);
+                this.commandUrlMap.set(cmd, mainUrl);
             }
         }
-        // 移除 helpDoc.commandMap 相关逻辑
         // 子页面
         let navigationPaths: string[] = [];
-        const pages = (helpDoc as any).pages;
-        if (Array.isArray(pages)) {
-            for (const pageObj of pages) {
+        const pagesArr = (helpDoc as any).pages;
+        const pages: Array<{ url: string, filePath: string, commands: string[] }> = [];
+        if (Array.isArray(pagesArr)) {
+            for (const pageObj of pagesArr) {
                 const page = typeof pageObj === 'string' ? { path: pageObj } : pageObj;
                 const pagePath = page.path;
                 const subPath = pagePath.replace(/\.md$/, '').replace(/\\/g, '/');
                 const filePath = path.resolve(plugin.metadata.model.packagePath, basePath, pagePath);
-                const urlKey = `${pluginId}/${mainMdName}/${subPath}`;
-                this.docUrlMap.set(urlKey, { filePath, pluginId });
+                const url = `${mainUrl}/${subPath}`;
+                pages.push({
+                    url,
+                    filePath,
+                    commands: Array.isArray(page.commands) ? page.commands : []
+                });
+                this.docUrlMap.set(`${pluginId}/${mainMdName}/${subPath}`, { filePath, pluginId });
                 navigationPaths.push(subPath);
                 // 子页面命令映射
                 if (Array.isArray(page.commands)) {
                     for (const cmd of page.commands) {
-                        this.commandUrlMap.set(cmd, `/usermanual/${pluginId}/${mainMdName}/${subPath}`);
+                        this.commandUrlMap.set(cmd, url);
                     }
                 }
             }
@@ -166,11 +184,12 @@ export class PluginDocumentationServer implements BackendApplicationContribution
             pluginName,
             docPath: mainFilePath,
             mainMdName,
-            baseUrl: `/usermanual/${pluginId}/${mainMdName}`,
+            baseUrl: mainUrl,
             navigationPaths,
             title: (helpDoc as any).title || `${pluginName} Documentation`
         });
-
+        // 存储完整映射
+        this.docMappings.set(pluginId, { pluginId, main, pages });
         this.logger.info(`Registered documentation for plugin: ${pluginId} (${pluginName})`);
         this.logger.info('deployed.contributes:', JSON.stringify(plugin.contributes));
     }
