@@ -103,10 +103,12 @@ export class PluginDocumentationCommandContribution implements CommandContributi
             execute: async () => {
                 const docs = await this.documentationService.getAllPluginDocumentation();
                 const doc = docs.find(d => d.pluginId.endsWith('test-plugin'));
-                if (doc && doc.navigationPaths.includes('api.md')) {
-                    window.open(`${doc.baseUrl}/api.md`, '_blank');
+                if (doc && doc.navigationPaths.includes('api')) {
+                    window.open(`${doc.baseUrl}/api`, '_blank');
+                } else if (doc) {
+                    window.open(doc.baseUrl, '_blank');
                 } else {
-                    window.open('http://localhost:3001/plugindoc/%3Cunpublished%3E.test-plugin/api.md', '_blank');
+                    window.open('http://localhost:3001/usermanual/test-plugin/help', '_blank');
                 }
             }
         });

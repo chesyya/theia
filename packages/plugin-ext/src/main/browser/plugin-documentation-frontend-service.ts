@@ -21,7 +21,8 @@ export interface PluginDocumentationInfo {
     pluginId: string;
     pluginName: string;
     docPath: string;
-    baseUrl: string;
+    mainMdName: string; // 主文档名（无扩展名）
+    baseUrl: string; // 现在为 /usermanual/{pluginId}/{mainMdName}
     navigationPaths: string[];
     title: string;
 }
