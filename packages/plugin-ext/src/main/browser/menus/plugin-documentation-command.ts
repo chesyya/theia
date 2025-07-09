@@ -40,6 +40,17 @@ export namespace PluginDocumentationCommands {
         label: nls.localizeByDefault('Goto Test Plugin API Doc'),
         category: 'Plugin'
     };
+
+    export const TEST_REST_DOC_API: Command = {
+        id: 'plugin.documentation.test.rest',
+        label: 'Test REST Doc API',
+        category: 'Plugin'
+    };
+    export const TEST_FUNC_DOC_API: Command = {
+        id: 'plugin.documentation.test.func',
+        label: 'Test Function Doc API',
+        category: 'Plugin'
+    };
 }
 
 @injectable()
@@ -113,6 +124,31 @@ export class PluginDocumentationCommandContribution implements CommandContributi
             }
         });
 
+        commands.registerCommand(PluginDocumentationCommands.TEST_REST_DOC_API, {
+            execute: async () => {
+                try {
+                    const resp = await fetch('/usermanual/api/docs');
+                    const data = await resp.json();
+                    alert('REST API result: ' + JSON.stringify(data, null, 2));
+                    console.log('REST API result:', data);
+                } catch (e) {
+                    alert('REST API error: ' + e);
+                }
+            }
+        });
+        commands.registerCommand(PluginDocumentationCommands.TEST_FUNC_DOC_API, {
+            execute: async () => {
+                try {
+                    // 通过前端 service 的 getAllDocMappings() 方法调用后端 RPC
+                    const data = await this.documentationService.getAllDocMappings();
+                    alert('Function API (RPC) result: ' + JSON.stringify(data, null, 2));
+                    console.log('Function API (RPC) result:', data);
+                } catch (e) {
+                    alert('Function API error: ' + e);
+                }
+            }
+        });
+
         // 动态为每个插件文档注册 open 命令
         const docs = await this.documentationService.getAllPluginDocumentation();
         docs.forEach(doc => {
@@ -156,6 +192,16 @@ export class PluginDocumentationCommandContribution implements CommandContributi
             commandId: PluginDocumentationCommands.GOTO_PLUGIN_DOCS.id,
             label: PluginDocumentationCommands.GOTO_PLUGIN_DOCS.label,
             order: 'a'
+        });
+        menus.registerMenuAction(CommonMenus.HELP, {
+            commandId: PluginDocumentationCommands.TEST_REST_DOC_API.id,
+            label: PluginDocumentationCommands.TEST_REST_DOC_API.label,
+            order: 'z20'
+        });
+        menus.registerMenuAction(CommonMenus.HELP, {
+            commandId: PluginDocumentationCommands.TEST_FUNC_DOC_API.id,
+            label: PluginDocumentationCommands.TEST_FUNC_DOC_API.label,
+            order: 'z21'
         });
     }
 } 

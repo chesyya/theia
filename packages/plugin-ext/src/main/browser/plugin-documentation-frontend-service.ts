@@ -31,6 +31,7 @@ export const PluginDocumentationService = Symbol('PluginDocumentationService');
 export interface PluginDocumentationService {
     getPluginDocumentation(pluginId: string): Promise<PluginDocumentationInfo | undefined>;
     getAllPluginDocumentation(): Promise<PluginDocumentationInfo[]>;
+    getAllDocMappings(): Promise<any[]>; // 确保声明
 }
 
 export const pluginDocumentationServicePath = '/services/plugin-documentation';
@@ -54,5 +55,12 @@ export class PluginDocumentationFrontendService implements PluginDocumentationSe
             this.proxy = this.connectionProvider.createProxy<PluginDocumentationService>(pluginDocumentationServicePath);
         }
         return this.proxy.getAllPluginDocumentation();
+    }
+
+    async getAllDocMappings(): Promise<any[]> {
+        if (!this.proxy) {
+            this.proxy = this.connectionProvider.createProxy<PluginDocumentationService>(pluginDocumentationServicePath);
+        }
+        return this.proxy.getAllDocMappings();
     }
 } 

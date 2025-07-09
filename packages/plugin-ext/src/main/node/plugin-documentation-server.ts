@@ -22,6 +22,7 @@ import { BackendApplicationContribution } from '@theia/core/lib/node/backend-app
 import { ILogger } from '@theia/core';
 import { DeployedPlugin } from '../../common/plugin-protocol';
 import { PluginDocumentationService, PluginDocumentationInfo } from '../browser/plugin-documentation-frontend-service';
+import { JsonRpcServer } from '@theia/core/lib/common/messaging/proxy-factory';
 
 // 简单的HTML转义函数
 // function escapeHtml(text: string): string {
@@ -61,7 +62,7 @@ function markdownToHtml(markdown: string): string {
 
 
 @injectable()
-export class PluginDocumentationServer implements BackendApplicationContribution, PluginDocumentationService {
+export class PluginDocumentationServer implements BackendApplicationContribution, PluginDocumentationService, JsonRpcServer<PluginDocumentationService> {
 
     @inject(ILogger)
     protected readonly logger: ILogger;
@@ -73,7 +74,11 @@ export class PluginDocumentationServer implements BackendApplicationContribution
     private docMappings = new Map<string, { pluginId: string, main: { url: string, filePath: string, commands: string[] }, pages: Array<{ url: string, filePath: string, commands: string[] }> }>();
 
     configure(app: express.Application): void {
-        // 新路由：/usermanual/:pluginId/:mainMdNameWithoutExt/:subPath(*)
+        // 先注册 API 路由，保证不会被 catch-all 路由覆盖
+        app.get('/usermanual/api/docs', (req, res) => {
+            res.json(this.getAllDocMappings());
+        });
+        // 再注册 catch-all 文档路由
         app.get('/usermanual/:pluginId/:mainMdName/:subPath(*)?', async (req, res) => {
             const { pluginId, mainMdName, subPath } = req.params;
             let urlKey = `${pluginId}/${mainMdName}`;
@@ -99,11 +104,6 @@ export class PluginDocumentationServer implements BackendApplicationContribution
             `);
         });
 
-        app.get('/usermanual/api/docs', (req, res) => {
-            res.json(this.getAllDocMappings());
-        });
-
-
         // API路由 - 获取插件文档信息
         app.get(`${this.DOCS_BASE_PATH}/api/plugins`, (req, res) => {
             const plugins = Array.from(this.pluginDocs.values()).map(doc => ({
@@ -117,9 +117,12 @@ export class PluginDocumentationServer implements BackendApplicationContribution
         });
     }
 
+    // JsonRpcServer required
+    setClient(client: PluginDocumentationService | undefined): void { }
+    dispose(): void { }
 
-    getAllDocMappings(): Array<{ pluginId: string, main: { url: string, filePath: string, commands: string[] }, pages: Array<{ url: string, filePath: string, commands: string[] }> }> {
-        return Array.from(this.docMappings.values());
+    getAllDocMappings(): Promise<any[]> {
+        return Promise.resolve(Array.from(this.docMappings.values()));
     }
     /**
      * 注册插件的文档信息
@@ -190,6 +193,14 @@ export class PluginDocumentationServer implements BackendApplicationContribution
         });
         // 存储完整映射
         this.docMappings.set(pluginId, { pluginId, main, pages });
+        // 输出到控制台和写入文件，便于后端调试
+        const allMappings = this.getAllDocMappings();
+        console.log('All plugin doc mappings:', JSON.stringify(allMappings, null, 2));
+        try {
+            require('fs').writeFileSync('/tmp/theia-doc-mappings.json', JSON.stringify(allMappings, null, 2));
+        } catch (e) {
+            console.error('Failed to write /tmp/theia-doc-mappings.json:', e);
+        }
         this.logger.info(`Registered documentation for plugin: ${pluginId} (${pluginName})`);
         this.logger.info('deployed.contributes:', JSON.stringify(plugin.contributes));
     }
