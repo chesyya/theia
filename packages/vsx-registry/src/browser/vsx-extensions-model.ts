@@ -165,34 +165,39 @@ export class VSXExtensionsModel {
 
     resolve(id: string): Promise<VSXExtension> {
         return this.doChange(async () => {
-            await this.initialized;
-            const extension = await this.refresh(id) ?? this.getExtension(id);
-            if (!extension) {
-                throw new Error(`Failed to resolve ${id} extension.`);
-            }
-            if (extension.readme === undefined) {
-                try {
-                    let rawReadme: string = '';
-                    const installedReadme = await this.findReadmeFile(extension);
-                    // Attempt to read the local readme first
-                    // It saves network resources and is faster
-                    if (installedReadme) {
-                        const readmeContent = await this.fileService.readFile(installedReadme);
-                        rawReadme = readmeContent.value.toString();
-                    } else if (extension.readmeUrl) {
-                        rawReadme = RequestContext.asText(
-                            await this.request.request({ url: extension.readmeUrl })
-                        );
-                    }
-                    const readme = this.compileReadme(rawReadme);
-                    extension.update({ readme });
-                } catch (e) {
-                    if (!VSXResponseError.is(e) || e.statusCode !== 404) {
-                        console.error(`[${id}]: failed to compile readme, reason:`, e);
+            try {
+                await this.initialized;
+                const extension = await this.refresh(id) ?? this.getExtension(id);
+                if (!extension) {
+                    throw new Error(`Failed to resolve ${id} extension.`);
+                }
+                if (extension.readme === undefined) {
+                    try {
+                        let rawReadme: string = '';
+                        const installedReadme = await this.findReadmeFile(extension);
+                        // Attempt to read the local readme first
+                        // It saves network resources and is faster
+                        if (installedReadme) {
+                            const readmeContent = await this.fileService.readFile(installedReadme);
+                            rawReadme = readmeContent.value.toString();
+                        } else if (extension.readmeUrl) {
+                            rawReadme = RequestContext.asText(
+                                await this.request.request({ url: extension.readmeUrl })
+                            );
+                        }
+                        const readme = this.compileReadme(rawReadme);
+                        extension.update({ readme });
+                    } catch (e) {
+                        if (!VSXResponseError.is(e) || e.statusCode !== 404) {
+                            console.error(`[${id}]: failed to compile readme, reason:`, e);
+                        }
                     }
                 }
+                return extension;
+            } catch (e) {
+                console.error('resolve error:', e);
+                throw e;
             }
-            return extension;
         });
     }
 
@@ -279,6 +284,52 @@ export class VSXExtensionsModel {
     }
 
     protected doUpdateSearchResult(param: VSXSearchOptions, token: CancellationToken): Promise<void> {
+        // 新增：解析过滤器
+        const parsed = VSXExtensionsSearchModel.parseQuery(param.query || '');
+        // id 优先，若有 id 只查 id
+        if (parsed.id) {
+            // 唯一定位插件，直接 resolve 并加入 _searchResult
+            return this.doChange(async () => {
+                this._searchResult = new Set<string>();
+                try {
+                    const ext = await this.resolve(parsed.id!);
+                    if (ext) {
+                        this._searchResult.add(parsed.id!);
+                    }
+                } catch (e) {
+                    this._searchError = e?.message || String(e);
+                }
+            }, token);
+        } else {
+            // category
+            if (parsed.category) {
+                param.category = parsed.category;
+            }
+            // sortBy 仅允许 averageRating、downloadCount、relevance、timestamp
+            if (parsed.sort) {
+                const sortMap: Record<string, 'averageRating' | 'downloadCount' | 'relevance' | 'timestamp'> = {
+                    rating: 'averageRating',
+                    installs: 'downloadCount',
+                    name: 'relevance', // 没有 name 排序，降级为 relevance
+                    downloadCount: 'downloadCount',
+                    updateDate: 'timestamp',
+                    relevance: 'relevance',
+                };
+                const mapped = sortMap[parsed.sort];
+                if (mapped) param.sortBy = mapped;
+            }
+            // 其余过滤（如 tag/status）合并到 query
+            let extraQuery = '';
+            if (parsed.tag && parsed.tag.length) {
+                extraQuery += parsed.tag.map(t => `tag:${t}`).join(' ');
+            }
+            if (parsed.status && parsed.status.length) {
+                extraQuery += ' ' + parsed.status.map(s => `@${s}`).join(' ');
+            }
+            if (extraQuery.trim()) {
+                param.query = (param.query ? param.query + ' ' : '') + extraQuery.trim();
+            }
+        }
         return this.doChange(async () => {
             this._searchResult = new Set<string>();
             if (!param.query) {

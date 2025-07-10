@@ -58,4 +58,62 @@ export class VSXExtensionsSearchModel {
             ? this.specialQueries.get(this.query) ?? VSXSearchMode.Search
             : VSXSearchMode.None;
     }
+
+    /**
+     * 解析搜索字符串，返回结构化过滤对象。
+     * @param input 搜索框输入
+     */
+    static parseQuery(input: string): {
+        id?: string;
+        status?: string[];
+        category?: string;
+        tag?: string[];
+        sort?: string;
+        raw?: string;
+    } {
+        const result: {
+            id?: string;
+            status?: string[];
+            category?: string;
+            tag?: string[];
+            sort?: string;
+            raw?: string;
+        } = {};
+        result.raw = input;
+        const statusFilters = ['installed', 'disabled', 'builtin', 'recommended', 'popular'];
+        const sortFilters = ['installs', 'rating', 'name', 'downloadCount', 'updateDate', 'relevance'];
+        // 正则提取 @id:xxx
+        const idMatch = input.match(/@id:([\w\-.]+)/);
+        if (idMatch) {
+            result.id = idMatch[1];
+            return result; // id 优先，直接返回
+        }
+        // 提取所有 @xxx 或 tag:xxx 过滤器
+        // 支持引号包裹多词分类
+        const regex = /(@\w+)(:(("[^"]+")|([^\s]+)))?|tag:(("[^"]+")|([^\s]+))/g;
+        let match;
+        while ((match = regex.exec(input)) !== null) {
+            if (match[1]) {
+                const key = match[1].replace('@', '');
+                let value = match[3] || '';
+                value = value.replace(/^"|"$/g, '');
+                if (statusFilters.includes(key)) {
+                    result.status = result.status || [];
+                    if (!result.status.includes(key)) result.status.push(key);
+                } else if (key === 'category') {
+                    result.category = value;
+                } else if (key === 'sort') {
+                    if (sortFilters.includes(value)) {
+                        result.sort = value;
+                    }
+                }
+            } else if (match[6]) {
+                let tagValue = match[6] || match[7] || '';
+                tagValue = tagValue.replace(/^"|"$/g, '');
+                result.tag = result.tag || [];
+                if (!result.tag.includes(tagValue)) result.tag.push(tagValue);
+            }
+        }
+        return result;
+    }
 }
