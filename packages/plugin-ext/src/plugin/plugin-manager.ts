@@ -32,6 +32,7 @@ import {
     LocalizationExt,
     ExtensionKind
 } from '../common/plugin-api-rpc';
+import { PluginAuthorizationService } from '../common/plugin-authorization-service';
 import { PluginMetadata, PluginJsonValidationContribution } from '../common/plugin-protocol';
 import * as theia from '@theia/plugin';
 import * as types from './types-impl';
@@ -365,6 +366,19 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
     async $activatePlugin(id: string): Promise<void> {
         const plugin = this.registry.get(id);
         if (plugin && this.configStorage) {
+            // Check plugin authorization status
+            const isAuthorized = await this.authorizationService.isAuthorized(plugin.model.id);
+            if (!isAuthorized) {
+                this.logger.warn(`Plugin '${plugin.model.id}' is not authorized and will not be activated.`);
+                // Notify frontend to display unauthorized message
+                this.notificationMain.$showMessage(
+                    MainMessageType.Warning,
+                    `Plugin '${plugin.model.displayName || plugin.model.name}' is not authorized.`,
+                    {},
+                    []
+                );
+                return;
+            }
             await this.loadPlugin(plugin, this.configStorage);
         }
     }
@@ -473,6 +487,9 @@ export class PluginManagerExtImpl extends AbstractPluginManagerExtImpl<PluginMan
 
     @inject(WebviewsExtImpl)
     protected readonly webview: WebviewsExtImpl;
+
+    @inject(PluginAuthorizationService)
+    protected readonly authorizationService: PluginAuthorizationService;
 
     private supportedActivationEvents: Set<string>;
 
