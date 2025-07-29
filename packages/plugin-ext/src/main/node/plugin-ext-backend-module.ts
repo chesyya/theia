@@ -115,4 +115,6 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
         )
     ).inSingletonScope();
 
+    // 在现有的绑定中添加
+    bind(PluginAuthorizationService).to(PluginAuthorizationServiceImpl).inSingletonScope();
 }

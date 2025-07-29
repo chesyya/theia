@@ -2300,6 +2300,11 @@ export interface TestingMain {
     $notifyTestRunEnded(controllerId: string, runId: string): void;
 }
 
+export interface PluginAuthorizationServiceMain {
+    $isAuthorized(pluginId: string): Promise<boolean>;
+    $getUnauthorizedPluginIds(): Promise<string[]>;
+}
+
 export const PLUGIN_RPC_CONTEXT = {
     LOGGER_MAIN: createProxyIdentifier<LoggerMain>('LoggerMain'),
     AUTHENTICATION_MAIN: createProxyIdentifier<AuthenticationMain>('AuthenticationMain'),
