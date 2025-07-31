@@ -3,6 +3,7 @@ node_modules
 build
 lib
 tmp
+temp
 *.log
 .idea
 .metadata

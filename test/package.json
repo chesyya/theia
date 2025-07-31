@@ -1,0 +1,16 @@
+{
+  "name": "temp",
+  "version": "1.0.0",
+  "description": "这是一个为Theia插件提供测试功能的完整测试套件，类似于VS Code的`@vscode/test-cli`和`@vscode/test-web`。该套件允许你在Web浏览器或Docker容器中运行Theia插件测试。",
+  "main": "integrated-test-runner.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dockerode": "^4.0.7",
+    "node-fetch": "^2.7.0"
+  }
+}

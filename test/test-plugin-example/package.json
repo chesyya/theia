@@ -1,0 +1,78 @@
+{
+  "name": "test-plugin-example",
+  "description": "Example plugin for testing Theia plugin test suite",
+  "version": "0.0.1",
+  "publisher": "theia-test",
+  "engines": {
+    "vscode": "^1.51.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:testPlugin.helloWorld",
+    "onLanguage:plaintext"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "testPlugin.helloWorld",
+        "title": "Hello World from Test Plugin"
+      },
+      {
+        "command": "testPlugin.showMessage",
+        "title": "Show Test Message"
+      }
+    ],
+    "menus": {
+      "command-palette": [
+        {
+          "command": "testPlugin.helloWorld",
+          "when": "true"
+        },
+        {
+          "command": "testPlugin.showMessage",
+          "when": "true"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Test Plugin",
+      "properties": {
+        "testPlugin.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable test plugin functionality"
+        },
+        "testPlugin.message": {
+          "type": "string",
+          "default": "Hello from Test Plugin!",
+          "description": "Default message to display"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run build",
+    "test": "node ../simple-test-runner.js --extensionDevelopmentPath=. --extensionTestsPath=./out/test/suite/index.js --verbose",
+    "test:web": "node ../simple-test-runner.js --extensionDevelopmentPath=. --extensionTestsPath=./out/test/suite/index.js --verbose",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.51.0",
+    "@types/node": "^16.x",
+    "@types/mocha": "^10.0.2",
+    "@types/chai": "^4.3.0",
+    "typescript": "^4.9.0",
+    "mocha": "^10.0.0",
+    "chai": "^4.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eclipse-theia/theia.git"
+  },
+  "license": "MIT"
+}
