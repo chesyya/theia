@@ -143,6 +143,18 @@
   font-weight: bold;
 }
 
+/* 未授权插件样式 */
+.theia-vsx-extension.unauthorized {
+  opacity: 0.5;
+  filter: grayscale(0.7);
+}
+
+.theia-vsx-extension-content .unauthorized-label {
+  color: var(--theia-errorForeground);
+  font-weight: bold;
+  opacity: 0.8;
+}
+
 .theia-vsx-extension-content .title .version,
 .theia-vsx-extension-content .title .stat {
   opacity: 0.85;

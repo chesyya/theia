@@ -48,6 +48,8 @@ import { PluginRemoteCopyContribution } from './plugin-remote-copy-contribution'
 import { RemoteCopyContribution } from '@theia/core/lib/node/remote/remote-copy-contribution';
 import { PluginDocumentationServer } from './plugin-documentation-server';
 import { PluginDocumentationService, pluginDocumentationServicePath } from '../browser/plugin-documentation-frontend-service';
+import { PluginAuthorizationService } from '../../common/plugin-authorization-service';
+import { PluginAuthorizationServiceImpl } from '../../node/plugin-authorization-service-impl';
 
 export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind): void {
     bind(PluginApiContribution).toSelf().inSingletonScope();
@@ -115,6 +117,7 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
         )
     ).inSingletonScope();
 
-    // 在现有的绑定中添加
-    bind(PluginAuthorizationService).to(PluginAuthorizationServiceImpl).inSingletonScope();
+    // 插件授权服务绑定
+    bind(PluginAuthorizationServiceImpl).toSelf().inSingletonScope();
+    bind(PluginAuthorizationService).toService(PluginAuthorizationServiceImpl);
 }

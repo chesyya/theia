@@ -1,39 +1,46 @@
-import { injectable, inject } from '@theia/core/shared/inversify';
-import { ILogger } from '@theia/core';
-import { PluginAuthorizationService } from '../../common/plugin-authorization-service';
-import { PluginIdentifiers } from '../../common/plugin-protocol';
+// *****************************************************************************
+// Copyright (C) 2024 TypeFox and others.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0.
+//
+// This Source Code may also be made available under the following Secondary
+// Licenses when the conditions for such availability set forth in the Eclipse
+// Public License v. 2.0 are satisfied: GNU General Public License, version 2
+// with the GNU Classpath Exception which is available at
+// https://www.gnu.org/software/classpath/license.html.
+//
+// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
+// *****************************************************************************
 
+import { injectable, inject } from '@theia/core/shared/inversify';
+import { PluginAuthorizationProvider, Event, PluginAuthorizationChangeEvent } from '@theia/core';
+import { PluginAuthorizationService } from '../../common/plugin-authorization-service';
+
+/**
+ * 插件授权服务实现
+ * 作为core包PluginAuthorizationProvider的包装器
+ */
 @injectable()
 export class PluginAuthorizationServiceImpl implements PluginAuthorizationService {
-    @inject(ILogger)
-    protected readonly logger: ILogger;
 
-    // 存储未授权的插件ID
-    private unauthorizedPlugins: Set<string> = new Set<string>();
-
-    constructor() {
-        // 初始化未授权插件列表，可以从配置文件或数据库加载
-    }
+    @inject(PluginAuthorizationProvider)
+    protected readonly authorizationProvider: PluginAuthorizationProvider;
 
     async isAuthorized(pluginId: string): Promise<boolean> {
-        // 检查插件是否在未授权列表中
-        return !this.unauthorizedPlugins.has(pluginId);
+        return this.authorizationProvider.isAuthorized(pluginId);
     }
 
     async getUnauthorizedPluginIds(): Promise<string[]> {
-        return Array.from(this.unauthorizedPlugins);
+        return this.authorizationProvider.getUnauthorizedPluginIds();
     }
 
-    /**
-     * 设置插件授权状态
-     * @param pluginId 插件ID
-     * @param authorized 是否授权
-     */
-    setPluginAuthorization(pluginId: string, authorized: boolean): void {
-        if (authorized) {
-            this.unauthorizedPlugins.delete(pluginId);
-        } else {
-            this.unauthorizedPlugins.add(pluginId);
-        }
+    async getAuthorizedPluginIds(): Promise<string[]> {
+        return this.authorizationProvider.getAuthorizedPluginIds();
+    }
+
+    get onAuthorizationChanged(): Event<PluginAuthorizationChangeEvent> {
+        return this.authorizationProvider.onAuthorizationChanged;
     }
 }

@@ -108,6 +108,9 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
     @inject(RPCProtocol)
     protected readonly rpc: RPCProtocol;
 
+    @inject(PluginAuthorizationService)
+    protected readonly authorizationService: PluginAuthorizationService;
+
     // Cannot be Inversify-injected because it induces a dependency cycle
     protected host: PluginHost;
 
@@ -133,6 +136,11 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
         this.messageRegistryProxy = this.rpc.getProxy(PLUGIN_RPC_CONTEXT.MESSAGE_REGISTRY_MAIN);
         this.notificationMain = this.rpc.getProxy(PLUGIN_RPC_CONTEXT.NOTIFICATION_MAIN);
         this.logger = new PluginLogger(this.rpc, 'plugin-manager');
+        
+        // 监听授权状态变更事件
+        this.authorizationService.onAuthorizationChanged(event => {
+            this.handleAuthorizationChange(event);
+        });
     }
 
     setPluginHost(pluginHost: PluginHost): void {
@@ -371,7 +379,7 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
             if (!isAuthorized) {
                 this.logger.warn(`Plugin '${plugin.model.id}' is not authorized and will not be activated.`);
                 // Notify frontend to display unauthorized message
-                this.notificationMain.$showMessage(
+                this.messageRegistryProxy.$showMessage(
                     MainMessageType.Warning,
                     `Plugin '${plugin.model.displayName || plugin.model.name}' is not authorized.`,
                     {},
@@ -477,6 +485,66 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
         this.onDidChangeEmitter.fire(undefined);
     }
 
+    /**
+     * 处理授权状态变更事件
+     */
+    private async handleAuthorizationChange(event: import('@theia/core').PluginAuthorizationChangeEvent): Promise<void> {
+        const { changedPluginIds, changeType } = event;
+        
+        if (changeType === 'granted') {
+            // 授权被授予，尝试激活之前未激活的插件
+            for (const pluginId of changedPluginIds) {
+                const plugin = this.registry.get(pluginId);
+                if (plugin && !this.activatedPlugins.has(pluginId)) {
+                    try {
+                        this.logger.info(`Plugin '${pluginId}' authorization granted, attempting to activate...`);
+                        await this.$activatePlugin(pluginId);
+                        this.messageRegistryProxy.$showMessage(
+                            MainMessageType.Info,
+                            `Plugin '${plugin.model.displayName || plugin.model.name}' has been activated after authorization.`,
+                            {},
+                            []
+                        );
+                    } catch (error) {
+                        this.logger.error(`Failed to activate plugin '${pluginId}' after authorization grant:`, error);
+                    }
+                }
+            }
+        } else if (changeType === 'revoked') {
+            // 授权被撤销，需要停止相关插件
+            for (const pluginId of changedPluginIds) {
+                const plugin = this.registry.get(pluginId);
+                if (plugin && this.activatedPlugins.has(pluginId)) {
+                    try {
+                        this.logger.warn(`Plugin '${pluginId}' authorization revoked, stopping plugin...`);
+                        await this.$stop(pluginId);
+                        this.messageRegistryProxy.$showMessage(
+                            MainMessageType.Warning,
+                            `Plugin '${plugin.model.displayName || plugin.model.name}' has been deactivated due to authorization revocation.`,
+                            {},
+                            []
+                        );
+                    } catch (error) {
+                        this.logger.error(`Failed to stop plugin '${pluginId}' after authorization revocation:`, error);
+                    }
+                }
+            }
+            
+            // 授权撤销时，建议重新加载插件系统以确保完全清理
+            if (changedPluginIds.length > 0) {
+                this.messageRegistryProxy.$showMessage(
+                    MainMessageType.Warning,
+                    'Some plugins have been deactivated due to authorization changes. Consider reloading the window for complete cleanup.',
+                    {},
+                    []
+                );
+            }
+        }
+        
+        // 触发插件状态变更事件
+        this.fireOnDidChange();
+    }
+
 }
 
 @injectable()
@@ -487,9 +555,6 @@ export class PluginManagerExtImpl extends AbstractPluginManagerExtImpl<PluginMan
 
     @inject(WebviewsExtImpl)
     protected readonly webview: WebviewsExtImpl;
-
-    @inject(PluginAuthorizationService)
-    protected readonly authorizationService: PluginAuthorizationService;
 
     private supportedActivationEvents: Set<string>;
 

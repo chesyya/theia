@@ -95,6 +95,10 @@ import { WebviewSecondaryWindowSupport } from './webview/webview-secondary-windo
 import { CustomEditorUndoRedoHandler } from './custom-editors/custom-editor-undo-redo-handler';
 import { PluginDocumentationCommandContribution } from './menus/plugin-documentation-command';
 import { PluginDocumentationFrontendService, PluginDocumentationService } from './plugin-documentation-frontend-service';
+import { PluginAuthorizationService } from '../../common/plugin-authorization-service';
+import { PluginAuthorizationStatus } from '../../browser/plugin-authorization-status';
+import { PluginAuthorizationServiceProxy } from '../../browser/plugin-authorization-service-proxy';
+import { PluginAuthorizationProvider, Emitter } from '@theia/core';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
 
@@ -302,5 +306,26 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(PluginDocumentationCommandContribution).toSelf().inSingletonScope();
     bind(CommandContribution).toService(PluginDocumentationCommandContribution);
     bind(MenuContribution).toService(PluginDocumentationCommandContribution);
+
+    // 插件授权相关绑定 - 简化版本
+    bind(PluginAuthorizationServiceProxy).toSelf().inSingletonScope();
+    bind(PluginAuthorizationService).toService(PluginAuthorizationServiceProxy);
+    bind(PluginAuthorizationStatus).toSelf().inSingletonScope();
+    bind(FrontendApplicationContribution).toService(PluginAuthorizationStatus);
+    
+    // 创建一个简单的前端授权提供者实现
+    bind(PluginAuthorizationProvider).toConstantValue({
+        async isAuthorized(pluginId: string): Promise<boolean> {
+            // 前端默认都授权，实际检查在后端进行
+            return true;
+        },
+        async getAuthorizedPluginIds(): Promise<string[]> {
+            return [];
+        },
+        async getUnauthorizedPluginIds(): Promise<string[]> {
+            return [];
+        },
+        onAuthorizationChanged: new Emitter().event
+    });
 
 });

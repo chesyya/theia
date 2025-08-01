@@ -27,7 +27,7 @@ export class PluginAuthorizationContribution implements CommandContribution, Men
     }
 
     registerMenus(menus: MenuModelRegistry): void {
-        menus.registerMenuAction(CommonMenus.SETTINGS_OPEN, {
+        menus.registerMenuAction(CommonMenus.HELP, {
             commandId: PluginAuthorizationCommands.MANAGE_PLUGIN_AUTHORIZATION.id,
             label: PluginAuthorizationCommands.MANAGE_PLUGIN_AUTHORIZATION.label
         });

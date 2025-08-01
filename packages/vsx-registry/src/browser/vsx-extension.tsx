@@ -33,6 +33,7 @@ import { VSXExtensionNamespaceAccess, VSXUser } from '@theia/ovsx-client/lib/ovs
 import { WindowService } from '@theia/core/lib/browser/window/window-service';
 import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering';
 import { VSXExtensionsModel } from './vsx-extensions-model';
+import { PluginAuthorizationProvider } from '@theia/core/lib/common/plugin-authorization';
 
 export const EXTENSIONS_CONTEXT_MENU: MenuPath = ['extensions_context_menu'];
 
@@ -141,7 +142,11 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     @inject(CommandRegistry)
     readonly commandRegistry: CommandRegistry;
 
+    @inject(PluginAuthorizationProvider)
+    protected readonly authorizationProvider: PluginAuthorizationProvider;
+
     protected readonly data: Partial<VSXExtensionData> = {};
+    protected _authorized: boolean | undefined;
 
     protected registryUri: Promise<string>;
 
@@ -192,6 +197,19 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
 
     get builtin(): boolean {
         return this.model.isBuiltIn(this.id);
+    }
+
+    get authorized(): boolean | undefined {
+        return this._authorized;
+    }
+
+    async updateAuthorizationStatus(): Promise<void> {
+        try {
+            this._authorized = await this.authorizationProvider.isAuthorized(this.id);
+        } catch (error) {
+            // 如果授权检查失败，默认为已授权（向后兼容）
+            this._authorized = true;
+        }
     }
 
     update(data: Partial<VSXExtensionData>): void {
@@ -534,10 +552,13 @@ export namespace VSXExtensionComponent {
 
 export class VSXExtensionComponent<Props extends VSXExtensionComponent.Props = VSXExtensionComponent.Props> extends AbstractVSXExtensionComponent<Props> {
     override render(): React.ReactNode {
-        const { iconUrl, publisher, displayName, description, version, downloadCount, averageRating, tooltip, verified, disabled } = this.props.extension;
+        const { iconUrl, publisher, displayName, description, version, downloadCount, averageRating, tooltip, verified, disabled, authorized } = this.props.extension;
+        
+        // 为未授权插件添加特殊的CSS类
+        const className = `theia-vsx-extension noselect${authorized === false ? ' unauthorized' : ''}`;
 
         return <div
-            className='theia-vsx-extension noselect'
+            className={className}
             onMouseEnter={event => {
                 this.props.hoverService.requestHover({
                     content: new MarkdownStringImpl(tooltip),
@@ -559,7 +580,9 @@ export class VSXExtensionComponent<Props extends VSXExtensionComponent.Props = V
                     <div className='noWrapInfo'>
                         <span className='name'>{displayName}</span>&nbsp;
                         <span className='version'>{VSXExtension.formatVersion(version)}&nbsp;
-                        </span>{disabled && <span className='disabled'>({nls.localizeByDefault('disabled')})</span>}
+                        </span>
+                        {disabled && <span className='disabled'>({nls.localizeByDefault('disabled')})</span>}
+                        {authorized === false && <span className='unauthorized-label'>({nls.localize('theia/vsx-registry/unauthorized', 'unauthorized')})</span>}
                     </div>
                     <div className='stat'>
                         {!!downloadCount && <span className='download-count'><i className={codicon('cloud-download')} />{downloadCompactFormatter.format(downloadCount)}</span>}

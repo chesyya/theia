@@ -36,6 +36,7 @@ import { ApplicationServer } from '@theia/core/lib/common/application-protocol';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { HostedPluginServer, PluginIdentifiers, PluginType } from '@theia/plugin-ext';
 import { HostedPluginWatcher } from '@theia/plugin-ext/lib/hosted/browser/hosted-plugin-watcher';
+import { PluginAuthorizationProvider } from '@theia/core/lib/common/plugin-authorization';
 
 @injectable()
 export class VSXExtensionsModel {
@@ -99,9 +100,16 @@ export class VSXExtensionsModel {
     @inject(ApplicationServer)
     protected readonly applicationServer: ApplicationServer;
 
+    @inject(PluginAuthorizationProvider)
+    protected readonly authorizationProvider: PluginAuthorizationProvider;
+
     @postConstruct()
     protected init(): void {
         this.initialized = this.doInit().catch(console.error);
+        // 监听授权状态变更
+        this.authorizationProvider.onAuthorizationChanged(event => {
+            this.handleAuthorizationChange(event);
+        });
     }
 
     protected async doInit(): Promise<void> {
@@ -109,6 +117,7 @@ export class VSXExtensionsModel {
             this.initInstalled(),
             this.initSearchResult(),
             this.initRecommended(),
+            this.initAuthorization(),
         ]);
     }
 
@@ -605,6 +614,32 @@ export class VSXExtensionsModel {
             return extensionA.publisher.localeCompare(extensionB.publisher);
         }
         return 0;
+    }
+
+    protected async initAuthorization(): Promise<void> {
+        try {
+            await this.updateAuthorizationStatus();
+        } catch (e) {
+            console.error('Failed to initialize authorization status:', e);
+        }
+    }
+
+    protected async updateAuthorizationStatus(): Promise<void> {
+        const extensions = Array.from(this.extensions.values());
+        await Promise.all(extensions.map(extension => extension.updateAuthorizationStatus()));
+        this.onDidChangeEmitter.fire();
+    }
+
+    protected async handleAuthorizationChange(event: import('@theia/core').PluginAuthorizationChangeEvent): Promise<void> {
+        const { changedPluginIds } = event;
+        const affectedExtensions = changedPluginIds
+            .map(id => this.getExtension(id))
+            .filter(ext => ext !== undefined) as VSXExtension[];
+        
+        if (affectedExtensions.length > 0) {
+            await Promise.all(affectedExtensions.map(extension => extension.updateAuthorizationStatus()));
+            this.onDidChangeEmitter.fire();
+        }
     }
 
 }
