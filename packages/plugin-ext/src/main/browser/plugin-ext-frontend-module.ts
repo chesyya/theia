@@ -98,7 +98,12 @@ import { PluginDocumentationFrontendService, PluginDocumentationService } from '
 import { PluginAuthorizationService } from '../../common/plugin-authorization-service';
 import { PluginAuthorizationStatus } from '../../browser/plugin-authorization-status';
 import { PluginAuthorizationServiceProxy } from '../../browser/plugin-authorization-service-proxy';
-import { PluginAuthorizationProvider, Emitter } from '@theia/core';
+import { PluginAuthorizationProvider } from '../../common/plugin-authorization';
+import { PluginAuthorizationFrontendProvider } from './plugin-authorization-frontend-provider';
+// import { PluginAuthorizationMenuContribution } from './plugin-authorization-menu-contribution';
+import { IAuthorizationService } from '../../common/services/authorization';
+import { AuthorizationFrontendProxy } from './authorization-frontend-proxy';
+import { AuthorizationMenuContribution } from './authorization-menu-contribution';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
 
@@ -307,25 +312,28 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(CommandContribution).toService(PluginDocumentationCommandContribution);
     bind(MenuContribution).toService(PluginDocumentationCommandContribution);
 
-    // 插件授权相关绑定 - 简化版本
+    // 插件授权相关绑定 - 通过WebSocket与后端通信
     bind(PluginAuthorizationServiceProxy).toSelf().inSingletonScope();
     bind(PluginAuthorizationService).toService(PluginAuthorizationServiceProxy);
     bind(PluginAuthorizationStatus).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(PluginAuthorizationStatus);
-    
-    // 创建一个简单的前端授权提供者实现
-    bind(PluginAuthorizationProvider).toConstantValue({
-        async isAuthorized(pluginId: string): Promise<boolean> {
-            // 前端默认都授权，实际检查在后端进行
-            return true;
-        },
-        async getAuthorizedPluginIds(): Promise<string[]> {
-            return [];
-        },
-        async getUnauthorizedPluginIds(): Promise<string[]> {
-            return [];
-        },
-        onAuthorizationChanged: new Emitter().event
-    });
+
+    // 创建通过WebSocket与后端通信的前端授权提供者
+    bind(PluginAuthorizationFrontendProvider).toSelf().inSingletonScope();
+    bind(PluginAuthorizationProvider).toService(PluginAuthorizationFrontendProvider);
+
+    // 插件授权菜单贡献 - 已禁用，使用新的授权系统
+    // bind(PluginAuthorizationMenuContribution).toSelf().inSingletonScope();
+    // bind(CommandContribution).toService(PluginAuthorizationMenuContribution);
+    // bind(MenuContribution).toService(PluginAuthorizationMenuContribution);
+
+    // 新的授权服务前端代理
+    bind(AuthorizationFrontendProxy).toSelf().inSingletonScope();
+    bind(IAuthorizationService).toService(AuthorizationFrontendProxy);
+
+    // 新的授权菜单贡献
+    bind(AuthorizationMenuContribution).toSelf().inSingletonScope();
+    bind(CommandContribution).toService(AuthorizationMenuContribution);
+    bind(MenuContribution).toService(AuthorizationMenuContribution);
 
 });

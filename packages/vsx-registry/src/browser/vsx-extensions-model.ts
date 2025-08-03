@@ -36,7 +36,7 @@ import { ApplicationServer } from '@theia/core/lib/common/application-protocol';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { HostedPluginServer, PluginIdentifiers, PluginType } from '@theia/plugin-ext';
 import { HostedPluginWatcher } from '@theia/plugin-ext/lib/hosted/browser/hosted-plugin-watcher';
-import { PluginAuthorizationProvider } from '@theia/core/lib/common/plugin-authorization';
+import { PluginAuthorizationProvider } from '@theia/plugin-ext/lib/common/plugin-authorization';
 
 @injectable()
 export class VSXExtensionsModel {
@@ -107,7 +107,7 @@ export class VSXExtensionsModel {
     protected init(): void {
         this.initialized = this.doInit().catch(console.error);
         // 监听授权状态变更
-        this.authorizationProvider.onAuthorizationChanged(event => {
+        this.authorizationProvider.onAuthorizationChanged((event: import('@theia/plugin-ext/lib/common/plugin-authorization').PluginAuthorizationChangeEvent) => {
             this.handleAuthorizationChange(event);
         });
     }
@@ -466,27 +466,41 @@ export class VSXExtensionsModel {
             this._installed = new Set(installedSorted.values());
 
             const missingIds = new Set<PluginIdentifiers.VersionedId>();
+            console.log(`[VSX-MODEL] 🔍 Processing ${installedVersioned.size} installed plugins for builtin detection`);
+            
             for (const id of installedVersioned) {
                 const unversionedId = PluginIdentifiers.unversionedFromVersioned(id);
                 const plugin = this.pluginSupport.getPlugin(unversionedId);
+                console.log(`[VSX-MODEL] 📋 Plugin ${unversionedId}: ${plugin ? `found (type: ${plugin.type})` : 'not found'}`);
+                
                 if (plugin) {
                     if (plugin.type === PluginType.System) {
                         this.builtins.add(unversionedId);
+                        console.log(`[VSX-MODEL] ✅ Added builtin: ${unversionedId}`);
                     } else {
                         this.builtins.delete(unversionedId);
+                        console.log(`[VSX-MODEL] ➖ Not a builtin: ${unversionedId} (type: ${plugin.type})`);
                     }
                 } else {
                     missingIds.add(id);
+                    console.log(`[VSX-MODEL] ❓ Missing plugin: ${id}`);
                 }
             }
             const missing = await this.pluginServer.getDeployedPlugins([...missingIds.values()]);
+            console.log(`[VSX-MODEL] 🔍 Processing ${missing.length} missing plugins`);
+            
             for (const plugin of missing) {
+                const pluginId = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
                 if (plugin.type === PluginType.System) {
-                    this.builtins.add(PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model));
+                    this.builtins.add(pluginId);
+                    console.log(`[VSX-MODEL] ✅ Added missing builtin: ${pluginId}`);
                 } else {
-                    this.builtins.delete(PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model));
+                    this.builtins.delete(pluginId);
+                    console.log(`[VSX-MODEL] ➖ Missing plugin not builtin: ${pluginId} (type: ${plugin.type})`);
                 }
             }
+            
+            console.log(`[VSX-MODEL] 📊 Total builtins detected: ${this.builtins.size}`, Array.from(this.builtins));
         });
     }
 
@@ -630,11 +644,11 @@ export class VSXExtensionsModel {
         this.onDidChangeEmitter.fire();
     }
 
-    protected async handleAuthorizationChange(event: import('@theia/core').PluginAuthorizationChangeEvent): Promise<void> {
+    protected async handleAuthorizationChange(event: import('@theia/plugin-ext/lib/common/plugin-authorization').PluginAuthorizationChangeEvent): Promise<void> {
         const { changedPluginIds } = event;
         const affectedExtensions = changedPluginIds
-            .map(id => this.getExtension(id))
-            .filter(ext => ext !== undefined) as VSXExtension[];
+            .map((id: string) => this.getExtension(id))
+            .filter((ext: VSXExtension | undefined) => ext !== undefined) as VSXExtension[];
         
         if (affectedExtensions.length > 0) {
             await Promise.all(affectedExtensions.map(extension => extension.updateAuthorizationStatus()));

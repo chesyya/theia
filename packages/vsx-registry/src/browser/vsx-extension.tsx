@@ -33,7 +33,8 @@ import { VSXExtensionNamespaceAccess, VSXUser } from '@theia/ovsx-client/lib/ovs
 import { WindowService } from '@theia/core/lib/browser/window/window-service';
 import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering';
 import { VSXExtensionsModel } from './vsx-extensions-model';
-import { PluginAuthorizationProvider } from '@theia/core/lib/common/plugin-authorization';
+import { PluginAuthorizationProvider } from '@theia/plugin-ext/lib/common/plugin-authorization';
+import { IAuthorizationService } from '@theia/plugin-ext/lib/common/services/authorization';
 
 export const EXTENSIONS_CONTEXT_MENU: MenuPath = ['extensions_context_menu'];
 
@@ -145,8 +146,12 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     @inject(PluginAuthorizationProvider)
     protected readonly authorizationProvider: PluginAuthorizationProvider;
 
+    @inject(IAuthorizationService)
+    protected readonly newAuthorizationService: IAuthorizationService;
+
     protected readonly data: Partial<VSXExtensionData> = {};
     protected _authorized: boolean | undefined;
+    protected _authorizationState: 'pending' | 'authorized' | 'unauthorized' = 'pending';
 
     protected registryUri: Promise<string>;
 
@@ -203,12 +208,35 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
         return this._authorized;
     }
 
-    async updateAuthorizationStatus(): Promise<void> {
+    get authorizationState(): 'pending' | 'authorized' | 'unauthorized' {
+        return this._authorizationState;
+    }
+
+    async updateAuthorizationStatus(forceUpdate: boolean = false): Promise<void> {
         try {
-            this._authorized = await this.authorizationProvider.isAuthorized(this.id);
+            console.log(`[VSX-EXT] 🔍 Checking authorization status for extension: ${this.id} (force: ${forceUpdate})`);
+            const wasAuthorized = this._authorized;
+            const wasState = this._authorizationState;
+
+            // 设置为pending状态，然后进行检查
+            this._authorizationState = 'pending';
+
+            // 使用新的授权服务检查状态
+            const authStatus = await this.newAuthorizationService.getAuthorizationStatus(this.id);
+            this._authorized = authStatus === 'granted';
+            this._authorizationState = authStatus === 'granted' ? 'authorized' : 
+                                      authStatus === 'denied' ? 'unauthorized' : 'pending';
+            
+            console.log(`[VSX-EXT] ✅ Authorization status checked: ${this._authorized} (${this._authorizationState}) for ${this.id}`);
+
+            if (wasAuthorized !== this._authorized || wasState !== this._authorizationState || forceUpdate) {
+                console.log(`[VSX-EXT] 🔄 Authorization status ${forceUpdate ? '(forced)' : 'changed'} for ${this.id}: ${wasAuthorized}(${wasState}) -> ${this._authorized}(${this._authorizationState})`);
+            }
         } catch (error) {
-            // 如果授权检查失败，默认为已授权（向后兼容）
+            console.error(`[VSX-EXT] ❌ Failed to check authorization status for ${this.id}:`, error);
+            // 发生错误时默认为已授权状态，确保插件可见
             this._authorized = true;
+            this._authorizationState = 'authorized';
         }
     }
 
@@ -509,10 +537,12 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
     };
 
     protected renderAction(host?: TreeWidget): React.ReactNode {
-        const { builtin, currentTask, disabled, uninstalled, installed, deployed } = this.props.extension;
+        const { builtin, currentTask, disabled, uninstalled, installed, deployed, authorized } = this.props.extension;
         const isFocused = (host?.model.getFocusedNode() as TreeElementNode)?.element === this.props.extension;
         const tabIndex = (!host || isFocused) ? 0 : undefined;
         const outOfSync = installed && (deployed ? (disabled || uninstalled) : !(disabled || uninstalled));
+        const isUnauthorized = authorized !== true;
+
         if (currentTask) {
             return <button className="theia-button action prominent theia-mod-disabled">{currentTask}</button>;
         }
@@ -522,10 +552,29 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
             }
             {
                 !builtin && ((installed && !uninstalled) ?
-                    <button className="theia-button action" onClick={this.uninstall}>{nls.localizeByDefault('Uninstall')}</button> :
-                    <button className="theia-button prominent action" onClick={this.install}>{nls.localizeByDefault('Install')}</button>)
+                    <button
+                        className="theia-button action"
+                        onClick={this.uninstall}
+                        disabled={isUnauthorized}
+                        title={isUnauthorized ? nls.localize('theia/vsx-registry/unauthorizedAction', 'Cannot uninstall unauthorized extension') : undefined}
+                    >
+                        {nls.localizeByDefault('Uninstall')}
+                    </button> :
+                    <button
+                        className="theia-button prominent action"
+                        onClick={this.install}
+                        disabled={isUnauthorized}
+                        title={isUnauthorized ? nls.localize('theia/vsx-registry/unauthorizedAction', 'Cannot install unauthorized extension') : undefined}
+                    >
+                        {nls.localizeByDefault('Install')}
+                    </button>)
             }
-            <div className="codicon codicon-settings-gear action" tabIndex={tabIndex} onClick={this.manage}></div>
+            <div
+                className={`codicon codicon-settings-gear action ${isUnauthorized ? 'disabled' : ''}`}
+                tabIndex={isUnauthorized ? undefined : tabIndex}
+                onClick={isUnauthorized ? undefined : this.manage}
+                title={isUnauthorized ? nls.localize('theia/vsx-registry/unauthorizedAction', 'Settings unavailable for unauthorized extension') : undefined}
+            />
         </div>;
     }
 
@@ -552,10 +601,25 @@ export namespace VSXExtensionComponent {
 
 export class VSXExtensionComponent<Props extends VSXExtensionComponent.Props = VSXExtensionComponent.Props> extends AbstractVSXExtensionComponent<Props> {
     override render(): React.ReactNode {
-        const { iconUrl, publisher, displayName, description, version, downloadCount, averageRating, tooltip, verified, disabled, authorized } = this.props.extension;
-        
-        // 为未授权插件添加特殊的CSS类
-        const className = `theia-vsx-extension noselect${authorized === false ? ' unauthorized' : ''}`;
+        const { iconUrl, publisher, displayName, description, version, downloadCount, averageRating, tooltip, verified, disabled, authorized, authorizationState } = this.props.extension;
+
+        // 为不同授权状态添加CSS类
+        let authClass = '';
+        if (authorizationState === 'unauthorized') {
+            authClass = ' unauthorized';
+        } else if (authorizationState === 'pending') {
+            authClass = ' auth-pending';
+        }
+        const className = `theia-vsx-extension noselect${authClass}`;
+
+        // 🎨 调试日志：VSX Extension 渲染更新
+        console.log(`[VSX-RENDER] 🎨 Rendering extension ${this.props.extension.id}:`, {
+            authorized,
+            authorizationState,
+            disabled,
+            className,
+            displayName
+        });
 
         return <div
             className={className}
@@ -582,7 +646,15 @@ export class VSXExtensionComponent<Props extends VSXExtensionComponent.Props = V
                         <span className='version'>{VSXExtension.formatVersion(version)}&nbsp;
                         </span>
                         {disabled && <span className='disabled'>({nls.localizeByDefault('disabled')})</span>}
-                        {authorized === false && <span className='unauthorized-label'>({nls.localize('theia/vsx-registry/unauthorized', 'unauthorized')})</span>}
+                        {authorized !== true && (
+                            <span
+                                className='unauthorized-indicator'
+                                title={nls.localize('theia/vsx-registry/unauthorizedTooltip', 'This extension is not authorized for use in your workspace. Please contact your administrator for access.')}
+                            >
+                                <i className={codicon('lock')} />
+                                <span className='unauthorized-label'>{nls.localize('theia/vsx-registry/unauthorized', 'unauthorized')}</span>
+                            </span>
+                        )}
                     </div>
                     <div className='stat'>
                         {!!downloadCount && <span className='download-count'><i className={codicon('cloud-download')} />{downloadCompactFormatter.format(downloadCount)}</span>}

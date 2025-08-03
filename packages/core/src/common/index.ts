@@ -49,4 +49,3 @@ export { default as URI } from './uri';
 export * from './uuid';
 export * from './view-column';
 export * from './version';
-export * from './plugin-authorization';

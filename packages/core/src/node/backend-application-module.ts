@@ -44,8 +44,6 @@ import { FileSystemLocking, FileSystemLockingImpl } from './filesystem-locking';
 import { BackendRemoteService } from './remote/backend-remote-service';
 import { RemoteCliContribution } from './remote/remote-cli-contribution';
 import { SettingService, SettingServiceImpl } from './setting-service';
-import { PluginAuthorizationProvider } from '../common/plugin-authorization';
-import { PluginAuthorizationProviderImpl } from './plugin-authorization-provider-impl';
 
 decorate(injectable(), ApplicationPackage);
 
@@ -143,6 +141,4 @@ export const backendApplicationModule = new ContainerModule(bind => {
     bind(SettingServiceImpl).toSelf().inSingletonScope();
     bind(SettingService).toService(SettingServiceImpl);
 
-    bind(PluginAuthorizationProviderImpl).toSelf().inSingletonScope();
-    bind(PluginAuthorizationProvider).toService(PluginAuthorizationProviderImpl);
 });

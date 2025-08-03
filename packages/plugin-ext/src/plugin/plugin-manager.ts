@@ -153,7 +153,8 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
         if (!pluginId) {
             return this.stopAll();
         }
-        this.registry.delete(pluginId);
+        // 不要从registry中删除插件，保留插件信息用于潜在的重新激活
+        // this.registry.delete(pluginId); // ❌ 移除这行 - 插件信息应该保留
         this.pluginContextsMap.delete(pluginId);
         this.loadedPlugins.delete(pluginId);
         const plugin = this.activatedPlugins.get(pluginId);
@@ -161,6 +162,7 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
             return;
         }
         this.activatedPlugins.delete(pluginId);
+        console.log(`[PLUGIN-MANAGER] 🛑 Stopping plugin ${pluginId} while keeping it in registry for potential reactivation`);
         return this.stopPlugin(pluginId, plugin);
     }
 
@@ -487,61 +489,15 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
 
     /**
      * 处理授权状态变更事件
+     * 现在由后端的AuthorizationEnforcementService处理，这里只记录日志
      */
-    private async handleAuthorizationChange(event: import('@theia/core').PluginAuthorizationChangeEvent): Promise<void> {
+    private async handleAuthorizationChange(event: import('../common/plugin-authorization').PluginAuthorizationChangeEvent): Promise<void> {
         const { changedPluginIds, changeType } = event;
         
-        if (changeType === 'granted') {
-            // 授权被授予，尝试激活之前未激活的插件
-            for (const pluginId of changedPluginIds) {
-                const plugin = this.registry.get(pluginId);
-                if (plugin && !this.activatedPlugins.has(pluginId)) {
-                    try {
-                        this.logger.info(`Plugin '${pluginId}' authorization granted, attempting to activate...`);
-                        await this.$activatePlugin(pluginId);
-                        this.messageRegistryProxy.$showMessage(
-                            MainMessageType.Info,
-                            `Plugin '${plugin.model.displayName || plugin.model.name}' has been activated after authorization.`,
-                            {},
-                            []
-                        );
-                    } catch (error) {
-                        this.logger.error(`Failed to activate plugin '${pluginId}' after authorization grant:`, error);
-                    }
-                }
-            }
-        } else if (changeType === 'revoked') {
-            // 授权被撤销，需要停止相关插件
-            for (const pluginId of changedPluginIds) {
-                const plugin = this.registry.get(pluginId);
-                if (plugin && this.activatedPlugins.has(pluginId)) {
-                    try {
-                        this.logger.warn(`Plugin '${pluginId}' authorization revoked, stopping plugin...`);
-                        await this.$stop(pluginId);
-                        this.messageRegistryProxy.$showMessage(
-                            MainMessageType.Warning,
-                            `Plugin '${plugin.model.displayName || plugin.model.name}' has been deactivated due to authorization revocation.`,
-                            {},
-                            []
-                        );
-                    } catch (error) {
-                        this.logger.error(`Failed to stop plugin '${pluginId}' after authorization revocation:`, error);
-                    }
-                }
-            }
-            
-            // 授权撤销时，建议重新加载插件系统以确保完全清理
-            if (changedPluginIds.length > 0) {
-                this.messageRegistryProxy.$showMessage(
-                    MainMessageType.Warning,
-                    'Some plugins have been deactivated due to authorization changes. Consider reloading the window for complete cleanup.',
-                    {},
-                    []
-                );
-            }
-        }
+        console.log(`[PLUGIN-MANAGER] 📋 Authorization change notification: ${changeType} for plugins:`, changedPluginIds);
+        console.log('[PLUGIN-MANAGER] 💡 Authorization enforcement is now handled by backend AuthorizationEnforcementService');
         
-        // 触发插件状态变更事件
+        // 触发插件状态变更事件，通知前端更新UI
         this.fireOnDidChange();
     }
 

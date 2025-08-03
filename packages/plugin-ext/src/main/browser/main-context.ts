@@ -51,6 +51,7 @@ import { ThemingMainImpl } from './theming-main';
 import { CommentsMainImp } from './comments/comments-main';
 import { CustomEditorsMainImpl } from './custom-editors/custom-editors-main';
 import { SecretsMainImpl } from './secrets-main';
+import { PluginAuthorizationMainImpl } from './plugin-authorization-main';
 import { WebviewViewsMainImpl } from './webview-views/webview-views-main';
 import { MonacoLanguages } from '@theia/monaco/lib/browser/monaco-languages';
 import { UntitledResourceResolver } from '@theia/core/lib/common/resource';
@@ -211,4 +212,7 @@ export function setUpPluginApi(rpc: RPCProtocol, container: interfaces.Container
 
     const uriMain = new UriMainImpl(rpc, container);
     rpc.set(PLUGIN_RPC_CONTEXT.URI_MAIN, uriMain);
+
+    const pluginAuthorizationMain = new PluginAuthorizationMainImpl(rpc, container);
+    rpc.set(PLUGIN_RPC_CONTEXT.PLUGIN_AUTHORIZATION_MAIN, pluginAuthorizationMain);
 }
