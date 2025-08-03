@@ -143,16 +143,79 @@
   font-weight: bold;
 }
 
-/* 未授权插件样式 */
+/* 未授权插件样式 - 修复undefined状态显示 */
+.theia-vsx-extension {
+  transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out, filter 0.2s ease-in-out;
+}
+
 .theia-vsx-extension.unauthorized {
-  opacity: 0.5;
-  filter: grayscale(0.7);
+  /* 使用主题变量提供一致的背景色 */
+  background-color: var(--theia-list-inactiveSelectionBackground, rgba(255, 255, 255, 0.05));
+  
+  /* 灰度滤镜使整个扩展去色，包括图标 */
+  filter: grayscale(90%);
+  
+  /* 略微降低透明度，但保持可读性 */
+  opacity: 0.75;
+  
+  /* 显示不可交互状态 */
+  cursor: not-allowed;
+  
+  /* 添加左边框指示器 */
+  border-left: 3px solid var(--theia-errorForeground, #e74c3c);
+}
+
+/* 授权检查中的样式 */
+.theia-vsx-extension.auth-pending {
+  /* 稍微降低透明度表示正在加载 */
+  opacity: 0.85;
+  
+  /* 添加蓝色左边框表示正在处理 */
+  border-left: 3px solid var(--theia-progressBar-background, #007acc);
+  
+  /* 可选：添加微妙的动画效果 */
+  animation: auth-pending-pulse 2s infinite;
+}
+
+/* 授权检查中的脉冲动画 */
+@keyframes auth-pending-pulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.95; }
+}
+
+/* 未授权指示器样式 */
+.theia-vsx-extension-content .unauthorized-indicator {
+  display: inline-flex;
+  align-items: center;
+  color: var(--theia-errorForeground);
+  font-weight: bold;
+  margin-left: 8px;
+}
+
+.theia-vsx-extension-content .unauthorized-indicator .codicon {
+  margin-right: 4px;
+  font-size: 110%;
 }
 
 .theia-vsx-extension-content .unauthorized-label {
-  color: var(--theia-errorForeground);
-  font-weight: bold;
-  opacity: 0.8;
+  color: inherit;
+}
+
+/* 禁用的操作按钮和图标 */
+.theia-vsx-extension.unauthorized .action.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* 禁用未授权插件的悬停效果 */
+.theia-vsx-extension.unauthorized:hover {
+  background-color: var(--theia-list-inactiveSelectionBackground, #444444) !important;
+}
+
+.theia-vsx-extension.unauthorized .action:hover {
+  background-color: transparent !important;
+  cursor: not-allowed !important;
 }
 
 .theia-vsx-extension-content .title .version,

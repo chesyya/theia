@@ -19,6 +19,7 @@
 import { createProxyIdentifier, ProxyIdentifier, RPCProtocol } from './rpc-protocol';
 import * as theia from '@theia/plugin';
 import { PluginLifecycle, PluginModel, PluginMetadata, PluginPackage, IconUrl, PluginJsonValidationContribution } from './plugin-protocol';
+import { PluginAuthorizationProvider } from './plugin-authorization';
 import { QueryParameters } from './env';
 import { TextEditorCursorStyle } from './editor-options';
 import {
@@ -2350,7 +2351,8 @@ export const PLUGIN_RPC_CONTEXT = {
     TELEMETRY_MAIN: createProxyIdentifier<TelemetryMain>('TelemetryMain'),
     LOCALIZATION_MAIN: createProxyIdentifier<LocalizationMain>('LocalizationMain'),
     TESTING_MAIN: createProxyIdentifier<TestingMain>('TestingMain'),
-    URI_MAIN: createProxyIdentifier<UriMain>('UriMain')
+    URI_MAIN: createProxyIdentifier<UriMain>('UriMain'),
+    PLUGIN_AUTHORIZATION_MAIN: createProxyIdentifier<PluginAuthorizationProvider>('PluginAuthorizationMain')
 };
 
 export const MAIN_RPC_CONTEXT = {
@@ -2393,7 +2395,8 @@ export const MAIN_RPC_CONTEXT = {
     TABS_EXT: createProxyIdentifier<TabsExt>('TabsExt'),
     TELEMETRY_EXT: createProxyIdentifier<TelemetryExt>('TelemetryExt)'),
     TESTING_EXT: createProxyIdentifier<TestingExt>('TestingExt'),
-    URI_EXT: createProxyIdentifier<UriExt>('UriExt')
+    URI_EXT: createProxyIdentifier<UriExt>('UriExt'),
+    PLUGIN_AUTHORIZATION_EXT: createProxyIdentifier<PluginAuthorizationExt>('PluginAuthorizationExt')
 };
 
 export interface TasksExt {
@@ -2414,6 +2417,10 @@ export interface TasksMain {
     $unregister(handle: number): void;
     $terminateTask(id: number): void;
     $customExecutionComplete(id: number, exitCode: number | undefined): void;
+}
+
+export interface PluginAuthorizationExt {
+    $onDidChangeAuthorizationStatus(event: import('./plugin-authorization').PluginAuthorizationChangeEvent): Promise<void>;
 }
 
 export interface AuthenticationExt {

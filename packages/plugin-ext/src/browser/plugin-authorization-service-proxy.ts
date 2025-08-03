@@ -16,7 +16,7 @@
 
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { Event } from '@theia/core/lib/common/event';
-import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '@theia/core';
+import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../common/plugin-authorization';
 import { PluginAuthorizationService } from '../common/plugin-authorization-service';
 
 /**
@@ -29,7 +29,7 @@ export class PluginAuthorizationServiceProxy implements PluginAuthorizationServi
     protected readonly authorizationProvider: PluginAuthorizationProvider;
 
     async isAuthorized(pluginId: string): Promise<boolean> {
-        return this.authorizationProvider.isAuthorized(pluginId);
+        return this.authorizationProvider.$isAuthorized(pluginId);
     }
 
     async getUnauthorizedPluginIds(): Promise<string[]> {
@@ -42,5 +42,21 @@ export class PluginAuthorizationServiceProxy implements PluginAuthorizationServi
 
     get onAuthorizationChanged(): Event<PluginAuthorizationChangeEvent> {
         return this.authorizationProvider.onAuthorizationChanged;
+    }
+
+    async grantTestPluginAuthorization(): Promise<void> {
+        // 通过类型断言调用后端方法
+        const provider = this.authorizationProvider as any;
+        if (provider.grantTestPluginAuthorization) {
+            return provider.grantTestPluginAuthorization();
+        }
+    }
+
+    async revokeTestPluginAuthorization(): Promise<void> {
+        // 通过类型断言调用后端方法
+        const provider = this.authorizationProvider as any;
+        if (provider.revokeTestPluginAuthorization) {
+            return provider.revokeTestPluginAuthorization();
+        }
     }
 }

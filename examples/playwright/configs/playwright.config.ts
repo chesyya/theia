@@ -14,11 +14,17 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { PlaywrightTestConfig } from '@playwright/test';
+'''import { PlaywrightTestConfig } from '@playwright/test';
 
 const config: PlaywrightTestConfig = {
     testDir: '../lib/tests',
     testMatch: ['**/*.js'],
+    // Exclude all other tests.
+    testIgnore: [
+        '../../../../dev-packages/**',
+        '../../../../packages/**',
+        '../../../../test/**'
+    ],
     workers: 1,
     fullyParallel: false,
     // Timeout for each test in milliseconds.
@@ -42,4 +48,4 @@ const config: PlaywrightTestConfig = {
     }
 };
 
-export default config;
+export default config;'''

@@ -1,4 +1,5 @@
-import { Event, PluginAuthorizationChangeEvent } from '@theia/core';
+import { Event } from '@theia/core';
+import { PluginAuthorizationChangeEvent } from './plugin-authorization';
 
 export const PluginAuthorizationService = Symbol('PluginAuthorizationService');
 
@@ -26,4 +27,14 @@ export interface PluginAuthorizationService {
      * 授权状态变更事件
      */
     readonly onAuthorizationChanged: Event<PluginAuthorizationChangeEvent>;
+
+    /**
+     * 授权测试插件（仅用于测试）
+     */
+    grantTestPluginAuthorization(): Promise<void>;
+
+    /**
+     * 撤销测试插件授权（仅用于测试）
+     */
+    revokeTestPluginAuthorization(): Promise<void>;
 }

@@ -36,7 +36,7 @@ import { ApplicationServer } from '@theia/core/lib/common/application-protocol';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { HostedPluginServer, PluginIdentifiers, PluginType } from '@theia/plugin-ext';
 import { HostedPluginWatcher } from '@theia/plugin-ext/lib/hosted/browser/hosted-plugin-watcher';
-import { PluginAuthorizationProvider } from '@theia/core/lib/common/plugin-authorization';
+import { PluginAuthorizationProvider } from '@theia/plugin-ext/lib/common/plugin-authorization';
 
 @injectable()
 export class VSXExtensionsModel {
@@ -460,33 +460,53 @@ export class VSXExtensionsModel {
                 if (!extension) { continue; }
                 refreshing.push(this.refresh(id, extension.version));
             }
-            await Promise.all(refreshing);
-            const installed = new Set([...prevInstalled, ...currInstalled]);
-            const installedSorted = Array.from(installed).sort((a, b) => this.compareExtensions(a, b));
-            this._installed = new Set(installedSorted.values());
-
+            // 立即更新builtin状态，不等待refresh完成
+            console.log(`[VSX-MODEL] 🔍 Processing builtin status for ${installedVersioned.size} installed plugins...`);
             const missingIds = new Set<PluginIdentifiers.VersionedId>();
             for (const id of installedVersioned) {
                 const unversionedId = PluginIdentifiers.unversionedFromVersioned(id);
                 const plugin = this.pluginSupport.getPlugin(unversionedId);
                 if (plugin) {
                     if (plugin.type === PluginType.System) {
+                        console.log(`[VSX-MODEL] ✅ Adding System plugin to builtins: ${unversionedId}`);
                         this.builtins.add(unversionedId);
                     } else {
+                        console.log(`[VSX-MODEL] ❌ Removing User plugin from builtins: ${unversionedId} (type: ${plugin.type})`);
                         this.builtins.delete(unversionedId);
                     }
                 } else {
+                    console.log(`[VSX-MODEL] ⚠️ Plugin not found, adding to missing list: ${id}`);
                     missingIds.add(id);
                 }
             }
+            console.log(`[VSX-MODEL] 🔍 Processing ${missingIds.size} missing plugins...`);
             const missing = await this.pluginServer.getDeployedPlugins([...missingIds.values()]);
             for (const plugin of missing) {
+                const pluginId = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
                 if (plugin.type === PluginType.System) {
-                    this.builtins.add(PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model));
+                    console.log(`[VSX-MODEL] ✅ Adding missing System plugin to builtins: ${pluginId}`);
+                    this.builtins.add(pluginId);
                 } else {
-                    this.builtins.delete(PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model));
+                    console.log(`[VSX-MODEL] ❌ Removing missing User plugin from builtins: ${pluginId} (type: ${plugin.type})`);
+                    this.builtins.delete(pluginId);
                 }
             }
+            console.log(`[VSX-MODEL] 📊 Final builtin plugins count: ${this.builtins.size}`);
+            console.log(`[VSX-MODEL] 📋 Builtin plugins:`, Array.from(this.builtins));
+            
+            // 更新安装列表（builtin状态已经设置完成）
+            const installed = new Set([...prevInstalled, ...currInstalled]);
+            const installedSorted = Array.from(installed).sort((a, b) => this.compareExtensions(a, b));
+            this._installed = new Set(installedSorted.values());
+            
+            // 在后台异步等待refresh完成，不阻塞builtin状态
+            Promise.all(refreshing).then(() => {
+                console.log(`[VSX-MODEL] ✅ Background refresh completed for ${refreshing.length} extensions`);
+                this.onDidChangeEmitter.fire();
+            }).catch(error => {
+                console.warn(`[VSX-MODEL] ⚠️ Some refresh operations failed:`, error);
+                this.onDidChangeEmitter.fire();
+            });
         });
     }
 
@@ -630,12 +650,12 @@ export class VSXExtensionsModel {
         this.onDidChangeEmitter.fire();
     }
 
-    protected async handleAuthorizationChange(event: import('@theia/core').PluginAuthorizationChangeEvent): Promise<void> {
+    protected async handleAuthorizationChange(event: import('@theia/plugin-ext/lib/common/plugin-authorization').PluginAuthorizationChangeEvent): Promise<void> {
         const { changedPluginIds } = event;
         const affectedExtensions = changedPluginIds
             .map(id => this.getExtension(id))
             .filter(ext => ext !== undefined) as VSXExtension[];
-        
+
         if (affectedExtensions.length > 0) {
             await Promise.all(affectedExtensions.map(extension => extension.updateAuthorizationStatus()));
             this.onDidChangeEmitter.fire();

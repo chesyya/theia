@@ -15,8 +15,10 @@
 // *****************************************************************************
 
 import { injectable, inject } from '@theia/core/shared/inversify';
-import { PluginAuthorizationProvider, Event, PluginAuthorizationChangeEvent } from '@theia/core';
+import { Event } from '@theia/core';
+import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../../common/plugin-authorization';
 import { PluginAuthorizationService } from '../../common/plugin-authorization-service';
+import { PluginAuthorizationProviderImpl } from './plugin-authorization-provider-impl';
 
 /**
  * 插件授权服务实现
@@ -29,7 +31,7 @@ export class PluginAuthorizationServiceImpl implements PluginAuthorizationServic
     protected readonly authorizationProvider: PluginAuthorizationProvider;
 
     async isAuthorized(pluginId: string): Promise<boolean> {
-        return this.authorizationProvider.isAuthorized(pluginId);
+        return this.authorizationProvider.$isAuthorized(pluginId);
     }
 
     async getUnauthorizedPluginIds(): Promise<string[]> {
@@ -42,5 +44,25 @@ export class PluginAuthorizationServiceImpl implements PluginAuthorizationServic
 
     get onAuthorizationChanged(): Event<PluginAuthorizationChangeEvent> {
         return this.authorizationProvider.onAuthorizationChanged;
+    }
+
+    /**
+     * 授权指定插件（仅用于测试）
+     */
+    async grantTestPluginAuthorization(): Promise<void> {
+        const impl = this.authorizationProvider as PluginAuthorizationProviderImpl;
+        if (impl.grantAuthorization) {
+            impl.grantAuthorization(['<unpublished>.test-plugin']);
+        }
+    }
+
+    /**
+     * 撤销指定插件授权（仅用于测试）
+     */
+    async revokeTestPluginAuthorization(): Promise<void> {
+        const impl = this.authorizationProvider as PluginAuthorizationProviderImpl;
+        if (impl.revokeAuthorization) {
+            impl.revokeAuthorization(['<unpublished>.test-plugin']);
+        }
     }
 }

@@ -33,7 +33,8 @@ import { VSXExtensionNamespaceAccess, VSXUser } from '@theia/ovsx-client/lib/ovs
 import { WindowService } from '@theia/core/lib/browser/window/window-service';
 import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering';
 import { VSXExtensionsModel } from './vsx-extensions-model';
-import { PluginAuthorizationProvider } from '@theia/core/lib/common/plugin-authorization';
+import { PluginAuthorizationProvider } from '@theia/plugin-ext/lib/common/plugin-authorization';
+import { AuthorizationStatus, IAuthorizationService } from '@theia/plugin-ext/lib/common/services/authorization';
 
 export const EXTENSIONS_CONTEXT_MENU: MenuPath = ['extensions_context_menu'];
 
@@ -145,8 +146,12 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     @inject(PluginAuthorizationProvider)
     protected readonly authorizationProvider: PluginAuthorizationProvider;
 
+    @inject(IAuthorizationService)
+    protected readonly newAuthorizationService: IAuthorizationService;
+
     protected readonly data: Partial<VSXExtensionData> = {};
     protected _authorized: boolean | undefined;
+    protected _authorizationState: 'pending' | 'authorized' | 'unauthorized' = 'pending';
 
     protected registryUri: Promise<string>;
 
@@ -205,10 +210,12 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
 
     async updateAuthorizationStatus(): Promise<void> {
         try {
-            this._authorized = await this.authorizationProvider.isAuthorized(this.id);
+            const authStatus = await this.newAuthorizationService.getAuthorizationStatus(this.id);
+            this._authorized = authStatus === AuthorizationStatus.GRANTED;
         } catch (error) {
             // 如果授权检查失败，默认为已授权（向后兼容）
             this._authorized = true;
+            this._authorizationState = 'authorized';
         }
     }
 
@@ -553,9 +560,10 @@ export namespace VSXExtensionComponent {
 export class VSXExtensionComponent<Props extends VSXExtensionComponent.Props = VSXExtensionComponent.Props> extends AbstractVSXExtensionComponent<Props> {
     override render(): React.ReactNode {
         const { iconUrl, publisher, displayName, description, version, downloadCount, averageRating, tooltip, verified, disabled, authorized } = this.props.extension;
-        
+
         // 为未授权插件添加特殊的CSS类
-        const className = `theia-vsx-extension noselect${authorized === false ? ' unauthorized' : ''}`;
+        const className = `theia-vsx-extension noselect${this.props.extension.authorized === false ? ' unauthorized' : ''}`;
+
 
         return <div
             className={className}
