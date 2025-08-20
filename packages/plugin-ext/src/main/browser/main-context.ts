@@ -47,6 +47,7 @@ import { MainFileSystemEventService } from './main-file-system-event-service';
 import { LabelServiceMainImpl } from './label-service-main';
 import { TimelineMainImpl } from './timeline-main';
 import { AuthenticationMainImpl } from './authentication-main';
+import { AuthorizationMainImpl } from './authorization-main';
 import { ThemingMainImpl } from './theming-main';
 import { CommentsMainImp } from './comments/comments-main';
 import { CustomEditorsMainImpl } from './custom-editors/custom-editors-main';
@@ -74,6 +75,9 @@ export function setUpPluginApi(rpc: RPCProtocol, container: interfaces.Container
 
     const authenticationMain = new AuthenticationMainImpl(rpc, container);
     rpc.set(PLUGIN_RPC_CONTEXT.AUTHENTICATION_MAIN, authenticationMain);
+
+    const authorizationMain = new AuthorizationMainImpl(rpc, container);
+    rpc.set(PLUGIN_RPC_CONTEXT.AUTHORIZATION_MAIN, authorizationMain);
 
     const commandRegistryMain = new CommandRegistryMainImpl(rpc, container);
     rpc.set(PLUGIN_RPC_CONTEXT.COMMAND_REGISTRY_MAIN, commandRegistryMain);

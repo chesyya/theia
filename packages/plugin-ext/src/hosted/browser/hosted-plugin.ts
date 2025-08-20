@@ -212,11 +212,10 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
         this.notebookService.onWillOpenNotebook(async event => this.activateByNotebook(event));
         this.notebookRendererMessagingService.onWillActivateRenderer(rendererId => this.activateByNotebookRenderer(rendererId));
 
-        // Listen for authorization status changes and trigger plugin synchronization
+        // Listen for authorization status changes and handle plugin activation/deactivation
         this.authorizationService.onDidUpdateAuthorizationStatus(event => {
             console.log(`[HostedPluginSupport] 🔄 Authorization status changed for plugin ${event.pluginId}: ${event.status}`);
-            console.log(`[HostedPluginSupport] 🔄 Triggering plugin synchronization...`);
-            this.load();
+            this.handleAuthorizationStatusChange(event.pluginId, event.status);
         });
 
         this.widgets.onDidCreateWidget(({ factoryId, widget }) => {
@@ -707,6 +706,44 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
             </head>
             <body>${message}</body>
         </html>`;
+    }
+
+    /**
+     * Handle plugin authorization status changes
+     */
+    protected async handleAuthorizationStatusChange(pluginId: string, status: string): Promise<void> {
+        console.log(`[HostedPluginSupport] 🔍 Processing authorization change for plugin ${pluginId}: ${status}`);
+        
+        if (status === 'granted') {
+            // Plugin has been authorized - activate it directly
+            console.log(`[HostedPluginSupport] ✅ Activating authorized plugin: ${pluginId}`);
+            
+            try {
+                // Directly activate the specific plugin instead of reloading everything
+                await this.activatePlugin(pluginId);
+                console.log(`[HostedPluginSupport] 🎉 Successfully activated plugin: ${pluginId}`);
+            } catch (error) {
+                console.error(`[HostedPluginSupport] ❌ Failed to activate plugin ${pluginId}:`, error);
+                // Fall back to full reload if direct activation fails
+                console.log(`[HostedPluginSupport] 🔄 Falling back to full plugin reload`);
+                this.load();
+            }
+            
+        } else if (status === 'denied') {
+            // Plugin has been deauthorized - deactivate it
+            console.log(`[HostedPluginSupport] 🛑 Deactivating unauthorized plugin: ${pluginId}`);
+            
+            // Find the manager for this plugin and stop it
+            for (const manager of this.managers.values()) {
+                if (manager) {
+                    console.log(`[HostedPluginSupport] 🛑 Stopping plugin: ${pluginId}`);
+                    await manager.$stop(pluginId);
+                    console.log(`[HostedPluginSupport] ✅ Stopped plugin ${pluginId} in manager`);
+                }
+            }
+        }
+        
+        console.log(`[HostedPluginSupport] ✨ Plugin authorization sync completed`);
     }
 
 }

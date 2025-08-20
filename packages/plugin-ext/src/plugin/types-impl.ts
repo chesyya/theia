@@ -4135,3 +4135,12 @@ export enum TerminalShellExecutionCommandLineConfidence {
 }
 
 // #endregion
+
+// #region Authorization API
+
+export enum AuthorizationStatus {
+    Granted = 'granted',
+    Denied = 'denied'
+}
+
+// #endregion

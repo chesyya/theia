@@ -272,8 +272,54 @@ export class VSXExtensionsModel {
         if (!extension) {
             extension = this.extensionFactory({ id, version, model: this });
             this.extensions.set(id, extension);
+            
+            // 立即尝试从本地插件获取基本信息，避免显示undefined
+            this.setLocalPluginData(extension);
         }
         return extension;
+    }
+    
+    protected setLocalPluginData(extension: VSXExtension): void {
+        try {
+            // 尝试多种方式查找插件
+            let plugin = this.pluginSupport.getPlugin(extension.id as PluginIdentifiers.UnversionedId);
+            console.log(`[VSX-MODEL] 🔍 Looking for plugin: ${extension.id}, found:`, plugin ? 'YES' : 'NO');
+            
+            // 如果没找到，且ID是<unpublished>.xxx格式，尝试用简单名称查找
+            if (!plugin && extension.id.startsWith('<unpublished>.')) {
+                const simpleName = extension.id.replace('<unpublished>.', '');
+                plugin = this.pluginSupport.getPlugin(simpleName as PluginIdentifiers.UnversionedId);
+                console.log(`[VSX-MODEL] 🔍 Fallback lookup for: ${simpleName}, found:`, plugin ? 'YES' : 'NO');
+            }
+            
+            if (plugin?.metadata?.model) {
+                const model = plugin.metadata.model;
+                extension.update({
+                    name: model.name || extension.id,
+                    displayName: model.displayName || model.name || extension.id,
+                    description: model.description || '',
+                    version: model.version || extension.version || '1.0.0',
+                    publisher: model.publisher || '<unpublished>',
+                    // 确保有基本数据可以显示
+                });
+                console.log(`[VSX-MODEL] 📦 Set local data for plugin: ${extension.id} -> ${model.displayName || model.name}`);
+            } else {
+                // 如果找不到插件元数据，为未授权插件提供基本显示信息
+                const displayName = extension.id.includes('.') ? 
+                    extension.id.split('.').pop() : 
+                    extension.id.replace('<unpublished>.', '');
+                extension.update({
+                    name: displayName,
+                    displayName: displayName,
+                    description: `Plugin ${extension.id}`,
+                    version: '1.0.0',
+                    publisher: '<unpublished>',
+                });
+                console.warn(`[VSX-MODEL] ⚠️ No plugin metadata found for: ${extension.id}, using default display info`);
+            }
+        } catch (error) {
+            console.warn(`[VSX-MODEL] ⚠️ Failed to get local data for plugin: ${extension.id}`, error);
+        }
     }
 
     protected doChange<T>(task: () => Promise<T>): Promise<T>;

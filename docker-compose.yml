@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  theia:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: theia-ide:latest
+    container_name: theia-ide
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount plugins directory for development
+      - ./plugins:/home/project/plugins
+      # Mount test workspace
+      - ./test:/home/theia/test
+      # Optional: Mount custom workspace
+      # - ./workspace:/home/project/workspace
+    environment:
+      - NODE_ENV=production
+      - THEIA_DEFAULT_PLUGINS=local-dir:/home/project/plugins
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Test runner service for running tests
+  theia-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: theia-ide:latest
+    container_name: theia-test-runner
+    profiles:
+      - testing
+    volumes:
+      - ./plugins:/home/project/plugins
+      - ./test:/home/theia/test
+      # Mount Docker socket for Docker-in-Docker testing
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NODE_ENV=test
+    command: ["/bin/sh", "-c", "sleep infinity"]
+    depends_on:
+      - theia
+
+volumes:
+  theia_data:
+    driver: local

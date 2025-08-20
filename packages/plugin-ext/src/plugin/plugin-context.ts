@@ -238,9 +238,11 @@ import {
     DebugVisualization,
     TerminalShellExecutionCommandLineConfidence,
     TerminalCompletionItemKind,
-    TerminalCompletionList
+    TerminalCompletionList,
+    AuthorizationStatus
 } from './types-impl';
 import { AuthenticationExtImpl } from './authentication-ext';
+import { AuthorizationExtImpl } from './authorization-ext-impl';
 import { SymbolKind } from '../common/plugin-api-rpc-model';
 import { EditorsAndDocumentsExtImpl } from './editors-and-documents';
 import { TextEditorsExtImpl } from './text-editors';
@@ -351,6 +353,8 @@ export function createAPIFactory(
     const telemetryExt = rpc.set(MAIN_RPC_CONTEXT.TELEMETRY_EXT, new TelemetryExtImpl());
     const testingExt = rpc.set(MAIN_RPC_CONTEXT.TESTING_EXT, new TestingExtImpl(rpc, commandRegistry));
     const uriExt = rpc.set(MAIN_RPC_CONTEXT.URI_EXT, new UriExtImpl(rpc));
+    const authorizationExtImpl = new AuthorizationExtImpl();
+    rpc.set(MAIN_RPC_CONTEXT.AUTHORIZATION_EXT, authorizationExtImpl);
     rpc.set(MAIN_RPC_CONTEXT.DEBUG_EXT, debugExt);
 
     const commandLogger = new PluginLogger(rpc, 'commands-plugin');
@@ -1589,7 +1593,8 @@ export function createAPIFactory(
             DebugVisualization,
             TerminalShellExecutionCommandLineConfidence,
             TerminalCompletionItemKind,
-            TerminalCompletionList
+            TerminalCompletionList,
+            AuthorizationStatus
         };
     };
 }

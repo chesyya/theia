@@ -1,0 +1,251 @@
+// *****************************************************************************
+// Copyright (C) 2024 TypeFox and others.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0.
+//
+// This Source Code may also be made available under the following Secondary
+// Licenses when the conditions for such availability set forth in the Eclipse
+// Public License v. 2.0 are satisfied: GNU General Public License, version 2
+// with the GNU Classpath Exception which is available at
+// https://www.gnu.org/software/classpath/license.html.
+//
+// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
+// *****************************************************************************
+
+import { injectable, postConstruct } from '@theia/core/shared/inversify';
+import { Emitter, Event } from '@theia/core/lib/common/event';
+import { PluginIdentifier, AuthorizationStatus, IAuthorizationStatusChangeEvent } from './types';
+import { IAuthorizationService } from './i-authorization-service';
+
+/**
+ * 内存级插件授权管理器 - 不依赖数据库的授权状态管理
+ * 
+ * 设计原则：
+ * 1. 基于内存的状态管理，利用现有后端插件信息
+ * 2. 无需数据库，状态存储在内存中
+ * 3. 支持依赖关系管理和事件通知
+ * 4. 与现有Theia插件系统完全集成
+ */
+@injectable()
+export class PluginAuthorizationManager implements IAuthorizationService {
+
+    private readonly authorizationMap = new Map<PluginIdentifier, AuthorizationStatus>();
+    private readonly dependencyMap = new Map<PluginIdentifier, Set<PluginIdentifier>>();
+    private readonly onDidUpdateAuthorizationStatusEmitter = new Emitter<IAuthorizationStatusChangeEvent>();
+
+    constructor() {
+        console.log(`[AUTH-MGR] 🏗️ PluginAuthorizationManager created - in-memory authorization management`);
+        
+        // 初始化默认授权状态
+        this.initializeDefaultStatuses();
+    }
+
+    @postConstruct()
+    protected init(): void {
+        console.log(`[AUTH-MGR] 🔧 PluginAuthorizationManager initialized`);
+    }
+
+    get onDidUpdateAuthorizationStatus(): Event<IAuthorizationStatusChangeEvent> {
+        return this.onDidUpdateAuthorizationStatusEmitter.event;
+    }
+
+    /**
+     * 初始化默认授权状态
+     * 基于现有插件安装信息设置初始状态
+     */
+    private initializeDefaultStatuses(): void {
+        console.log(`[AUTH-MGR] 📋 Initializing default authorization statuses`);
+        
+        // 默认情况下，大多数插件都是授权的
+        // 只有特定的测试插件需要显式授权管理
+        
+        // 测试插件默认为未授权状态，需要用户授权
+        this.authorizationMap.set('<unpublished>.test-plugin', AuthorizationStatus.DENIED);
+        
+        console.log(`[AUTH-MGR] ✅ Default statuses initialized:`, Array.from(this.authorizationMap.entries()));
+    }
+
+    async getAuthorizationStatus(pluginId: PluginIdentifier): Promise<AuthorizationStatus> {
+        console.log(`[AUTH-MGR] 🔍 Getting authorization status for: ${pluginId}`);
+        
+        // 检查内存中的状态，如果不存在则默认为已授权
+        const status = this.authorizationMap.get(pluginId) ?? AuthorizationStatus.GRANTED;
+        
+        console.log(`[AUTH-MGR] 📊 Status for ${pluginId}: ${status}`);
+        return status;
+    }
+
+    async grantAuthorization(pluginId: PluginIdentifier): Promise<void> {
+        console.log(`[AUTH-MGR] 🔓 Granting authorization for: ${pluginId}`);
+        
+        const previousStatus = await this.getAuthorizationStatus(pluginId);
+        
+        // 更新状态
+        this.authorizationMap.set(pluginId, AuthorizationStatus.GRANTED);
+        
+        // 触发状态变化事件
+        this.fireAuthorizationStatusChange(pluginId, AuthorizationStatus.GRANTED, previousStatus);
+        
+        // 检查并通知依赖插件
+        await this.notifyDependentPlugins(pluginId, AuthorizationStatus.GRANTED, previousStatus);
+        
+        console.log(`[AUTH-MGR] ✅ Authorization granted for ${pluginId}`);
+    }
+
+    async revokeAuthorization(pluginId: PluginIdentifier): Promise<void> {
+        console.log(`[AUTH-MGR] 🔒 Revoking authorization for: ${pluginId}`);
+        
+        const previousStatus = await this.getAuthorizationStatus(pluginId);
+        
+        // 更新状态
+        this.authorizationMap.set(pluginId, AuthorizationStatus.DENIED);
+        
+        // 触发状态变化事件
+        this.fireAuthorizationStatusChange(pluginId, AuthorizationStatus.DENIED, previousStatus);
+        
+        // 检查并通知依赖插件
+        await this.notifyDependentPlugins(pluginId, AuthorizationStatus.DENIED, previousStatus);
+        
+        console.log(`[AUTH-MGR] ❌ Authorization revoked for ${pluginId}`);
+    }
+
+    async getAllAuthorizationStatuses(): Promise<Map<PluginIdentifier, AuthorizationStatus>> {
+        console.log(`[AUTH-MGR] 📋 Getting all authorization statuses`);
+        
+        // 返回当前内存中的所有状态
+        const result = new Map(this.authorizationMap);
+        
+        console.log(`[AUTH-MGR] 📊 Current statuses:`, Array.from(result.entries()));
+        return result;
+    }
+
+    /**
+     * 注册插件依赖关系
+     * 当插件声明了authorizationDependencies时调用
+     */
+    registerPluginDependency(pluginId: PluginIdentifier, dependencyId: PluginIdentifier): void {
+        console.log(`[AUTH-MGR] 🔗 Registering dependency: ${pluginId} depends on ${dependencyId}`);
+        
+        if (!this.dependencyMap.has(dependencyId)) {
+            this.dependencyMap.set(dependencyId, new Set());
+        }
+        
+        this.dependencyMap.get(dependencyId)!.add(pluginId);
+        
+        console.log(`[AUTH-MGR] 📝 Dependency registered. ${dependencyId} now has dependents:`, 
+            Array.from(this.dependencyMap.get(dependencyId) || []));
+    }
+
+    /**
+     * 批量注册依赖关系（从package.json读取）
+     */
+    registerPluginDependencies(pluginId: PluginIdentifier, dependencies: PluginIdentifier[]): void {
+        console.log(`[AUTH-MGR] 📦 Registering dependencies for ${pluginId}:`, dependencies);
+        
+        for (const depId of dependencies) {
+            this.registerPluginDependency(pluginId, depId);
+        }
+    }
+
+    /**
+     * 获取插件的依赖者列表
+     */
+    getDependentPlugins(pluginId: PluginIdentifier): PluginIdentifier[] {
+        const dependents = this.dependencyMap.get(pluginId);
+        return dependents ? Array.from(dependents) : [];
+    }
+
+    /**
+     * 触发授权状态变化事件
+     */
+    private fireAuthorizationStatusChange(
+        pluginId: PluginIdentifier, 
+        newStatus: AuthorizationStatus, 
+        previousStatus: AuthorizationStatus
+    ): void {
+        if (newStatus !== previousStatus) {
+            const event: IAuthorizationStatusChangeEvent = {
+                pluginId,
+                status: newStatus,
+                previousStatus,
+                timestamp: new Date()
+            };
+            
+            console.log(`[AUTH-MGR] 📡 Firing authorization status change event:`, event);
+            this.onDidUpdateAuthorizationStatusEmitter.fire(event);
+        }
+    }
+
+    /**
+     * 通知依赖插件授权状态变化
+     */
+    private async notifyDependentPlugins(
+        pluginId: PluginIdentifier,
+        newStatus: AuthorizationStatus,
+        previousStatus: AuthorizationStatus
+    ): Promise<void> {
+        const dependents = this.getDependentPlugins(pluginId);
+        
+        if (dependents.length > 0) {
+            console.log(`[AUTH-MGR] 🔄 Notifying ${dependents.length} dependent plugins of ${pluginId} status change`);
+            
+            for (const dependentId of dependents) {
+                console.log(`[AUTH-MGR] 📢 Notifying dependent plugin: ${dependentId} about ${pluginId} -> ${newStatus}`);
+                
+                // 可以在这里添加特定的依赖通知逻辑
+                // 比如触发依赖插件的重新评估等
+            }
+        }
+    }
+
+    /**
+     * 重置所有授权状态（用于测试和调试）
+     */
+    resetAllAuthorizations(): void {
+        console.log(`[AUTH-MGR] 🔄 Resetting all authorization statuses`);
+        
+        // 保存当前状态用于事件触发
+        const previousStatuses = new Map(this.authorizationMap);
+        
+        // 清空并重新初始化
+        this.authorizationMap.clear();
+        this.initializeDefaultStatuses();
+        
+        // 为每个变化的状态触发事件
+        for (const [pluginId, newStatus] of this.authorizationMap) {
+            const previousStatus = previousStatuses.get(pluginId) ?? AuthorizationStatus.GRANTED;
+            this.fireAuthorizationStatusChange(pluginId, newStatus, previousStatus);
+        }
+        
+        console.log(`[AUTH-MGR] ✅ All authorizations reset to default state`);
+    }
+
+    /**
+     * 获取统计信息
+     */
+    getAuthorizationStats(): {
+        totalPlugins: number;
+        authorizedPlugins: number;
+        deniedPlugins: number;
+        dependencyRelations: number;
+    } {
+        const totalPlugins = this.authorizationMap.size;
+        const authorizedPlugins = Array.from(this.authorizationMap.values())
+            .filter(status => status === AuthorizationStatus.GRANTED).length;
+        const deniedPlugins = totalPlugins - authorizedPlugins;
+        const dependencyRelations = Array.from(this.dependencyMap.values())
+            .reduce((sum, deps) => sum + deps.size, 0);
+
+        const stats = {
+            totalPlugins,
+            authorizedPlugins,
+            deniedPlugins,
+            dependencyRelations
+        };
+
+        console.log(`[AUTH-MGR] 📊 Authorization statistics:`, stats);
+        return stats;
+    }
+}

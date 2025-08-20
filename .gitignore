@@ -3,6 +3,7 @@ node_modules
 build
 lib
 tmp
+test
 temp
 *.log
 .idea

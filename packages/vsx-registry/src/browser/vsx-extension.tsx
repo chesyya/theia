@@ -158,6 +158,16 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     @postConstruct()
     protected postConstruct(): void {
         this.registryUri = this.environment.getRegistryUri();
+        
+        // 初始化时检查授权状态
+        this.updateAuthorizationStatus();
+        
+        // 监听授权状态变化
+        this.newAuthorizationService.onDidUpdateAuthorizationStatus(event => {
+            if (event.pluginId === this.id) {
+                this.updateAuthorizationStatus();
+            }
+        });
     }
 
     get uri(): URI {
@@ -207,6 +217,10 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     get authorized(): boolean | undefined {
         return this._authorized;
     }
+    
+    get authorizationState(): 'pending' | 'authorized' | 'unauthorized' {
+        return this._authorizationState;
+    }
 
     async updateAuthorizationStatus(): Promise<void> {
         try {
@@ -234,7 +248,11 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     protected getData<K extends keyof VSXExtensionData>(key: K): VSXExtensionData[K] {
         const model = this.plugin?.metadata.model;
         if (model && key in model) {
-            return model[key as keyof typeof model] as VSXExtensionData[K];
+            const value = model[key as keyof typeof model] as VSXExtensionData[K];
+            // 只有当值不为空时才返回插件模型中的值，否则回退到data中的值
+            if (value !== undefined && value !== null && value !== '') {
+                return value;
+            }
         }
         return this.data[key];
     }
@@ -516,23 +534,38 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
     };
 
     protected renderAction(host?: TreeWidget): React.ReactNode {
-        const { builtin, currentTask, disabled, uninstalled, installed, deployed } = this.props.extension;
+        const { builtin, currentTask, disabled, uninstalled, installed, deployed, authorized } = this.props.extension;
         const isFocused = (host?.model.getFocusedNode() as TreeElementNode)?.element === this.props.extension;
         const tabIndex = (!host || isFocused) ? 0 : undefined;
         const outOfSync = installed && (deployed ? (disabled || uninstalled) : !(disabled || uninstalled));
+        const isUnauthorized = authorized === false;
+        
         if (currentTask) {
             return <button className="theia-button action prominent theia-mod-disabled">{currentTask}</button>;
         }
         return <div>
             {
-                outOfSync && <button className="theia-button action" onClick={this.reloadWindow}>{nls.localizeByDefault('Reload Window')}</button>
+                outOfSync && <button className="theia-button action" 
+                    onClick={this.reloadWindow}>
+                    {nls.localizeByDefault('Reload Window')}
+                </button>
             }
             {
                 !builtin && ((installed && !uninstalled) ?
-                    <button className="theia-button action" onClick={this.uninstall}>{nls.localizeByDefault('Uninstall')}</button> :
-                    <button className="theia-button prominent action" onClick={this.install}>{nls.localizeByDefault('Install')}</button>)
+                    <button className={`theia-button action${isUnauthorized ? ' disabled' : ''}`} 
+                        onClick={isUnauthorized ? undefined : this.uninstall}
+                        disabled={isUnauthorized}>
+                        {nls.localizeByDefault('Uninstall')}
+                    </button> :
+                    <button className={`theia-button prominent action${isUnauthorized ? ' disabled' : ''}`} 
+                        onClick={isUnauthorized ? undefined : this.install}
+                        disabled={isUnauthorized}>
+                        {nls.localizeByDefault('Install')}
+                    </button>)
             }
-            <div className="codicon codicon-settings-gear action" tabIndex={tabIndex} onClick={this.manage}></div>
+            <div className={`codicon codicon-settings-gear action${isUnauthorized ? ' disabled' : ''}`} 
+                tabIndex={isUnauthorized ? undefined : tabIndex} 
+                onClick={isUnauthorized ? undefined : this.manage}></div>
         </div>;
     }
 
@@ -561,9 +594,14 @@ export class VSXExtensionComponent<Props extends VSXExtensionComponent.Props = V
     override render(): React.ReactNode {
         const { iconUrl, publisher, displayName, description, version, downloadCount, averageRating, tooltip, verified, disabled, authorized } = this.props.extension;
 
-        // 为未授权插件添加特殊的CSS类
-        const className = `theia-vsx-extension noselect${this.props.extension.authorized === false ? ' unauthorized' : ''}`;
-
+        // Build className based on extension state
+        let className = `theia-vsx-extension noselect`;
+        if (disabled) {
+            className += ' disabled';
+        }
+        if (authorized === false) {
+            className += ' unauthorized';
+        }
 
         return <div
             className={className}
@@ -590,7 +628,7 @@ export class VSXExtensionComponent<Props extends VSXExtensionComponent.Props = V
                         <span className='version'>{VSXExtension.formatVersion(version)}&nbsp;
                         </span>
                         {disabled && <span className='disabled'>({nls.localizeByDefault('disabled')})</span>}
-                        {authorized === false && <span className='unauthorized-label'>({nls.localize('theia/vsx-registry/unauthorized', 'unauthorized')})</span>}
+                        {authorized === false && <span className='disabled'>({nls.localize('theia/vsx-registry/unauthorized', 'unauthorized')})</span>}
                     </div>
                     <div className='stat'>
                         {!!downloadCount && <span className='download-count'><i className={codicon('cloud-download')} />{downloadCompactFormatter.format(downloadCount)}</span>}

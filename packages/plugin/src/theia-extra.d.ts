@@ -298,6 +298,12 @@ export module '@theia/plugin' {
          * @see {@link LanguageModelChat.sendRequest}
          */
         readonly languageModelAccessInformation: LanguageModelAccessInformation;
+
+        /**
+         * Authorization management interface for this plugin.
+         * Allows the plugin to monitor and react to authorization status changes.
+         */
+        readonly authorization?: any;
     }
 
     export namespace commands {

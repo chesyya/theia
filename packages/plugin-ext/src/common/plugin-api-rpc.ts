@@ -2306,9 +2306,18 @@ export interface PluginAuthorizationServiceMain {
     $getUnauthorizedPluginIds(): Promise<string[]>;
 }
 
+export interface AuthorizationMain {
+    $getAuthorizationStatus(pluginId: string): Promise<string>;
+}
+
+export interface AuthorizationExt {
+    $handleAuthorizationStatusChange(pluginId: string, event: { status: string; previousStatus: string; timestamp: Date }): void;
+}
+
 export const PLUGIN_RPC_CONTEXT = {
     LOGGER_MAIN: createProxyIdentifier<LoggerMain>('LoggerMain'),
     AUTHENTICATION_MAIN: createProxyIdentifier<AuthenticationMain>('AuthenticationMain'),
+    AUTHORIZATION_MAIN: createProxyIdentifier<AuthorizationMain>('AuthorizationMain'),
     COMMAND_REGISTRY_MAIN: createProxyIdentifier<CommandRegistryMain>('CommandRegistryMain'),
     QUICK_OPEN_MAIN: createProxyIdentifier<QuickOpenMain>('QuickOpenMain'),
     DIALOGS_MAIN: createProxyIdentifier<DialogsMain>('DialogsMain'),
@@ -2396,7 +2405,8 @@ export const MAIN_RPC_CONTEXT = {
     TELEMETRY_EXT: createProxyIdentifier<TelemetryExt>('TelemetryExt)'),
     TESTING_EXT: createProxyIdentifier<TestingExt>('TestingExt'),
     URI_EXT: createProxyIdentifier<UriExt>('UriExt'),
-    PLUGIN_AUTHORIZATION_EXT: createProxyIdentifier<PluginAuthorizationExt>('PluginAuthorizationExt')
+    PLUGIN_AUTHORIZATION_EXT: createProxyIdentifier<PluginAuthorizationExt>('PluginAuthorizationExt'),
+    AUTHORIZATION_EXT: createProxyIdentifier<AuthorizationExt>('AuthorizationExt')
 };
 
 export interface TasksExt {

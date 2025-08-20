@@ -46,4 +46,59 @@ export interface IAuthorizationStatusChangeEvent {
     readonly pluginId: PluginIdentifier;
     readonly status: AuthorizationStatus;
     readonly previousStatus?: AuthorizationStatus;
+    readonly timestamp: Date;
+}
+
+/**
+ * Plugin dependency authorization configuration.
+ * Used in package.json to declare authorization dependencies.
+ */
+export interface PluginAuthorizationDependencyConfig {
+    /**
+     * The plugin ID this plugin depends on for authorization.
+     */
+    readonly pluginId: PluginIdentifier;
+    
+    /**
+     * Whether this dependency is required for the plugin to function.
+     */
+    readonly required: boolean;
+    
+    /**
+     * Whether the plugin should degrade gracefully when the dependency is unauthorized.
+     */
+    readonly degradeGracefully: boolean;
+}
+
+/**
+ * Authorization policy configuration for a plugin.
+ * Used in package.json authorizationDependencyPolicy.
+ */
+export interface PluginAuthorizationPolicy {
+    [dependencyId: string]: {
+        required: boolean;
+        degradeGracefully: boolean;
+    };
+}
+
+/**
+ * Statistics about the current authorization state.
+ */
+export interface AuthorizationStats {
+    readonly totalPlugins: number;
+    readonly authorizedPlugins: number;
+    readonly deniedPlugins: number;
+    readonly pendingPlugins: number;
+    readonly dependencyRelations: number;
+}
+
+/**
+ * Extended plugin metadata with authorization information.
+ */
+export interface PluginAuthorizationInfo {
+    readonly pluginId: PluginIdentifier;
+    readonly status: AuthorizationStatus;
+    readonly dependencies: PluginIdentifier[];
+    readonly dependents: PluginIdentifier[];
+    readonly lastStatusChange?: Date;
 }

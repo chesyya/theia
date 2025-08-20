@@ -50,10 +50,10 @@ import { PluginDocumentationServer } from './plugin-documentation-server';
 import { PluginDocumentationService, pluginDocumentationServicePath } from '../browser/plugin-documentation-frontend-service';
 import { PluginAuthorizationProvider, pluginAuthorizationPath } from '../../common/plugin-authorization';
 import { PluginAuthorizationProviderImpl } from './plugin-authorization-provider-impl';
-import { IAuthorizationService, authorizationServicePath } from '../../common/services/authorization';
-import { AuthorizationService } from './authorization-service';
+import { IAuthorizationService, authorizationServicePath, PluginAuthorizationManager } from '../../common/services/authorization';
 import { AuthorizationRPCServer } from './authorization-rpc-server';
 import { AuthorizationEnforcementService } from './authorization-enforcement-service';
+import { AuthorizationServiceBackendImpl } from './authorization-service-backend-impl';
 
 export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind): void {
     bind(PluginApiContribution).toSelf().inSingletonScope();
@@ -128,21 +128,39 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
         new RpcConnectionHandler(pluginAuthorizationPath, () => ctx.container.get(PluginAuthorizationProvider))
     ).inSingletonScope();
 
-    // 新的授权服务绑定
-    bind(AuthorizationService).toSelf().inSingletonScope();
-    bind(IAuthorizationService).toService(AuthorizationService);
+    // 新的基于类的授权管理器 (不依赖数据库)
+    bind(PluginAuthorizationManager).toSelf().inSingletonScope();
     
-    // RPC 服务器绑定
-    bind(AuthorizationRPCServer).toSelf().inSingletonScope();
+    // 新的授权服务后端实现
+    bind(AuthorizationServiceBackendImpl).toSelf().inSingletonScope();
+    bind(IAuthorizationService).toService(AuthorizationServiceBackendImpl);
+    
+    // RPC 服务器绑定 (保留旧的，用于向后兼容)
+    if (isBound(AuthorizationRPCServer)) {
+        rebind(AuthorizationRPCServer).toSelf().inSingletonScope();
+    } else {
+        bind(AuthorizationRPCServer).toSelf().inSingletonScope();
+    }
+    
     bind(ConnectionHandler).toDynamicValue(ctx => {
         return new RpcConnectionHandler(authorizationServicePath, (client: any) => {
             const rpcServer = ctx.container.get(AuthorizationRPCServer);
-            rpcServer.setClient(client);
+            if (rpcServer.setClient) {
+                rpcServer.setClient(client);
+            }
             return rpcServer;
         });
     }).inSingletonScope();
 
-    // 授权强制执行服务
-    bind(AuthorizationEnforcementService).toSelf().inSingletonScope();
-    bind(BackendApplicationContribution).toService(AuthorizationEnforcementService);
+    // 授权强制执行服务 (如果存在)
+    if (isBound(AuthorizationEnforcementService)) {
+        rebind(AuthorizationEnforcementService).toSelf().inSingletonScope();
+    } else {
+        try {
+            bind(AuthorizationEnforcementService).toSelf().inSingletonScope();
+            bind(BackendApplicationContribution).toService(AuthorizationEnforcementService);
+        } catch (e) {
+            console.log('[AUTH-MODULE] AuthorizationEnforcementService binding skipped:', e.message);
+        }
+    }
 }

@@ -17,7 +17,8 @@
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import { Emitter, Event } from '@theia/core/lib/common/event';
 import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../../common/plugin-authorization';
-import { IAuthorizationService, AuthorizationStatus } from '../../common/services/authorization';
+import { AuthorizationStatus } from '../../common/services/authorization';
+import { AuthorizationServiceBackendImpl } from './authorization-service-backend-impl';
 
 /**
  * 授权提供者实现，委托给新的授权服务
@@ -28,8 +29,8 @@ export class PluginAuthorizationProviderImpl implements PluginAuthorizationProvi
 
     private readonly onAuthorizationChangedEmitter = new Emitter<PluginAuthorizationChangeEvent>();
 
-    @inject(IAuthorizationService)
-    protected readonly authorizationService: IAuthorizationService;
+    @inject(AuthorizationServiceBackendImpl)
+    protected readonly authorizationService: AuthorizationServiceBackendImpl;
 
     constructor() {
         console.log(`[OLD-AUTH] 🔗 PluginAuthorizationProviderImpl initializing with delegation to new authorization service`);

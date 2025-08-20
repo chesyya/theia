@@ -331,4 +331,4 @@ MIT License
 - 支持Web端测试
 - 支持CLI接口
 - 支持Docker集成
-- 支持监视模式
+- 支持监视模式# theia-test

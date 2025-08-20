@@ -19,3 +19,6 @@ export * from './types';
 
 // Service interfaces
 export * from './i-authorization-service';
+
+// Authorization manager implementation
+export * from './plugin-authorization-manager';

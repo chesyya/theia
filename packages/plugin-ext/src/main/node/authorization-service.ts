@@ -77,7 +77,8 @@ export class AuthorizationService implements IAuthorizationService {
         const event: IAuthorizationStatusChangeEvent = {
             pluginId,
             status: newStatus,
-            previousStatus
+            previousStatus,
+            timestamp: new Date()
         };
         
         console.log(`[AUTH-SERVICE] 🎉 Authorization granted for ${pluginId}, firing event...`);
@@ -102,7 +103,8 @@ export class AuthorizationService implements IAuthorizationService {
         const event: IAuthorizationStatusChangeEvent = {
             pluginId,
             status: newStatus,
-            previousStatus
+            previousStatus,
+            timestamp: new Date()
         };
         
         console.log(`[AUTH-SERVICE] 🚫 Authorization revoked for ${pluginId}, firing event...`);
@@ -149,7 +151,8 @@ export class AuthorizationService implements IAuthorizationService {
         for (const [pluginId, status] of this.authorizationStates.entries()) {
             const event: IAuthorizationStatusChangeEvent = {
                 pluginId,
-                status
+                status,
+                timestamp: new Date()
             };
             this._onDidUpdateAuthorizationStatus.fire(event);
         }
