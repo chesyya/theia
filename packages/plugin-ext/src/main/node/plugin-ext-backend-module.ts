@@ -141,6 +141,7 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
         });
     }).inSingletonScope();
 
+
     // 授权强制执行服务 (如果存在)
     if (isBound(AuthorizationEnforcementService)) {
         rebind(AuthorizationEnforcementService).toSelf().inSingletonScope();

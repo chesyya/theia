@@ -76,6 +76,7 @@ export interface IAuthorizationRPC {
     $grantAuthorization(pluginId: PluginIdentifier): Promise<void>;
     $revokeAuthorization(pluginId: PluginIdentifier): Promise<void>;
     $getAllAuthorizationStatuses(): Promise<Map<PluginIdentifier, AuthorizationStatus>>;
+    
 }
 
 /**
@@ -88,6 +89,7 @@ export interface IAuthorizationClient {
      * This method is invoked via RPC to notify the frontend about state changes.
      */
     $onDidUpdateAuthorizationStatus(event: IAuthorizationStatusChangeEvent): void;
+
 }
 
 /**

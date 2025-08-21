@@ -31,7 +31,7 @@ export class PluginAuthorizationService implements PluginAuthorizationProvider, 
     @postConstruct()
     protected init(): void {
         // 监听Manager的状态变化，转发给Legacy和RPC客户端
-        this.manager.onDidUpdateAuthorizationStatus(event => {
+        this.manager.onDidUpdateAuthorizationStatus(async event => {
             // Legacy接口事件转换
             const legacyEvent: PluginAuthorizationChangeEvent = {
                 changedPluginIds: [event.pluginId],
@@ -47,6 +47,7 @@ export class PluginAuthorizationService implements PluginAuthorizationProvider, 
                     this.logger.error(`通知RPC客户端时发生错误`, error);
                 }
             }
+
         });
     }
 
@@ -103,10 +104,12 @@ export class PluginAuthorizationService implements PluginAuthorizationProvider, 
     }
 
     async $grantAuthorization(pluginId: PluginIdentifier): Promise<void> {
+        console.log(`[PLUGIN-AUTH-SERVICE] 授权插件: ${pluginId}`);
         await this.manager.grantAuthorization(pluginId);
     }
 
     async $revokeAuthorization(pluginId: PluginIdentifier): Promise<void> {
+        console.log(`[PLUGIN-AUTH-SERVICE] 撤销授权: ${pluginId}`);
         await this.manager.revokeAuthorization(pluginId);
     }
 
@@ -127,6 +130,7 @@ export class PluginAuthorizationService implements PluginAuthorizationProvider, 
             this.logger.debug(`RPC客户端已注销，剩余数量: ${this.clients.length}`);
         }
     }
+
 
     // 扩展功能
     getAuthorizationStats(): any {

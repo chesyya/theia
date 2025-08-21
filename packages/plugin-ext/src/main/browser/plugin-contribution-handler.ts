@@ -53,7 +53,8 @@ import { PluginTerminalRegistry } from './plugin-terminal-registry';
 import { ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 import { LanguageService } from '@theia/core/lib/browser/language-service';
 import { ThemeIcon } from '@theia/monaco-editor-core/esm/vs/base/common/themables';
-import { PluginAuthorizationProvider } from '../../common/services/authorization/plugin-authorization';
+import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../../common/services/authorization/plugin-authorization';
+import { postConstruct } from '@theia/core/shared/inversify';
 
 
 // The enum export is missing from `vscode-textmate@9.2.0`
@@ -156,10 +157,19 @@ export class PluginContributionHandler {
     @inject(PluginAuthorizationProvider)
     protected readonly authorizationProvider: PluginAuthorizationProvider;
 
+    @postConstruct()
+    protected initAuthorizationListener(): void {
+        // 监听授权状态变化
+        this.authorizationProvider.onAuthorizationChanged(event => {
+            this.handleAuthorizationChanged(event);
+        });
+    }
+
 
 
     protected readonly commandHandlers = new Map<string, CommandHandler['execute'] | undefined>();
     protected readonly commandToPlugin = new Map<string, string>();
+    protected readonly pluginContributions = new Map<string, Disposable>();
 
     protected readonly onDidRegisterCommandHandlerEmitter = new Emitter<string>();
     readonly onDidRegisterCommandHandler = this.onDidRegisterCommandHandlerEmitter.event;
@@ -175,6 +185,11 @@ export class PluginContributionHandler {
         if (!contributions) {
             return Disposable.NULL;
         }
+
+        const pluginId = plugin.metadata.model.id;
+
+        // 先清理已存在的贡献点（用于重新安装场景）
+        this.disposePluginContributions(pluginId);
         const toDispose = new DisposableCollection(Disposable.create(() => { /* mark as not disposed */ }));
         /* eslint-disable @typescript-eslint/no-explicit-any */
         const logError = (message: string, ...args: any[]) => console.error(`[${clientId}][${plugin.metadata.model.id}]: ${message}`, ...args);
@@ -471,7 +486,8 @@ export class PluginContributionHandler {
             }
         }
 
-
+        // 存储这个插件的所有贡献点，用于后续统一清理
+        this.pluginContributions.set(pluginId, toDispose);
 
         return toDispose;
     }
@@ -511,7 +527,7 @@ export class PluginContributionHandler {
                         throw new Error(`Plugin '${pluginId}' is not authorized to execute command '${command.id}'`);
                     }
                 }
-                
+
                 const handler = this.commandHandlers.get(command.id);
                 if (!handler) {
                     throw new Error(`command '${command.id}' not found`);
@@ -726,5 +742,40 @@ export class PluginContributionHandler {
                 break;
         }
         return { indentAction, appendText: action.appendText, removeText: action.removeText };
+    }
+
+    /**
+     * 清理指定插件的所有贡献点
+     */
+    disposePluginContributions(pluginId: string): void {
+        const existing = this.pluginContributions.get(pluginId);
+        if (existing) {
+            existing.dispose();
+            this.pluginContributions.delete(pluginId);
+            console.log(`[PLUGIN] 已清理插件 ${pluginId} 的所有贡献点`);
+        }
+    }
+
+    /**
+     * 检查插件是否有活动的贡献点
+     */
+    hasActiveContributions(pluginId: string): boolean {
+        return this.pluginContributions.has(pluginId);
+    }
+
+    /**
+     * 处理授权状态变化
+     */
+    protected handleAuthorizationChanged(event: PluginAuthorizationChangeEvent): void {
+        console.log(`[PLUGIN-CONTRIB] 授权状态变化:`, event);
+
+        if (event.changeType === 'revoked') {
+            // 撤销授权时清理贡献点
+            for (const pluginId of event.changedPluginIds) {
+                console.log(`[PLUGIN-CONTRIB] 清理插件 ${pluginId} 的贡献点`);
+                this.disposePluginContributions(pluginId);
+            }
+        }
+        // 授权时不需要特殊处理，插件重新启用时会自动注册贡献点
     }
 }

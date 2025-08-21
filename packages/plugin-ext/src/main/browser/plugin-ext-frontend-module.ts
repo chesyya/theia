@@ -336,4 +336,5 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(CommandContribution).toService(AuthorizationMenuContribution);
     bind(MenuContribution).toService(AuthorizationMenuContribution);
 
+
 });

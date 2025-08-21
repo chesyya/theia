@@ -73,6 +73,7 @@ import {
 } from '../common/hosted-plugin';
 import { isRemote } from '@theia/core/lib/browser/browser';
 import { IAuthorizationService, AuthorizationStatus } from '../../common/services/authorization';
+import { PluginIdentifiers } from '../../common/plugin-identifiers';
 
 export type DebugActivationEvent = 'onDebugResolve' | 'onDebugInitialConfigurations' | 'onDebugAdapterProtocolTracker' | 'onDebugDynamicConfigurations';
 
@@ -715,16 +716,36 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
         console.log(`[HostedPluginSupport] 🔍 Processing authorization change for plugin ${pluginId}: ${status}`);
         
         if (status === 'granted') {
-            // Plugin has been authorized - activate it directly
-            console.log(`[HostedPluginSupport] ✅ Activating authorized plugin: ${pluginId}`);
+            // Plugin has been authorized - reregister contributions and activate it
+            console.log(`[HostedPluginSupport] ✅ Reauthorizing plugin: ${pluginId}`);
             
             try {
-                // Directly activate the specific plugin instead of reloading everything
+                // Convert pluginId to UnversionedId format if needed
+                let unversionedId: PluginIdentifiers.UnversionedId;
+                if (pluginId.includes('.')) {
+                    // Already in correct format (publisher.name)
+                    unversionedId = pluginId as PluginIdentifiers.UnversionedId;
+                } else {
+                    // Convert simple name to unversioned format
+                    unversionedId = `${PluginIdentifiers.UNPUBLISHED}.${pluginId.toLowerCase()}` as PluginIdentifiers.UnversionedId;
+                }
+
+                // Find the plugin contributions
+                const contributions = this.contributions.get(unversionedId);
+                if (contributions && contributions.plugin) {
+                    // Re-register plugin contributions
+                    console.log(`[HostedPluginSupport] 🔄 Re-registering contributions for plugin: ${unversionedId}`);
+                    const disposable = this.contributionHandler.handleContributions(this.clientId, contributions.plugin);
+                    contributions.push(disposable);
+                    console.log(`[HostedPluginSupport] ✅ Re-registered contributions for plugin: ${unversionedId}`);
+                }
+
+                // Activate the plugin
                 await this.activatePlugin(pluginId);
-                console.log(`[HostedPluginSupport] 🎉 Successfully activated plugin: ${pluginId}`);
+                console.log(`[HostedPluginSupport] 🎉 Successfully reauthorized and activated plugin: ${pluginId}`);
             } catch (error) {
-                console.error(`[HostedPluginSupport] ❌ Failed to activate plugin ${pluginId}:`, error);
-                // Fall back to full reload if direct activation fails
+                console.error(`[HostedPluginSupport] ❌ Failed to reauthorize plugin ${pluginId}:`, error);
+                // Fall back to full reload if direct reauthorization fails
                 console.log(`[HostedPluginSupport] 🔄 Falling back to full plugin reload`);
                 this.load();
             }
@@ -741,6 +762,21 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
                     console.log(`[HostedPluginSupport] ✅ Stopped plugin ${pluginId} in manager`);
                 }
             }
+
+            // Clean up plugin contributions
+            // Convert pluginId to UnversionedId format if needed
+            let unversionedId: PluginIdentifiers.UnversionedId;
+            if (pluginId.includes('.')) {
+                // Already in correct format (publisher.name)
+                unversionedId = pluginId as PluginIdentifiers.UnversionedId;
+            } else {
+                // Convert simple name to unversioned format
+                unversionedId = `${PluginIdentifiers.UNPUBLISHED}.${pluginId.toLowerCase()}` as PluginIdentifiers.UnversionedId;
+            }
+
+            console.log(`[HostedPluginSupport] 🧹 Cleaning up contributions for plugin: ${unversionedId}`);
+            this.contributionHandler.disposePluginContributions(unversionedId);
+            console.log(`[HostedPluginSupport] ✅ Cleaned up contributions for plugin: ${unversionedId}`);
         }
         
         console.log(`[HostedPluginSupport] ✨ Plugin authorization sync completed`);

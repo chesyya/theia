@@ -40,6 +40,7 @@ export class AuthorizationEnforcementService implements BackendApplicationContri
     @inject(HostedPluginWatcher) @optional()
     protected readonly pluginWatcher?: HostedPluginWatcher;
 
+
     @postConstruct()
     protected init(): void {
         // 监听插件部署事件（仅在 hosted plugin 环境中可用）
@@ -148,10 +149,12 @@ export class AuthorizationEnforcementService implements BackendApplicationContri
                 }
 
                 if (changeType === 'granted') {
-                    this.logger.info(`[PLUGIN] ℹ️ 授权已授予，启用插件 ${pluginId}`);
+                    this.logger.info(`[PLUGIN] ℹ️ 授权已授予，重新加载插件贡献点 ${pluginId}`);
+                    // 授权时：重新启用插件（走"安装"流程）
                     await this.pluginServer.enablePlugin(versionedId);
                 } else if (changeType === 'revoked') {
                     this.logger.info(`[PLUGIN] ℹ️ 授权已撤销，禁用插件 ${pluginId}`);
+                    // 撤销授权时：禁用插件，前端会通过dispose机制自动清理贡献点
                     await this.pluginServer.disablePlugin(versionedId);
                 }
 
