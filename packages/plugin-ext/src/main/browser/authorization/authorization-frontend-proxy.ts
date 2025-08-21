@@ -18,26 +18,19 @@ import { injectable, inject } from '@theia/core/shared/inversify';
 import { Emitter } from '@theia/core/lib/common/event';
 import { DisposableCollection } from '@theia/core/lib/common/disposable';
 import { WebSocketConnectionProvider } from '@theia/core/lib/browser/messaging';
-import { 
+import {
     IAuthorizationService,
     IAuthorizationRPC,
     IAuthorizationClient,
-    PluginIdentifier, 
+    PluginIdentifier,
     AuthorizationStatus,
     IAuthorizationStatusChangeEvent,
     authorizationServicePath
-} from '../../common/services/authorization';
+} from '../../../common/services/authorization';
+import { ILogger } from '@theia/core/lib/common/logger';
 
 /**
- * Frontend proxy implementation of IAuthorizationService.
- * 
- * Responsibilities:
- * - Implements IAuthorizationService interface for frontend components
- * - Delegates all method calls to backend via RPC
- * - Implements IAuthorizationClient to receive events from backend
- * - Re-emits backend events locally for frontend consumers
- * - Completely hides RPC complexity from frontend consumers
- * - Creates the illusion that the authorization service is running locally
+ * Frontend proxy 实现 IAuthorizationService
  */
 @injectable()
 export class AuthorizationFrontendProxy implements IAuthorizationService, IAuthorizationClient {
@@ -45,101 +38,99 @@ export class AuthorizationFrontendProxy implements IAuthorizationService, IAutho
     private readonly disposables = new DisposableCollection();
     private readonly _onDidUpdateAuthorizationStatus = new Emitter<IAuthorizationStatusChangeEvent>();
     private readonly rpcProxy: IAuthorizationRPC;
+    private readonly loggerChild: ILogger;
 
     constructor(
-        @inject(WebSocketConnectionProvider) protected readonly connectionProvider: WebSocketConnectionProvider
+        @inject(WebSocketConnectionProvider) protected readonly connectionProvider: WebSocketConnectionProvider,
+        @inject(ILogger) protected readonly logger: ILogger
     ) {
-        console.log(`[AUTH-PROXY] 🔗 AuthorizationFrontendProxy initializing...`);
-        
-        // Create RPC proxy connection to backend, passing this as the client for event callbacks
+        // 创建子 logger，附带类名
+        this.loggerChild = this.logger.child(`[PLUGIN] ${AuthorizationFrontendProxy.name}`);
+
+        this.loggerChild.info('🔗 AuthorizationFrontendProxy 初始化中...');
+
         this.rpcProxy = this.connectionProvider.createProxy<IAuthorizationRPC>(authorizationServicePath, this);
-        
-        console.log(`[AUTH-PROXY] ✅ AuthorizationFrontendProxy initialized`);
+
+        this.loggerChild.info('✅ AuthorizationFrontendProxy 初始化完成');
     }
 
     get onDidUpdateAuthorizationStatus() {
         return this._onDidUpdateAuthorizationStatus.event;
     }
 
-    // --- IAuthorizationClient implementation - receives events from backend ---
-
+    // --- IAuthorizationClient 实现 ---
     $onDidUpdateAuthorizationStatus(event: IAuthorizationStatusChangeEvent): void {
-        console.log(`[AUTH-PROXY] 🎉 [EVENT-RECEIVE] Received authorization change event from backend:`, event);
-        
-        // Re-fire the event locally for frontend components to listen to
+        this.loggerChild.info('🎉 收到来自后端的授权状态变更事件:', event);
+
         this._onDidUpdateAuthorizationStatus.fire(event);
-        
-        console.log(`[AUTH-PROXY] 📢 [EVENT-RECEIVE] Event re-fired to frontend listeners successfully`);
+
+        this.loggerChild.info('📢 已重新触发事件到前端监听者');
     }
 
-    // --- IAuthorizationService implementation - pure delegation to RPC ---
-
+    // --- IAuthorizationService 实现 ---
     async getAuthorizationStatus(pluginId: PluginIdentifier): Promise<AuthorizationStatus> {
-        console.log(`[AUTH-PROXY] 📞 Delegating getAuthorizationStatus(${pluginId}) to backend...`);
+        this.loggerChild.info(`📞 请求后端 getAuthorizationStatus(${pluginId})...`);
         try {
             const result = await this.rpcProxy.$getAuthorizationStatus(pluginId);
-            console.log(`[AUTH-PROXY] ✅ getAuthorizationStatus result: ${result}`);
+            this.loggerChild.info(`✅ getAuthorizationStatus 结果: ${result}`);
             return result;
         } catch (error) {
-            console.error(`[AUTH-PROXY] ❌ Error in getAuthorizationStatus:`, error);
+            this.loggerChild.error(`❌ 获取授权状态失败:`, error);
             throw error;
         }
     }
 
     async grantAuthorization(pluginId: PluginIdentifier): Promise<void> {
-        console.log(`[AUTH-PROXY] 📞 Delegating grantAuthorization(${pluginId}) to backend...`);
+        this.loggerChild.info(`📞 请求后端 grantAuthorization(${pluginId})...`);
         try {
             await this.rpcProxy.$grantAuthorization(pluginId);
-            console.log(`[AUTH-PROXY] ✅ grantAuthorization completed`);
+            this.loggerChild.info(`✅ grantAuthorization 完成`);
         } catch (error) {
-            console.error(`[AUTH-PROXY] ❌ Error in grantAuthorization:`, error);
+            this.loggerChild.error(`❌ 授权插件失败:`, error);
             throw error;
         }
     }
 
     async revokeAuthorization(pluginId: PluginIdentifier): Promise<void> {
-        console.log(`[AUTH-PROXY] 📞 Delegating revokeAuthorization(${pluginId}) to backend...`);
+        this.loggerChild.info(`📞 请求后端 revokeAuthorization(${pluginId})...`);
         try {
             await this.rpcProxy.$revokeAuthorization(pluginId);
-            console.log(`[AUTH-PROXY] ✅ revokeAuthorization completed`);
+            this.loggerChild.info(`✅ revokeAuthorization 完成`);
         } catch (error) {
-            console.error(`[AUTH-PROXY] ❌ Error in revokeAuthorization:`, error);
+            this.loggerChild.error(`❌ 撤销插件授权失败:`, error);
             throw error;
         }
     }
 
     async getAllAuthorizationStatuses(): Promise<Map<PluginIdentifier, AuthorizationStatus>> {
-        console.log(`[AUTH-PROXY] 📞 Delegating getAllAuthorizationStatuses() to backend...`);
+        this.loggerChild.info(`📞 请求后端 getAllAuthorizationStatuses()...`);
         try {
             const result = await this.rpcProxy.$getAllAuthorizationStatuses();
-            console.log(`[AUTH-PROXY] ✅ getAllAuthorizationStatuses result: ${result.size} statuses`);
+            this.loggerChild.info(`✅ 获取所有授权状态成功，共 ${result.size} 个状态`);
             return result;
         } catch (error) {
-            console.error(`[AUTH-PROXY] ❌ Error in getAllAuthorizationStatuses:`, error);
+            this.loggerChild.error(`❌ 获取所有插件授权状态失败:`, error);
             throw error;
         }
     }
 
-    /**
-     * Development/testing helper methods
-     */
     async resetToDefaults(): Promise<void> {
-        console.log(`[AUTH-PROXY] 📞 Delegating resetToDefaults() to backend...`);
+        this.loggerChild.info(`📞 请求后端 resetToDefaults()...`);
         try {
             if ('$resetToDefaults' in this.rpcProxy) {
                 await (this.rpcProxy as any).$resetToDefaults();
-                console.log(`[AUTH-PROXY] ✅ resetToDefaults completed`);
+                this.loggerChild.info(`✅ resetToDefaults 完成`);
             } else {
-                console.warn(`[AUTH-PROXY] ⚠️  resetToDefaults not available on RPC proxy`);
+                this.loggerChild.warn(`⚠️ 后端 RPC proxy 不支持 resetToDefaults`);
             }
         } catch (error) {
-            console.error(`[AUTH-PROXY] ❌ Error in resetToDefaults:`, error);
+            this.loggerChild.error(`❌ resetToDefaults 调用失败:`, error);
             throw error;
         }
     }
 
     dispose(): void {
-        console.log(`[AUTH-PROXY] 🧹 Disposing AuthorizationFrontendProxy...`);
+        this.loggerChild.info('🧹 释放 AuthorizationFrontendProxy...');
         this._onDidUpdateAuthorizationStatus.dispose();
         this.disposables.dispose();
     }

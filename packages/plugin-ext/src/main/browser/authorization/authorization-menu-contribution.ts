@@ -17,7 +17,7 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { MenuContribution, MenuModelRegistry, MAIN_MENU_BAR } from '@theia/core/lib/common/menu';
 import { Command, CommandContribution, CommandRegistry } from '@theia/core/lib/common/command';
-import { IAuthorizationService } from '../../common/services/authorization';
+import { IAuthorizationService } from '../../../common/services/authorization';
 
 export namespace AuthorizationCommands {
     export const GRANT_TEST_PLUGIN: Command = {
@@ -59,11 +59,11 @@ export class AuthorizationMenuContribution implements MenuContribution, CommandC
         registry.registerCommand(AuthorizationCommands.GRANT_TEST_PLUGIN, {
             execute: () => this.handleGrantTestPlugin()
         });
-        
+
         registry.registerCommand(AuthorizationCommands.REVOKE_TEST_PLUGIN, {
             execute: () => this.handleRevokeTestPlugin()
         });
-        
+
         registry.registerCommand(AuthorizationCommands.RESET_AUTHORIZATION, {
             execute: () => this.handleResetAuthorization()
         });

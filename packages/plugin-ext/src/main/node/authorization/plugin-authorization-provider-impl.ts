@@ -1,28 +1,12 @@
-// *****************************************************************************
-// Copyright (C) 2024 TypeFox and others.
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0.
-//
-// This Source Code may also be made available under the following Secondary
-// Licenses when the conditions for such availability set forth in the Eclipse
-// Public License v. 2.0 are satisfied: GNU General Public License, version 2
-// with the GNU Classpath Exception which is available at
-// https://www.gnu.org/software/classpath/license.html.
-//
-// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
-// *****************************************************************************
-
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import { Emitter, Event } from '@theia/core/lib/common/event';
+import { ILogger } from '@theia/core';
 import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../../../common/plugin-authorization';
 import { AuthorizationStatus } from '../../../common/services/authorization';
 import { AuthorizationServiceBackendImpl } from './authorization-service-backend-impl';
 
 /**
- * 授权提供者实现，委托给新的授权服务
- * 提供向后兼容的接口，但使用新的授权服务作为数据源
+ * 授权提供者
  */
 @injectable()
 export class PluginAuthorizationProviderImpl implements PluginAuthorizationProvider {
@@ -31,127 +15,100 @@ export class PluginAuthorizationProviderImpl implements PluginAuthorizationProvi
 
     @inject(AuthorizationServiceBackendImpl)
     protected readonly authorizationService: AuthorizationServiceBackendImpl;
-
-    constructor() {
-        console.log(`[OLD-AUTH] 🔗 PluginAuthorizationProviderImpl initializing with delegation to new authorization service`);
-    }
+    @inject(ILogger)
+    protected readonly logger: ILogger
 
     @postConstruct()
     protected postConstruct(): void {
-        // 监听新授权服务的状态变化，转换为旧接口的事件格式
+        // 监听授权服务的状态变化
         this.authorizationService.onDidUpdateAuthorizationStatus(event => {
-            console.log(`[OLD-AUTH] 📡 Received authorization update from new service:`, event);
+            this.logger.info(`[PLUGIN] 收到新的授权服务事件: ${JSON.stringify(event)}`);
 
             const legacyEvent: PluginAuthorizationChangeEvent = {
                 changedPluginIds: [event.pluginId],
                 changeType: event.status === AuthorizationStatus.GRANTED ? 'granted' : 'revoked'
             };
 
-            console.log(`[OLD-AUTH] 🔄 Converting to legacy event format:`, legacyEvent);
+            this.logger.info(`[PLUGIN] 🔄 转换为旧接口事件格式: ${JSON.stringify(legacyEvent)}`);
             this.onAuthorizationChangedEmitter.fire(legacyEvent);
         });
     }
-
 
     get onAuthorizationChanged(): Event<PluginAuthorizationChangeEvent> {
         return this.onAuthorizationChangedEmitter.event;
     }
 
     async $isAuthorized(pluginId: string): Promise<boolean> {
-        console.log(`[OLD-AUTH] 🔍 Checking authorization for plugin: ${pluginId} (delegating to new service)`);
+        this.logger.info(`[PLUGIN] 🔍 检查插件授权状态: ${pluginId} (委托给新服务)`);
 
         try {
             const authStatus = await this.authorizationService.getAuthorizationStatus(pluginId);
             const isAuthorized = authStatus === AuthorizationStatus.GRANTED;
 
-            console.log(`[OLD-AUTH] ✅ New service returned status: ${authStatus}, authorized: ${isAuthorized}`);
+            this.logger.info(`[PLUGIN] ✅ 新服务返回状态: ${authStatus}, 是否已授权: ${isAuthorized}`);
             return isAuthorized;
         } catch (error) {
-            console.error(`[OLD-AUTH] ❌ Error getting authorization status from new service:`, error);
+            this.logger.error(`[PLUGIN] ❌ 获取插件授权状态出错: ${pluginId}`, error);
             // 发生错误时默认为已授权（向后兼容）
             return true;
         }
     }
 
     async getAuthorizedPluginIds(): Promise<string[]> {
-        console.log(`[OLD-AUTH] 📋 Getting authorized plugin IDs (not implemented in new service - returning empty array)`);
-        // 新的授权服务不维护插件列表，只检查特定插件的状态
-        // 这里返回空数组，如果需要可以遍历已知插件进行检查
+        this.logger.info('[PLUGIN] 📋 获取已授权插件列表（新服务未实现，返回空数组）');
         return [];
     }
 
     async getUnauthorizedPluginIds(): Promise<string[]> {
-        console.log(`[OLD-AUTH] 📋 Getting unauthorized plugin IDs (not implemented in new service - returning empty array)`);
-        // 新的授权服务不维护插件列表，只检查特定插件的状态
-        // 这里返回空数组，如果需要可以遍历已知插件进行检查
+        this.logger.info('[PLUGIN] 📋 获取未授权插件列表（新服务未实现，返回空数组）');
         return [];
     }
 
-    /**
-     * 将插件设置为已授权状态（委托给新服务）
-     */
     grantAuthorization(pluginIds: string[]): void {
-        console.log(`[OLD-AUTH] 🎯 grantAuthorization called with:`, pluginIds);
+        this.logger.info(`[PLUGIN] 🎯 调用 grantAuthorization, 插件: ${pluginIds}`);
 
         for (const pluginId of pluginIds) {
-            console.log(`[OLD-AUTH] 🔓 Granting authorization for plugin: ${pluginId}`);
+            this.logger.info(`[PLUGIN] 🔓 授权插件: ${pluginId}`);
             try {
-                // 委托给新的授权服务
                 this.authorizationService.grantAuthorization(pluginId);
-                console.log(`[OLD-AUTH] ✅ Successfully granted authorization for ${pluginId}`);
+                this.logger.info(`[PLUGIN] ✅ 插件授权成功: ${pluginId}`);
             } catch (error) {
-                console.error(`[OLD-AUTH] ❌ Error granting authorization for ${pluginId}:`, error);
+                this.logger.error(`[PLUGIN] ❌ 插件授权失败: ${pluginId}`, error);
             }
         }
     }
 
-    /**
-     * 将插件设置为未授权状态（委托给新服务）
-     */
     revokeAuthorization(pluginIds: string[]): void {
-        console.log(`[OLD-AUTH] 🎯 revokeAuthorization called with:`, pluginIds);
+        this.logger.info(`[PLUGIN] 🎯 调用 revokeAuthorization, 插件: ${pluginIds}`);
 
         for (const pluginId of pluginIds) {
-            console.log(`[OLD-AUTH] 🔒 Revoking authorization for plugin: ${pluginId}`);
+            this.logger.info(`[PLUGIN] 🔒 撤销插件授权: ${pluginId}`);
             try {
-                // 委托给新的授权服务
                 this.authorizationService.revokeAuthorization(pluginId);
-                console.log(`[OLD-AUTH] ✅ Successfully revoked authorization for ${pluginId}`);
+                this.logger.info(`[PLUGIN] ✅ 插件授权已撤销: ${pluginId}`);
             } catch (error) {
-                console.error(`[OLD-AUTH] ❌ Error revoking authorization for ${pluginId}:`, error);
+                this.logger.error(`[PLUGIN] ❌ 撤销插件授权失败: ${pluginId}`, error);
             }
         }
     }
 
-    /**
-     * 授权测试插件（仅用于测试）
-     */
     async grantTestPluginAuthorization(): Promise<void> {
-        console.log(`[OLD-AUTH] 🧪 Granting test plugin authorization`);
+        this.logger.info('[PLUGIN] 🧪 授权测试插件');
         this.grantAuthorization(['<unpublished>.test-plugin']);
     }
 
-    /**
-     * 撤销测试插件授权（仅用于测试）
-     */
     async revokeTestPluginAuthorization(): Promise<void> {
-        console.log(`[OLD-AUTH] 🧪 Revoking test plugin authorization`);
+        this.logger.info('[PLUGIN] 🧪 撤销测试插件授权');
         this.revokeAuthorization(['<unpublished>.test-plugin']);
     }
 
-    /**
-     * 重置授权状态到初始状态（仅用于测试）
-     */
     async resetAuthorizationState(): Promise<void> {
-        console.log(`[OLD-AUTH] 🔄 Resetting authorization state (delegating to new service)`);
-
+        this.logger.info('[PLUGIN] 🔄 重置授权状态 (委托给新服务)');
         try {
-            // 撤销测试插件的授权，让它回到未授权状态
             await this.authorizationService.revokeAuthorization('<unpublished>.test-plugin');
-            console.log(`[OLD-AUTH] ✅ Reset completed - test plugin is now unauthorized`);
+            this.logger.info('[PLUGIN] ✅ 重置完成，测试插件已撤销授权');
         } catch (error) {
-            console.error(`[OLD-AUTH] ❌ Error resetting authorization state:`, error);
+            this.logger.error('[PLUGIN] ❌ 重置授权状态失败', error);
         }
     }
-
 }

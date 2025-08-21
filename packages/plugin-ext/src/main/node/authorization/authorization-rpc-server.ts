@@ -24,16 +24,16 @@ import {
     PluginIdentifier,
     AuthorizationStatus
 } from '../../../common/services/authorization';
+import { ILogger } from '@theia/core/lib/common/logger';
 
 /**
- * RPC server that exposes the AuthorizationService to remote processes.
+ * 授权 RPC 服务端
  * 
- * Responsibilities:
- * - Receives RPC calls from frontend/plugin processes
- * - Delegates all calls to the core AuthorizationService
- * - Listens to service events and broadcasts them to RPC clients
- * - Contains NO business logic - pure delegation layer
- * - Method names use $ prefix to clearly indicate RPC interface
+ * 作用：
+ * - 接收前端/插件进程的 RPC 调用
+ * - 委托给核心 AuthorizationService 处理
+ * - 转发事件给远程 RPC 客户端
+ * - 不包含业务逻辑，仅做转发
  */
 @injectable()
 export class AuthorizationRPCServer implements IAuthorizationRPC, RpcServer<IAuthorizationClient> {
@@ -42,15 +42,16 @@ export class AuthorizationRPCServer implements IAuthorizationRPC, RpcServer<IAut
     private client: IAuthorizationClient | undefined;
 
     constructor(
-        @inject(IAuthorizationService) private readonly authorizationService: IAuthorizationService
+        @inject(IAuthorizationService) private readonly authorizationService: IAuthorizationService,
+        @inject(ILogger) private readonly logger: ILogger
     ) {
-        console.log(`[AUTH-RPC] 🌐 AuthorizationRPCServer initializing...`);
+        this.logger.info('[PLUGIN] 🌐 初始化 AuthorizationRPCServer...');
         this.setupEventForwarding();
-        console.log(`[AUTH-RPC] ✅ AuthorizationRPCServer initialized with event forwarding`);
+        this.logger.info('[PLUGIN] ✅ AuthorizationRPCServer 初始化完成（事件转发已启用）');
     }
 
     setClient(client: IAuthorizationClient | undefined): void {
-        console.log(`[AUTH-RPC] 🔗 Setting client:`, !!client);
+        this.logger.info(`[PLUGIN] 🔗 设置客户端: ${!!client}`);
         this.client = client;
     }
 
@@ -59,88 +60,83 @@ export class AuthorizationRPCServer implements IAuthorizationRPC, RpcServer<IAut
     }
 
     private setupEventForwarding(): void {
-        // Listen to the real service's events and broadcast them to RPC clients
         this.disposables.push(this.authorizationService.onDidUpdateAuthorizationStatus(event => {
-            console.log(`[AUTH-RPC] 📡 [EVENT-SEND] Broadcasting authorization change event:`, event);
+            this.logger.info(`[PLUGIN] 📡 发送授权变更事件: ${JSON.stringify(event)}`);
             try {
                 if (this.client) {
                     this.client.$onDidUpdateAuthorizationStatus(event);
-                    console.log(`[AUTH-RPC] ✅ [EVENT-SEND] Event sent to client successfully`);
+                    this.logger.info('[PLUGIN] ✅ 事件成功发送到客户端');
                 } else {
-                    console.warn(`[AUTH-RPC] ⚠️  [EVENT-SEND] No client connected, cannot send event`);
+                    this.logger.warn('[PLUGIN] ⚠️ 没有客户端连接，无法发送事件');
                 }
             } catch (error) {
-                console.error(`[AUTH-RPC] ❌ [EVENT-SEND] Error sending event to client:`, error);
+                this.logger.error('[PLUGIN] ❌ 发送事件到客户端时出错', error);
             }
         }));
     }
 
     dispose(): void {
-        console.log(`[AUTH-RPC] 🧹 Disposing AuthorizationRPCServer...`);
+        this.logger.info('[PLUGIN] 🧹 释放 AuthorizationRPCServer 资源...');
         this.disposables.dispose();
     }
 
     async $getAuthorizationStatus(pluginId: PluginIdentifier): Promise<AuthorizationStatus> {
-        console.log(`[AUTH-RPC] 📞 RPC call: $getAuthorizationStatus(${pluginId})`);
+        this.logger.info(`[PLUGIN] 📞 RPC 调用: $getAuthorizationStatus(${pluginId})`);
         try {
             const result = await this.authorizationService.getAuthorizationStatus(pluginId);
-            console.log(`[AUTH-RPC] ✅ RPC response: ${result}`);
+            this.logger.info(`[PLUGIN] ✅ RPC 响应: ${result}`);
             return result;
         } catch (error) {
-            console.error(`[AUTH-RPC] ❌ RPC error in $getAuthorizationStatus:`, error);
+            this.logger.error('[PLUGIN] ❌ $getAuthorizationStatus 执行出错', error);
             throw error;
         }
     }
 
     async $grantAuthorization(pluginId: PluginIdentifier): Promise<void> {
-        console.log(`[AUTH-RPC] 📞 RPC call: $grantAuthorization(${pluginId})`);
+        this.logger.info(`[PLUGIN] 📞 RPC 调用: $grantAuthorization(${pluginId})`);
         try {
             await this.authorizationService.grantAuthorization(pluginId);
-            console.log(`[AUTH-RPC] ✅ RPC completed: $grantAuthorization`);
+            this.logger.info('[PLUGIN] ✅ RPC 完成: $grantAuthorization');
         } catch (error) {
-            console.error(`[AUTH-RPC] ❌ RPC error in $grantAuthorization:`, error);
+            this.logger.error('[PLUGIN] ❌ $grantAuthorization 执行出错', error);
             throw error;
         }
     }
 
     async $revokeAuthorization(pluginId: PluginIdentifier): Promise<void> {
-        console.log(`[AUTH-RPC] 📞 RPC call: $revokeAuthorization(${pluginId})`);
+        this.logger.info(`[PLUGIN] 📞 RPC 调用: $revokeAuthorization(${pluginId})`);
         try {
             await this.authorizationService.revokeAuthorization(pluginId);
-            console.log(`[AUTH-RPC] ✅ RPC completed: $revokeAuthorization`);
+            this.logger.info('[PLUGIN] ✅ RPC 完成: $revokeAuthorization');
         } catch (error) {
-            console.error(`[AUTH-RPC] ❌ RPC error in $revokeAuthorization:`, error);
+            this.logger.error('[PLUGIN] ❌ $revokeAuthorization 执行出错', error);
             throw error;
         }
     }
 
     async $getAllAuthorizationStatuses(): Promise<Map<PluginIdentifier, AuthorizationStatus>> {
-        console.log(`[AUTH-RPC] 📞 RPC call: $getAllAuthorizationStatuses()`);
+        this.logger.info('[PLUGIN] 📞 RPC 调用: $getAllAuthorizationStatuses()');
         try {
             const result = await this.authorizationService.getAllAuthorizationStatuses();
-            console.log(`[AUTH-RPC] ✅ RPC response: ${result.size} statuses`);
+            this.logger.info(`[PLUGIN] ✅ RPC 响应: ${result.size} 条授权状态`);
             return result;
         } catch (error) {
-            console.error(`[AUTH-RPC] ❌ RPC error in $getAllAuthorizationStatuses:`, error);
+            this.logger.error('[PLUGIN] ❌ $getAllAuthorizationStatuses 执行出错', error);
             throw error;
         }
     }
 
-    /**
-     * Development/testing helper methods - these are not part of the core RPC interface
-     * but are useful for development and testing scenarios
-     */
     async $resetToDefaults(): Promise<void> {
-        console.log(`[AUTH-RPC] 📞 RPC call: $resetToDefaults()`);
+        this.logger.info('[PLUGIN] 📞 RPC 调用: $resetToDefaults()');
         try {
             if ('resetToDefaults' in this.authorizationService) {
                 await (this.authorizationService as any).resetToDefaults();
-                console.log(`[AUTH-RPC] ✅ RPC completed: $resetToDefaults`);
+                this.logger.info('[PLUGIN] ✅ RPC 完成: $resetToDefaults');
             } else {
-                console.warn(`[AUTH-RPC] ⚠️  resetToDefaults not available on service`);
+                this.logger.warn('[PLUGIN] ⚠️ resetToDefaults 方法在 service 中不可用');
             }
         } catch (error) {
-            console.error(`[AUTH-RPC] ❌ RPC error in $resetToDefaults:`, error);
+            this.logger.error('[PLUGIN] ❌ $resetToDefaults 执行出错', error);
             throw error;
         }
     }
