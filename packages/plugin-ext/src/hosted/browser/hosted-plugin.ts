@@ -72,7 +72,7 @@ import {
     ALL_ACTIVATION_EVENT, isConnectionScopedBackendPlugin
 } from '../common/hosted-plugin';
 import { isRemote } from '@theia/core/lib/browser/browser';
-import { IAuthorizationService, AuthorizationStatus } from '../../common/services/authorization';
+import { IAuthorizationService } from '../../common/services/authorization';
 
 export type DebugActivationEvent = 'onDebugResolve' | 'onDebugInitialConfigurations' | 'onDebugAdapterProtocolTracker' | 'onDebugDynamicConfigurations';
 
@@ -212,11 +212,6 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
         this.notebookService.onWillOpenNotebook(async event => this.activateByNotebook(event));
         this.notebookRendererMessagingService.onWillActivateRenderer(rendererId => this.activateByNotebookRenderer(rendererId));
 
-        // Listen for authorization status changes and handle plugin activation/deactivation
-        this.authorizationService.onDidUpdateAuthorizationStatus(event => {
-            console.log(`[HostedPluginSupport] 🔄 Authorization status changed for plugin ${event.pluginId}: ${event.status}`);
-            this.handleAuthorizationStatusChange(event.pluginId, event.status);
-        });
 
         this.widgets.onDidCreateWidget(({ factoryId, widget }) => {
             // note: state restoration of custom editors is handled in `PluginCustomEditorRegistry.init`
@@ -278,54 +273,6 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
         }
     }
 
-    protected override async syncPlugins(): Promise<void> {
-        // First call the parent implementation to get the initial plugin sync
-        await super.syncPlugins();
-        
-        // Then check and handle authorization-based plugin activation/deactivation
-        await this.syncPluginAuthorization();
-    }
-
-    protected async syncPluginAuthorization(): Promise<void> {
-        console.log(`[HostedPluginSupport] 🔐 Syncing plugin authorization status...`);
-        
-        for (const [pluginId, contributions] of this.contributions.entries()) {
-            try {
-                const authStatus = await this.authorizationService.getAuthorizationStatus(pluginId);
-                const isAuthorized = authStatus === AuthorizationStatus.GRANTED;
-                
-                console.log(`[HostedPluginSupport] 📋 Plugin ${pluginId}: authorization=${authStatus}, authorized=${isAuthorized}`);
-                
-                if (!isAuthorized && contributions.state >= PluginContributions.State.STARTED) {
-                    // Plugin is currently running but not authorized - deactivate it
-                    console.log(`[HostedPluginSupport] 🛑 Deactivating unauthorized plugin: ${pluginId}`);
-                    await this.deactivatePlugin(pluginId);
-                } else if (isAuthorized && contributions.state < PluginContributions.State.STARTED) {
-                    // Plugin is authorized but not running - activate it
-                    console.log(`[HostedPluginSupport] ✅ Activating authorized plugin: ${pluginId}`);
-                    await this.activatePlugin(pluginId);
-                }
-            } catch (error) {
-                console.error(`[HostedPluginSupport] ❌ Failed to sync authorization for plugin ${pluginId}:`, error);
-            }
-        }
-        
-        console.log(`[HostedPluginSupport] ✨ Plugin authorization sync completed`);
-    }
-
-    protected async deactivatePlugin(pluginId: string): Promise<void> {
-        console.log(`[HostedPluginSupport] 🛑 Deactivating plugin: ${pluginId}`);
-        
-        // Stop the plugin in all managers
-        for (const manager of this.managers.values()) {
-            try {
-                await manager.$stop(pluginId);
-                console.log(`[HostedPluginSupport] ✅ Stopped plugin ${pluginId} in manager`);
-            } catch (error) {
-                console.warn(`[HostedPluginSupport] ⚠️  Failed to stop plugin ${pluginId}:`, error);
-            }
-        }
-    }
 
     protected override async beforeSyncPlugins(toDisconnect: DisposableCollection): Promise<void> {
         await super.beforeSyncPlugins(toDisconnect);
@@ -708,42 +655,5 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
         </html>`;
     }
 
-    /**
-     * Handle plugin authorization status changes
-     */
-    protected async handleAuthorizationStatusChange(pluginId: string, status: string): Promise<void> {
-        console.log(`[HostedPluginSupport] 🔍 Processing authorization change for plugin ${pluginId}: ${status}`);
-        
-        if (status === 'granted') {
-            // Plugin has been authorized - activate it directly
-            console.log(`[HostedPluginSupport] ✅ Activating authorized plugin: ${pluginId}`);
-            
-            try {
-                // Directly activate the specific plugin instead of reloading everything
-                await this.activatePlugin(pluginId);
-                console.log(`[HostedPluginSupport] 🎉 Successfully activated plugin: ${pluginId}`);
-            } catch (error) {
-                console.error(`[HostedPluginSupport] ❌ Failed to activate plugin ${pluginId}:`, error);
-                // Fall back to full reload if direct activation fails
-                console.log(`[HostedPluginSupport] 🔄 Falling back to full plugin reload`);
-                this.load();
-            }
-            
-        } else if (status === 'denied') {
-            // Plugin has been deauthorized - deactivate it
-            console.log(`[HostedPluginSupport] 🛑 Deactivating unauthorized plugin: ${pluginId}`);
-            
-            // Find the manager for this plugin and stop it
-            for (const manager of this.managers.values()) {
-                if (manager) {
-                    console.log(`[HostedPluginSupport] 🛑 Stopping plugin: ${pluginId}`);
-                    await manager.$stop(pluginId);
-                    console.log(`[HostedPluginSupport] ✅ Stopped plugin ${pluginId} in manager`);
-                }
-            }
-        }
-        
-        console.log(`[HostedPluginSupport] ✨ Plugin authorization sync completed`);
-    }
 
 }

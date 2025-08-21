@@ -52,7 +52,6 @@ import { PluginAuthorizationProvider, pluginAuthorizationPath } from '../../comm
 import { PluginAuthorizationProviderImpl } from './plugin-authorization-provider-impl';
 import { IAuthorizationService, authorizationServicePath, PluginAuthorizationManager } from '../../common/services/authorization';
 import { AuthorizationRPCServer } from './authorization-rpc-server';
-import { AuthorizationEnforcementService } from './authorization-enforcement-service';
 import { AuthorizationServiceBackendImpl } from './authorization-service-backend-impl';
 
 export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind): void {
@@ -135,13 +134,8 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
     bind(AuthorizationServiceBackendImpl).toSelf().inSingletonScope();
     bind(IAuthorizationService).toService(AuthorizationServiceBackendImpl);
     
-    // RPC 服务器绑定 (保留旧的，用于向后兼容)
-    if (isBound(AuthorizationRPCServer)) {
-        rebind(AuthorizationRPCServer).toSelf().inSingletonScope();
-    } else {
-        bind(AuthorizationRPCServer).toSelf().inSingletonScope();
-    }
-    
+    // RPC 服务器绑定
+    bind(AuthorizationRPCServer).toSelf().inSingletonScope();
     bind(ConnectionHandler).toDynamicValue(ctx => {
         return new RpcConnectionHandler(authorizationServicePath, (client: any) => {
             const rpcServer = ctx.container.get(AuthorizationRPCServer);
@@ -152,15 +146,5 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
         });
     }).inSingletonScope();
 
-    // 授权强制执行服务 (如果存在)
-    if (isBound(AuthorizationEnforcementService)) {
-        rebind(AuthorizationEnforcementService).toSelf().inSingletonScope();
-    } else {
-        try {
-            bind(AuthorizationEnforcementService).toSelf().inSingletonScope();
-            bind(BackendApplicationContribution).toService(AuthorizationEnforcementService);
-        } catch (e) {
-            console.log('[AUTH-MODULE] AuthorizationEnforcementService binding skipped:', e.message);
-        }
-    }
+
 }

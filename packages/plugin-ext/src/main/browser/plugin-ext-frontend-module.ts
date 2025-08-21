@@ -95,12 +95,6 @@ import { WebviewSecondaryWindowSupport } from './webview/webview-secondary-windo
 import { CustomEditorUndoRedoHandler } from './custom-editors/custom-editor-undo-redo-handler';
 import { PluginDocumentationCommandContribution } from './menus/plugin-documentation-command';
 import { PluginDocumentationFrontendService, PluginDocumentationService } from './plugin-documentation-frontend-service';
-import { PluginAuthorizationService } from '../../common/plugin-authorization-service';
-import { PluginAuthorizationStatus } from '../../browser/plugin-authorization-status';
-import { PluginAuthorizationServiceProxy } from '../../browser/plugin-authorization-service-proxy';
-import { PluginAuthorizationProvider } from '../../common/plugin-authorization';
-import { PluginAuthorizationFrontendProvider } from './plugin-authorization-frontend-provider';
-// import { PluginAuthorizationMenuContribution } from './plugin-authorization-menu-contribution';
 import { IAuthorizationService } from '../../common/services/authorization';
 import { AuthorizationFrontendProxy } from './authorization-frontend-proxy';
 import { AuthorizationMenuContribution } from './authorization-menu-contribution';
@@ -311,21 +305,6 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(PluginDocumentationCommandContribution).toSelf().inSingletonScope();
     bind(CommandContribution).toService(PluginDocumentationCommandContribution);
     bind(MenuContribution).toService(PluginDocumentationCommandContribution);
-
-    // 插件授权相关绑定 - 通过WebSocket与后端通信
-    bind(PluginAuthorizationServiceProxy).toSelf().inSingletonScope();
-    bind(PluginAuthorizationService).toService(PluginAuthorizationServiceProxy);
-    bind(PluginAuthorizationStatus).toSelf().inSingletonScope();
-    bind(FrontendApplicationContribution).toService(PluginAuthorizationStatus);
-
-    // 创建通过WebSocket与后端通信的前端授权提供者
-    bind(PluginAuthorizationFrontendProvider).toSelf().inSingletonScope();
-    bind(PluginAuthorizationProvider).toService(PluginAuthorizationFrontendProvider);
-
-    // 插件授权菜单贡献 - 已禁用，使用新的授权系统
-    // bind(PluginAuthorizationMenuContribution).toSelf().inSingletonScope();
-    // bind(CommandContribution).toService(PluginAuthorizationMenuContribution);
-    // bind(MenuContribution).toService(PluginAuthorizationMenuContribution);
 
     // 新的授权服务前端代理
     bind(AuthorizationFrontendProxy).toSelf().inSingletonScope();

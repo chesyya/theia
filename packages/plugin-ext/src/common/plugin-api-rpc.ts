@@ -19,7 +19,6 @@
 import { createProxyIdentifier, ProxyIdentifier, RPCProtocol } from './rpc-protocol';
 import * as theia from '@theia/plugin';
 import { PluginLifecycle, PluginModel, PluginMetadata, PluginPackage, IconUrl, PluginJsonValidationContribution } from './plugin-protocol';
-import { PluginAuthorizationProvider } from './plugin-authorization';
 import { QueryParameters } from './env';
 import { TextEditorCursorStyle } from './editor-options';
 import {
@@ -2306,18 +2305,10 @@ export interface PluginAuthorizationServiceMain {
     $getUnauthorizedPluginIds(): Promise<string[]>;
 }
 
-export interface AuthorizationMain {
-    $getAuthorizationStatus(pluginId: string): Promise<string>;
-}
-
-export interface AuthorizationExt {
-    $handleAuthorizationStatusChange(pluginId: string, event: { status: string; previousStatus: string; timestamp: Date }): void;
-}
 
 export const PLUGIN_RPC_CONTEXT = {
     LOGGER_MAIN: createProxyIdentifier<LoggerMain>('LoggerMain'),
     AUTHENTICATION_MAIN: createProxyIdentifier<AuthenticationMain>('AuthenticationMain'),
-    AUTHORIZATION_MAIN: createProxyIdentifier<AuthorizationMain>('AuthorizationMain'),
     COMMAND_REGISTRY_MAIN: createProxyIdentifier<CommandRegistryMain>('CommandRegistryMain'),
     QUICK_OPEN_MAIN: createProxyIdentifier<QuickOpenMain>('QuickOpenMain'),
     DIALOGS_MAIN: createProxyIdentifier<DialogsMain>('DialogsMain'),
@@ -2361,7 +2352,6 @@ export const PLUGIN_RPC_CONTEXT = {
     LOCALIZATION_MAIN: createProxyIdentifier<LocalizationMain>('LocalizationMain'),
     TESTING_MAIN: createProxyIdentifier<TestingMain>('TestingMain'),
     URI_MAIN: createProxyIdentifier<UriMain>('UriMain'),
-    PLUGIN_AUTHORIZATION_MAIN: createProxyIdentifier<PluginAuthorizationProvider>('PluginAuthorizationMain')
 };
 
 export const MAIN_RPC_CONTEXT = {
@@ -2405,8 +2395,6 @@ export const MAIN_RPC_CONTEXT = {
     TELEMETRY_EXT: createProxyIdentifier<TelemetryExt>('TelemetryExt)'),
     TESTING_EXT: createProxyIdentifier<TestingExt>('TestingExt'),
     URI_EXT: createProxyIdentifier<UriExt>('UriExt'),
-    PLUGIN_AUTHORIZATION_EXT: createProxyIdentifier<PluginAuthorizationExt>('PluginAuthorizationExt'),
-    AUTHORIZATION_EXT: createProxyIdentifier<AuthorizationExt>('AuthorizationExt')
 };
 
 export interface TasksExt {
@@ -2429,9 +2417,6 @@ export interface TasksMain {
     $customExecutionComplete(id: number, exitCode: number | undefined): void;
 }
 
-export interface PluginAuthorizationExt {
-    $onDidChangeAuthorizationStatus(event: import('./plugin-authorization').PluginAuthorizationChangeEvent): Promise<void>;
-}
 
 export interface AuthenticationExt {
     $getSessions(providerId: string, scopes: string[] | undefined, options: theia.AuthenticationProviderSessionOptions): Promise<ReadonlyArray<theia.AuthenticationSession>>;

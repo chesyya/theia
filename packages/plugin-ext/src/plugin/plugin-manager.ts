@@ -47,7 +47,6 @@ import { WebviewsExtImpl } from './webviews';
 import { URI as Uri } from './types-impl';
 import { InternalSecretsExt, SecretStorageExt } from '../plugin/secrets-ext';
 import { PluginExt } from './plugin-context';
-import { AuthorizationExt } from './authorization-ext';
 import { Deferred } from '@theia/core/lib/common/promise-util';
 import { PluginLogger } from './logger';
 
@@ -403,7 +402,6 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
         const secrets = new SecretStorageExt(plugin, this.secrets);
         const globalStoragePath = join(configStorage.hostGlobalStoragePath, plugin.model.id);
         const extension = new PluginExt(this, plugin);
-        const authorization = new AuthorizationExt(this.rpc, plugin.model.id);
         const extensionModeValue = plugin.isUnderDevelopment ? types.ExtensionMode.Development : types.ExtensionMode.Production;
 
         const pluginContext: theia.PluginContext = {
@@ -422,7 +420,6 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
             environmentVariableCollection: this.terminalService.getEnvironmentVariableCollection(plugin.model.id),
             extensionMode: extensionModeValue,
             extension,
-            authorization,
             logUri: Uri.file(logPath),
             languageModelAccessInformation: {
                 /** @stubbed LanguageModelChat */

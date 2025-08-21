@@ -40,9 +40,6 @@
       "path": "../terminal"
     },
     {
-      "path": "../test"
-    },
-    {
       "path": "../variable-resolver"
     },
     {

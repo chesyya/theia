@@ -49,9 +49,6 @@
       "path": "../terminal"
     },
     {
-      "path": "../test"
-    },
-    {
       "path": "../workspace"
     }
   ]
