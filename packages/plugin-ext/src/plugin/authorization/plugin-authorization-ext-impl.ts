@@ -17,8 +17,8 @@
 import { Event, Emitter } from '@theia/core/lib/common/event';
 import { RPCProtocol } from '../../common/rpc-protocol';
 import { PLUGIN_RPC_CONTEXT, PluginAuthorizationMain, PluginAuthorizationExt } from '../../common/plugin-api-rpc';
-import { PluginAuthorizationService } from '../../common/plugin-authorization-service';
-import { PluginAuthorizationChangeEvent } from '../../common/plugin-authorization';
+import { PluginAuthorizationService } from '../../common/services/authorization/plugin-authorization-service';
+import { PluginAuthorizationChangeEvent } from '../../common/services/authorization/plugin-authorization';
 
 /**
  * 简化的插件授权服务实现

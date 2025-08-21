@@ -2428,7 +2428,7 @@ export interface TasksMain {
 }
 
 export interface PluginAuthorizationExt {
-    $onDidChangeAuthorizationStatus(event: import('./plugin-authorization').PluginAuthorizationChangeEvent): Promise<void>;
+    $onDidChangeAuthorizationStatus(event: import('./services/authorization/plugin-authorization').PluginAuthorizationChangeEvent): Promise<void>;
 }
 
 export interface AuthenticationExt {

@@ -44,7 +44,7 @@ export interface PluginAuthorizationProvider {
      * @param pluginId 插件ID
      * @returns Promise，resolved为true表示已授权，false表示未授权
      */
-    $isAuthorized(pluginId: string): Promise<boolean>;
+    isAuthorized(pluginId: string): Promise<boolean>;
 
     /**
      * 获取所有已授权的插件ID列表

@@ -33,7 +33,7 @@ import { VSXExtensionNamespaceAccess, VSXUser } from '@theia/ovsx-client/lib/ovs
 import { WindowService } from '@theia/core/lib/browser/window/window-service';
 import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering';
 import { VSXExtensionsModel } from './vsx-extensions-model';
-import { PluginAuthorizationProvider } from '@theia/plugin-ext/lib/common/plugin-authorization';
+import { PluginAuthorizationProvider } from '@theia/plugin-ext/lib/common/services/authorization/plugin-authorization';
 import { AuthorizationStatus, IAuthorizationService } from '@theia/plugin-ext/lib/common/services/authorization';
 
 export const EXTENSIONS_CONTEXT_MENU: MenuPath = ['extensions_context_menu'];
@@ -158,10 +158,10 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     @postConstruct()
     protected postConstruct(): void {
         this.registryUri = this.environment.getRegistryUri();
-        
+
         // 初始化时检查授权状态
         this.updateAuthorizationStatus();
-        
+
         // 监听授权状态变化
         this.newAuthorizationService.onDidUpdateAuthorizationStatus(event => {
             if (event.pluginId === this.id) {
@@ -217,7 +217,7 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     get authorized(): boolean | undefined {
         return this._authorized;
     }
-    
+
     get authorizationState(): 'pending' | 'authorized' | 'unauthorized' {
         return this._authorizationState;
     }
@@ -539,32 +539,32 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
         const tabIndex = (!host || isFocused) ? 0 : undefined;
         const outOfSync = installed && (deployed ? (disabled || uninstalled) : !(disabled || uninstalled));
         const isUnauthorized = authorized === false;
-        
+
         if (currentTask) {
             return <button className="theia-button action prominent theia-mod-disabled">{currentTask}</button>;
         }
         return <div>
             {
-                outOfSync && <button className="theia-button action" 
+                outOfSync && <button className="theia-button action"
                     onClick={this.reloadWindow}>
                     {nls.localizeByDefault('Reload Window')}
                 </button>
             }
             {
                 !builtin && ((installed && !uninstalled) ?
-                    <button className={`theia-button action${isUnauthorized ? ' disabled' : ''}`} 
+                    <button className={`theia-button action${isUnauthorized ? ' disabled' : ''}`}
                         onClick={isUnauthorized ? undefined : this.uninstall}
                         disabled={isUnauthorized}>
                         {nls.localizeByDefault('Uninstall')}
                     </button> :
-                    <button className={`theia-button prominent action${isUnauthorized ? ' disabled' : ''}`} 
+                    <button className={`theia-button prominent action${isUnauthorized ? ' disabled' : ''}`}
                         onClick={isUnauthorized ? undefined : this.install}
                         disabled={isUnauthorized}>
                         {nls.localizeByDefault('Install')}
                     </button>)
             }
-            <div className={`codicon codicon-settings-gear action${isUnauthorized ? ' disabled' : ''}`} 
-                tabIndex={isUnauthorized ? undefined : tabIndex} 
+            <div className={`codicon codicon-settings-gear action${isUnauthorized ? ' disabled' : ''}`}
+                tabIndex={isUnauthorized ? undefined : tabIndex}
                 onClick={isUnauthorized ? undefined : this.manage}></div>
         </div>;
     }

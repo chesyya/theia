@@ -18,7 +18,7 @@
 export * from './plugin-protocol';
 export * from './plugin-api-rpc';
 export * from './plugin-ext-api-contribution';
-export * from './plugin-authorization';
+export * from './services/authorization/plugin-authorization';
 
 import { registerMsgPackExtensions } from './rpc-protocol';
 

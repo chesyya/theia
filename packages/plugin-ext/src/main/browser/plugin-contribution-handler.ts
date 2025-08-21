@@ -53,6 +53,7 @@ import { PluginTerminalRegistry } from './plugin-terminal-registry';
 import { ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 import { LanguageService } from '@theia/core/lib/browser/language-service';
 import { ThemeIcon } from '@theia/monaco-editor-core/esm/vs/base/common/themables';
+import { PluginAuthorizationProvider } from '../../common/services/authorization/plugin-authorization';
 
 
 // The enum export is missing from `vscode-textmate@9.2.0`
@@ -152,12 +153,17 @@ export class PluginContributionHandler {
     @inject(ContextKeyService)
     protected readonly contextKeyService: ContextKeyService;
 
+    @inject(PluginAuthorizationProvider)
+    protected readonly authorizationProvider: PluginAuthorizationProvider;
+
 
 
     protected readonly commandHandlers = new Map<string, CommandHandler['execute'] | undefined>();
+    protected readonly commandToPlugin = new Map<string, string>();
 
     protected readonly onDidRegisterCommandHandlerEmitter = new Emitter<string>();
     readonly onDidRegisterCommandHandler = this.onDidRegisterCommandHandlerEmitter.event;
+
 
     /**
      * Always synchronous in order to simplify handling disconnections.
@@ -291,7 +297,7 @@ export class PluginContributionHandler {
             });
         }
 
-        pushContribution('commands', () => this.registerCommands(contributions));
+        pushContribution('commands', () => this.registerCommands(contributions, plugin.metadata.model.id));
         pushContribution('menus', () => this.menusContributionHandler.handle(plugin));
         pushContribution('keybindings', () => this.keybindingsContributionHandler.handle(contributions));
 
@@ -470,7 +476,7 @@ export class PluginContributionHandler {
         return toDispose;
     }
 
-    protected registerCommands(contribution: PluginContribution): Disposable {
+    protected registerCommands(contribution: PluginContribution, pluginId?: string): Disposable {
         if (!contribution.commands) {
             return Disposable.NULL;
         }
@@ -485,12 +491,12 @@ export class PluginContributionHandler {
             } else if (icon) {
                 iconClass = ThemeIcon.asClassName(icon);
             }
-            toDispose.push(this.registerCommand({ id: command, category, shortTitle, label: title, originalLabel: originalTitle, iconClass }, enablement));
+            toDispose.push(this.registerCommand({ id: command, category, shortTitle, label: title, originalLabel: originalTitle, iconClass }, enablement, pluginId));
         }
         return toDispose;
     }
 
-    registerCommand(command: Command, enablement?: string): Disposable {
+    registerCommand(command: Command, enablement?: string, pluginId?: string): Disposable {
         if (this.hasCommand(command.id)) {
             console.warn(`command '${command.id}' already registered`);
             return Disposable.NULL;
@@ -498,6 +504,14 @@ export class PluginContributionHandler {
 
         const commandHandler: CommandHandler = {
             execute: async (...args) => {
+                // 检查插件授权状态
+                if (pluginId) {
+                    const isAuthorized = await this.authorizationProvider.isAuthorized(pluginId);
+                    if (!isAuthorized) {
+                        throw new Error(`Plugin '${pluginId}' is not authorized to execute command '${command.id}'`);
+                    }
+                }
+                
                 const handler = this.commandHandlers.get(command.id);
                 if (!handler) {
                     throw new Error(`command '${command.id}' not found`);
@@ -534,7 +548,13 @@ export class PluginContributionHandler {
             toDispose.push(this.commands.registerCommand(command, commandHandler));
         }
         this.commandHandlers.set(command.id, undefined);
-        toDispose.push(Disposable.create(() => this.commandHandlers.delete(command.id)));
+        if (pluginId) {
+            this.commandToPlugin.set(command.id, pluginId);
+        }
+        toDispose.push(Disposable.create(() => {
+            this.commandHandlers.delete(command.id);
+            this.commandToPlugin.delete(command.id);
+        }));
         return toDispose;
     }
 

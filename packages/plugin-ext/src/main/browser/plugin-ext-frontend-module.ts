@@ -95,10 +95,10 @@ import { WebviewSecondaryWindowSupport } from './webview/webview-secondary-windo
 import { CustomEditorUndoRedoHandler } from './custom-editors/custom-editor-undo-redo-handler';
 import { PluginDocumentationCommandContribution } from './menus/plugin-documentation-command';
 import { PluginDocumentationFrontendService, PluginDocumentationService } from './plugin-documentation-frontend-service';
-import { PluginAuthorizationService } from '../../common/plugin-authorization-service';
+import { PluginAuthorizationService } from '../../common/services/authorization/plugin-authorization-service';
 import { PluginAuthorizationStatus } from '../../browser/plugin-authorization-status';
 import { PluginAuthorizationServiceProxy } from '../../browser/plugin-authorization-service-proxy';
-import { PluginAuthorizationProvider } from '../../common/plugin-authorization';
+import { PluginAuthorizationProvider } from '../../common/services/authorization/plugin-authorization';
 import { PluginAuthorizationFrontendProvider } from './authorization/plugin-authorization-frontend-provider';
 // import { PluginAuthorizationMenuContribution } from './plugin-authorization-menu-contribution';
 import { IAuthorizationService } from '../../common/services/authorization';

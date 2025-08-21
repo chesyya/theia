@@ -36,7 +36,7 @@ import { ApplicationServer } from '@theia/core/lib/common/application-protocol';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { HostedPluginServer, PluginIdentifiers, PluginType } from '@theia/plugin-ext';
 import { HostedPluginWatcher } from '@theia/plugin-ext/lib/hosted/browser/hosted-plugin-watcher';
-import { PluginAuthorizationProvider } from '@theia/plugin-ext/lib/common/plugin-authorization';
+import { PluginAuthorizationProvider } from '@theia/plugin-ext/lib/common/services/authorization/plugin-authorization';
 
 @injectable()
 export class VSXExtensionsModel {
@@ -272,26 +272,26 @@ export class VSXExtensionsModel {
         if (!extension) {
             extension = this.extensionFactory({ id, version, model: this });
             this.extensions.set(id, extension);
-            
+
             // 立即尝试从本地插件获取基本信息，避免显示undefined
             this.setLocalPluginData(extension);
         }
         return extension;
     }
-    
+
     protected setLocalPluginData(extension: VSXExtension): void {
         try {
             // 尝试多种方式查找插件
             let plugin = this.pluginSupport.getPlugin(extension.id as PluginIdentifiers.UnversionedId);
             console.log(`[VSX-MODEL] 🔍 Looking for plugin: ${extension.id}, found:`, plugin ? 'YES' : 'NO');
-            
+
             // 如果没找到，且ID是<unpublished>.xxx格式，尝试用简单名称查找
             if (!plugin && extension.id.startsWith('<unpublished>.')) {
                 const simpleName = extension.id.replace('<unpublished>.', '');
                 plugin = this.pluginSupport.getPlugin(simpleName as PluginIdentifiers.UnversionedId);
                 console.log(`[VSX-MODEL] 🔍 Fallback lookup for: ${simpleName}, found:`, plugin ? 'YES' : 'NO');
             }
-            
+
             if (plugin?.metadata?.model) {
                 const model = plugin.metadata.model;
                 extension.update({
@@ -305,8 +305,8 @@ export class VSXExtensionsModel {
                 console.log(`[VSX-MODEL] 📦 Set local data for plugin: ${extension.id} -> ${model.displayName || model.name}`);
             } else {
                 // 如果找不到插件元数据，为未授权插件提供基本显示信息
-                const displayName = extension.id.includes('.') ? 
-                    extension.id.split('.').pop() : 
+                const displayName = extension.id.includes('.') ?
+                    extension.id.split('.').pop() :
                     extension.id.replace('<unpublished>.', '');
                 extension.update({
                     name: displayName,
@@ -539,12 +539,12 @@ export class VSXExtensionsModel {
             }
             console.log(`[VSX-MODEL] 📊 Final builtin plugins count: ${this.builtins.size}`);
             console.log(`[VSX-MODEL] 📋 Builtin plugins:`, Array.from(this.builtins));
-            
+
             // 更新安装列表（builtin状态已经设置完成）
             const installed = new Set([...prevInstalled, ...currInstalled]);
             const installedSorted = Array.from(installed).sort((a, b) => this.compareExtensions(a, b));
             this._installed = new Set(installedSorted.values());
-            
+
             // 在后台异步等待refresh完成，不阻塞builtin状态
             Promise.all(refreshing).then(() => {
                 console.log(`[VSX-MODEL] ✅ Background refresh completed for ${refreshing.length} extensions`);
@@ -696,7 +696,7 @@ export class VSXExtensionsModel {
         this.onDidChangeEmitter.fire();
     }
 
-    protected async handleAuthorizationChange(event: import('@theia/plugin-ext/lib/common/plugin-authorization').PluginAuthorizationChangeEvent): Promise<void> {
+    protected async handleAuthorizationChange(event: import('@theia/plugin-ext/lib/common/services/authorization/plugin-authorization').PluginAuthorizationChangeEvent): Promise<void> {
         const { changedPluginIds } = event;
         const affectedExtensions = changedPluginIds
             .map(id => this.getExtension(id))

@@ -48,12 +48,10 @@ import { PluginRemoteCopyContribution } from './plugin-remote-copy-contribution'
 import { RemoteCopyContribution } from '@theia/core/lib/node/remote/remote-copy-contribution';
 import { PluginDocumentationServer } from './plugin-documentation-server';
 import { PluginDocumentationService, pluginDocumentationServicePath } from '../browser/plugin-documentation-frontend-service';
-import { PluginAuthorizationProvider, pluginAuthorizationPath } from '../../common/plugin-authorization';
-import { PluginAuthorizationProviderImpl } from './authorization/plugin-authorization-provider-impl';
+import { PluginAuthorizationProvider, pluginAuthorizationPath } from '../../common/services/authorization/plugin-authorization';
 import { IAuthorizationService, authorizationServicePath, PluginAuthorizationManager } from '../../common/services/authorization';
-import { AuthorizationRPCServer } from './authorization/authorization-rpc-server';
 import { AuthorizationEnforcementService } from './authorization/authorization-enforcement-service';
-import { AuthorizationServiceBackendImpl } from './authorization/authorization-service-backend-impl';
+import { PluginAuthorizationService } from './authorization/plugin-authorization-service';
 
 export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind): void {
     bind(PluginApiContribution).toSelf().inSingletonScope();
@@ -121,34 +119,25 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
         )
     ).inSingletonScope();
 
-    // Legacy 插件授权提供者绑定 (保持向后兼容)
-    bind(PluginAuthorizationProviderImpl).toSelf().inSingletonScope();
-    bind(PluginAuthorizationProvider).toService(PluginAuthorizationProviderImpl);
+    // 核心授权管理器 (状态管理和业务逻辑)
+    bind(PluginAuthorizationManager).toSelf().inSingletonScope();
+    bind(IAuthorizationService).toService(PluginAuthorizationManager);
+
+    // 统一授权服务 (整合Legacy接口和RPC通信)
+    bind(PluginAuthorizationService).toSelf().inSingletonScope();
+    bind(PluginAuthorizationProvider).toService(PluginAuthorizationService);
+
+    // Legacy RPC连接处理器
     bind(ConnectionHandler).toDynamicValue(ctx =>
         new RpcConnectionHandler(pluginAuthorizationPath, () => ctx.container.get(PluginAuthorizationProvider))
     ).inSingletonScope();
 
-    // 新的基于类的授权管理器 (不依赖数据库)
-    bind(PluginAuthorizationManager).toSelf().inSingletonScope();
-
-    // 新的授权服务后端实现
-    bind(AuthorizationServiceBackendImpl).toSelf().inSingletonScope();
-    bind(IAuthorizationService).toService(AuthorizationServiceBackendImpl);
-
-    // RPC 服务器绑定 (保留旧的，用于向后兼容)
-    if (isBound(AuthorizationRPCServer)) {
-        rebind(AuthorizationRPCServer).toSelf().inSingletonScope();
-    } else {
-        bind(AuthorizationRPCServer).toSelf().inSingletonScope();
-    }
-
+    // 新授权服务RPC连接处理器
     bind(ConnectionHandler).toDynamicValue(ctx => {
         return new RpcConnectionHandler(authorizationServicePath, (client: any) => {
-            const rpcServer = ctx.container.get(AuthorizationRPCServer);
-            if (rpcServer.setClient) {
-                rpcServer.setClient(client);
-            }
-            return rpcServer;
+            const service = ctx.container.get(PluginAuthorizationService);
+            service.registerClient(client);
+            return service;
         });
     }).inSingletonScope();
 

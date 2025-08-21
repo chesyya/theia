@@ -16,7 +16,7 @@
 
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { Event } from '@theia/core';
-import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent, pluginAuthorizationPath } from '../../../common/plugin-authorization';
+import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent, pluginAuthorizationPath } from '../../../common/services/authorization/plugin-authorization';
 import { WebSocketConnectionProvider } from '@theia/core/lib/browser/messaging';
 
 /**
@@ -32,10 +32,16 @@ export class PluginAuthorizationFrontendProvider implements PluginAuthorizationP
     ) {
         this.backendProxy = this.connectionProvider.createProxy<PluginAuthorizationProvider>(pluginAuthorizationPath);
     }
-
-    async $isAuthorized(pluginId: string): Promise<boolean> {
-        return this.backendProxy.$isAuthorized(pluginId);
+    async isAuthorized(pluginId: string): Promise<boolean> {
+        return this.backendProxy.isAuthorized(pluginId);
     }
+    async resetAuthorizationState(): Promise<void> {
+        const proxy = this.backendProxy as any;
+        if (proxy.resetAllAuthorizations) {
+            return proxy.resetAllAuthorizations();
+        }
+    }
+
 
     async getAuthorizedPluginIds(): Promise<string[]> {
         return this.backendProxy.getAuthorizedPluginIds();
@@ -49,17 +55,10 @@ export class PluginAuthorizationFrontendProvider implements PluginAuthorizationP
         return this.backendProxy.onAuthorizationChanged;
     }
 
-    async grantTestPluginAuthorization(): Promise<void> {
+    async manageTestPluginAuthorization(grant: boolean): Promise<void> {
         const proxy = this.backendProxy as any;
-        if (proxy.grantTestPluginAuthorization) {
-            return proxy.grantTestPluginAuthorization();
-        }
-    }
-
-    async revokeTestPluginAuthorization(): Promise<void> {
-        const proxy = this.backendProxy as any;
-        if (proxy.revokeTestPluginAuthorization) {
-            return proxy.revokeTestPluginAuthorization();
+        if (proxy.manageTestPluginAuthorization) {
+            return proxy.manageTestPluginAuthorization(grant);
         }
     }
 }

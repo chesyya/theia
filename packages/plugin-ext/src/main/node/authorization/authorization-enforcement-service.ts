@@ -17,7 +17,7 @@
 import { injectable, inject, postConstruct, optional } from '@theia/core/shared/inversify';
 import { BackendApplicationContribution } from '@theia/core/lib/node/backend-application';
 import { PluginServer, PluginIdentifiers } from '../../../common/plugin-protocol';
-import { PluginAuthorizationProvider } from '../../../common/plugin-authorization';
+import { PluginAuthorizationProvider } from '../../../common/services/authorization/plugin-authorization';
 import { HostedPluginWatcher } from '../../../hosted/browser/hosted-plugin-watcher';
 import { ILogger } from '@theia/core/lib/common/logger';
 
@@ -83,7 +83,7 @@ export class AuthorizationEnforcementService implements BackendApplicationContri
 
             const syncOperations = Array.from(allPluginIds).map(async (versionedId) => {
                 const unversionedId = PluginIdentifiers.unversionedFromVersioned(versionedId);
-                const isAuthorized = await this.authorizationProvider.$isAuthorized(unversionedId);
+                const isAuthorized = await this.authorizationProvider.isAuthorized(unversionedId);
                 const isEnabled = !disabledIds.includes(versionedId);
 
                 this.logger.info(`[PLUGIN] ℹ️ 插件 ${unversionedId}: 授权=${isAuthorized}, 启用=${isEnabled}`);
@@ -129,7 +129,7 @@ export class AuthorizationEnforcementService implements BackendApplicationContri
     /**
      * 处理授权状态变更事件
      */
-    private async onAuthorizationChanged(event: import('../../../common/plugin-authorization').PluginAuthorizationChangeEvent): Promise<void> {
+    private async onAuthorizationChanged(event: import('../../../common/services/authorization/plugin-authorization').PluginAuthorizationChangeEvent): Promise<void> {
         const { changedPluginIds, changeType } = event;
 
         this.logger.info(`[PLUGIN] ℹ️ 授权状态变更 (${changeType}) 插件列表: ${changedPluginIds.join(', ')}`);

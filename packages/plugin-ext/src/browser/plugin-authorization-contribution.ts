@@ -2,7 +2,7 @@ import { injectable, inject } from '@theia/core/shared/inversify';
 import { CommandContribution, CommandRegistry } from '@theia/core/lib/common/command';
 import { MenuContribution, MenuModelRegistry } from '@theia/core/lib/common/menu';
 import { CommonMenus } from '@theia/core/lib/browser/common-frontend-contribution';
-import { PluginAuthorizationService } from '../common/plugin-authorization-service';
+import { PluginAuthorizationService } from '../common/services/authorization/plugin-authorization-service';
 import { QuickPickService } from '@theia/core/lib/common/quick-pick-service';
 
 export namespace PluginAuthorizationCommands {

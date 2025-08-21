@@ -17,7 +17,7 @@
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import { RPCProtocol } from '../../../common/rpc-protocol';
 import { MAIN_RPC_CONTEXT, PluginAuthorizationMain } from '../../../common/plugin-api-rpc';
-import { PluginAuthorizationProvider } from '../../../common/plugin-authorization';
+import { PluginAuthorizationProvider } from '../../../common/services/authorization/plugin-authorization';
 
 /**
  * 简化的插件授权Main实现，直接委托给现有的PluginAuthorizationProvider
@@ -31,6 +31,12 @@ export class PluginAuthorizationMainImpl implements PluginAuthorizationMain {
     constructor(
         @inject(RPCProtocol) private readonly rpc: RPCProtocol
     ) {
+    }
+    $grantTestPluginAuthorization(): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
+    $revokeTestPluginAuthorization(): Promise<void> {
+        throw new Error('Method not implemented.');
     }
 
     @postConstruct()
@@ -49,7 +55,7 @@ export class PluginAuthorizationMainImpl implements PluginAuthorizationMain {
     }
 
     async $isAuthorized(pluginId: string): Promise<boolean> {
-        return this.authorizationProvider.$isAuthorized(pluginId);
+        return this.authorizationProvider.isAuthorized(pluginId);
     }
 
     async $getUnauthorizedPluginIds(): Promise<string[]> {
@@ -60,20 +66,15 @@ export class PluginAuthorizationMainImpl implements PluginAuthorizationMain {
         return this.authorizationProvider.getAuthorizedPluginIds();
     }
 
-    async $grantTestPluginAuthorization(): Promise<void> {
-        if (this.authorizationProvider.grantTestPluginAuthorization) {
-            await this.authorizationProvider.grantTestPluginAuthorization();
-        }
-    }
-
-    async $revokeTestPluginAuthorization(): Promise<void> {
-        if (this.authorizationProvider.revokeTestPluginAuthorization) {
-            await this.authorizationProvider.revokeTestPluginAuthorization();
+    async $manageTestPluginAuthorization(grant: boolean): Promise<void> {
+        const provider = this.authorizationProvider as any;
+        if (provider.manageTestPluginAuthorization) {
+            await provider.manageTestPluginAuthorization(grant);
         }
     }
 
     async $getAuthorizationStatus(pluginId: string): Promise<string> {
-        const isAuthorized = await this.authorizationProvider.$isAuthorized(pluginId);
+        const isAuthorized = await this.authorizationProvider.isAuthorized(pluginId);
         return isAuthorized ? 'granted' : 'denied';
     }
 }

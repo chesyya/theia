@@ -16,8 +16,8 @@
 
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { Event } from '@theia/core/lib/common/event';
-import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../common/plugin-authorization';
-import { PluginAuthorizationService } from '../common/plugin-authorization-service';
+import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../common/services/authorization/plugin-authorization';
+import { PluginAuthorizationService } from '../common/services/authorization/plugin-authorization-service';
 
 /**
  * 前端代理，将core包的PluginAuthorizationProvider包装为plugin-ext的PluginAuthorizationService
@@ -29,7 +29,7 @@ export class PluginAuthorizationServiceProxy implements PluginAuthorizationServi
     protected readonly authorizationProvider: PluginAuthorizationProvider;
 
     async isAuthorized(pluginId: string): Promise<boolean> {
-        return this.authorizationProvider.$isAuthorized(pluginId);
+        return this.authorizationProvider.isAuthorized(pluginId);
     }
 
     async getUnauthorizedPluginIds(): Promise<string[]> {
