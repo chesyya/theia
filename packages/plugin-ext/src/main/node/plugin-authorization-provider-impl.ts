@@ -18,7 +18,7 @@ import { injectable, inject, postConstruct } from '@theia/core/shared/inversify'
 import { Emitter, Event } from '@theia/core/lib/common/event';
 import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../../common/plugin-authorization';
 import { AuthorizationStatus } from '../../common/services/authorization';
-import { AuthorizationServiceBackendImpl } from './authorization-service-backend-impl';
+import { AuthorizationServiceBackendImpl } from './plugin-authorization-service-backend-impl';
 
 /**
  * 授权提供者实现，委托给新的授权服务

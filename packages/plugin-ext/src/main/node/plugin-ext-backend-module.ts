@@ -51,8 +51,8 @@ import { PluginDocumentationService, pluginDocumentationServicePath } from '../b
 import { PluginAuthorizationProvider, pluginAuthorizationPath } from '../../common/plugin-authorization';
 import { PluginAuthorizationProviderImpl } from './plugin-authorization-provider-impl';
 import { IAuthorizationService, authorizationServicePath, PluginAuthorizationManager } from '../../common/services/authorization';
-import { AuthorizationRPCServer } from './authorization-rpc-server';
-import { AuthorizationServiceBackendImpl } from './authorization-service-backend-impl';
+import { AuthorizationRPCServer } from './plugin-authorization-rpc-server';
+import { AuthorizationServiceBackendImpl } from './plugin-authorization-service-backend-impl';
 
 export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind): void {
     bind(PluginApiContribution).toSelf().inSingletonScope();

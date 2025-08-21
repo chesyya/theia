@@ -16,7 +16,7 @@
 
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import { Event } from '@theia/core/lib/common/event';
-import { IAuthorizationService, IAuthorizationRPC, IAuthorizationClient } from '../../common/services/authorization/i-authorization-service';
+import { IAuthorizationService, IAuthorizationRPC, IAuthorizationClient } from '../../common/services/authorization/plugin-i-authorization-service';
 import { PluginAuthorizationManager } from '../../common/services/authorization/plugin-authorization-manager';
 import { PluginIdentifier, AuthorizationStatus, IAuthorizationStatusChangeEvent } from '../../common/services/authorization/types';
 

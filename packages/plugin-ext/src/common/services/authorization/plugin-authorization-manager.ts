@@ -17,7 +17,7 @@
 import { injectable, postConstruct } from '@theia/core/shared/inversify';
 import { Emitter, Event } from '@theia/core/lib/common/event';
 import { PluginIdentifier, AuthorizationStatus, IAuthorizationStatusChangeEvent } from './types';
-import { IAuthorizationService } from './i-authorization-service';
+import { IAuthorizationService } from './plugin-i-authorization-service';
 
 /**
  * 内存级插件授权管理器 - 不依赖数据库的授权状态管理

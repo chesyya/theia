@@ -96,8 +96,8 @@ import { CustomEditorUndoRedoHandler } from './custom-editors/custom-editor-undo
 import { PluginDocumentationCommandContribution } from './menus/plugin-documentation-command';
 import { PluginDocumentationFrontendService, PluginDocumentationService } from './plugin-documentation-frontend-service';
 import { IAuthorizationService } from '../../common/services/authorization';
-import { AuthorizationFrontendProxy } from './authorization-frontend-proxy';
-import { AuthorizationMenuContribution } from './authorization-menu-contribution';
+import { AuthorizationFrontendProxy } from './plugin-authorization-frontend-proxy';
+import { AuthorizationMenuContribution } from './plugin-authorization-menu-contribution';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
 
