@@ -16,9 +16,9 @@
 
 import { injectable, inject, postConstruct, optional } from '@theia/core/shared/inversify';
 import { BackendApplicationContribution } from '@theia/core/lib/node/backend-application';
-import { PluginServer, PluginIdentifiers } from '../../common/plugin-protocol';
-import { PluginAuthorizationProvider } from '../../common/plugin-authorization';
-import { HostedPluginWatcher } from '../../hosted/browser/hosted-plugin-watcher';
+import { PluginServer, PluginIdentifiers } from '../../../common/plugin-protocol';
+import { PluginAuthorizationProvider } from '../../../common/plugin-authorization';
+import { HostedPluginWatcher } from '../../../hosted/browser/hosted-plugin-watcher';
 import { ILogger } from '@theia/core/lib/common/logger';
 
 /**
@@ -61,10 +61,10 @@ export class AuthorizationEnforcementService implements BackendApplicationContri
 
     async onStart(): Promise<void> {
         this.logger.info('[AUTH-ENFORCEMENT] Starting authorization enforcement...');
-        
+
         // 在应用启动时同步所有插件的授权状态
         await this.synchronizeAllPlugins();
-        
+
         this.logger.info('[AUTH-ENFORCEMENT] Authorization enforcement service started');
     }
 
@@ -97,7 +97,7 @@ export class AuthorizationEnforcementService implements BackendApplicationContri
                     this.logger.info(`[AUTH-ENFORCEMENT] Disabling unauthorized plugin: ${unversionedId}`);
                     return this.pluginServer.disablePlugin(versionedId);
                 }
-                
+
                 return Promise.resolve();
             });
 
@@ -120,7 +120,7 @@ export class AuthorizationEnforcementService implements BackendApplicationContri
      */
     private async onPluginDeployed(): Promise<void> {
         this.logger.info('[AUTH-ENFORCEMENT] Plugin deployed, checking authorization...');
-        
+
         // 简单的方式：重新同步所有插件
         // 在生产环境中，可能需要更精确地处理新部署的插件
         setTimeout(() => {
@@ -131,16 +131,16 @@ export class AuthorizationEnforcementService implements BackendApplicationContri
     /**
      * 处理授权状态变更事件
      */
-    private async onAuthorizationChanged(event: import('../../common/plugin-authorization').PluginAuthorizationChangeEvent): Promise<void> {
+    private async onAuthorizationChanged(event: import('../../../common/plugin-authorization').PluginAuthorizationChangeEvent): Promise<void> {
         const { changedPluginIds, changeType } = event;
-        
+
         this.logger.info(`[AUTH-ENFORCEMENT] Authorization ${changeType} for plugins:`, changedPluginIds);
 
         for (const pluginId of changedPluginIds) {
             try {
                 // 找到对应的versioned plugin ID
                 const deployedIds = await this.pluginServer.getInstalledPlugins();
-                const versionedId = deployedIds.find(id => 
+                const versionedId = deployedIds.find(id =>
                     PluginIdentifiers.unversionedFromVersioned(id) === pluginId
                 );
 

@@ -25,14 +25,13 @@ import { IAuthorizationService } from './i-authorization-service';
  * 设计原则：
  * 1. 基于内存的状态管理，利用现有后端插件信息
  * 2. 无需数据库，状态存储在内存中
- * 3. 支持依赖关系管理和事件通知
+ * 3. 支持事件通知
  * 4. 与现有Theia插件系统完全集成
  */
 @injectable()
 export class PluginAuthorizationManager implements IAuthorizationService {
 
     private readonly authorizationMap = new Map<PluginIdentifier, AuthorizationStatus>();
-    private readonly dependencyMap = new Map<PluginIdentifier, Set<PluginIdentifier>>();
     private readonly onDidUpdateAuthorizationStatusEmitter = new Emitter<IAuthorizationStatusChangeEvent>();
 
     constructor() {
@@ -88,8 +87,6 @@ export class PluginAuthorizationManager implements IAuthorizationService {
         // 触发状态变化事件
         this.fireAuthorizationStatusChange(pluginId, AuthorizationStatus.GRANTED, previousStatus);
         
-        // 检查并通知依赖插件
-        await this.notifyDependentPlugins(pluginId, AuthorizationStatus.GRANTED, previousStatus);
         
         console.log(`[AUTH-MGR] ✅ Authorization granted for ${pluginId}`);
     }
@@ -105,8 +102,6 @@ export class PluginAuthorizationManager implements IAuthorizationService {
         // 触发状态变化事件
         this.fireAuthorizationStatusChange(pluginId, AuthorizationStatus.DENIED, previousStatus);
         
-        // 检查并通知依赖插件
-        await this.notifyDependentPlugins(pluginId, AuthorizationStatus.DENIED, previousStatus);
         
         console.log(`[AUTH-MGR] ❌ Authorization revoked for ${pluginId}`);
     }
@@ -121,41 +116,6 @@ export class PluginAuthorizationManager implements IAuthorizationService {
         return result;
     }
 
-    /**
-     * 注册插件依赖关系
-     * 当插件声明了authorizationDependencies时调用
-     */
-    registerPluginDependency(pluginId: PluginIdentifier, dependencyId: PluginIdentifier): void {
-        console.log(`[AUTH-MGR] 🔗 Registering dependency: ${pluginId} depends on ${dependencyId}`);
-        
-        if (!this.dependencyMap.has(dependencyId)) {
-            this.dependencyMap.set(dependencyId, new Set());
-        }
-        
-        this.dependencyMap.get(dependencyId)!.add(pluginId);
-        
-        console.log(`[AUTH-MGR] 📝 Dependency registered. ${dependencyId} now has dependents:`, 
-            Array.from(this.dependencyMap.get(dependencyId) || []));
-    }
-
-    /**
-     * 批量注册依赖关系（从package.json读取）
-     */
-    registerPluginDependencies(pluginId: PluginIdentifier, dependencies: PluginIdentifier[]): void {
-        console.log(`[AUTH-MGR] 📦 Registering dependencies for ${pluginId}:`, dependencies);
-        
-        for (const depId of dependencies) {
-            this.registerPluginDependency(pluginId, depId);
-        }
-    }
-
-    /**
-     * 获取插件的依赖者列表
-     */
-    getDependentPlugins(pluginId: PluginIdentifier): PluginIdentifier[] {
-        const dependents = this.dependencyMap.get(pluginId);
-        return dependents ? Array.from(dependents) : [];
-    }
 
     /**
      * 触发授权状态变化事件
@@ -178,27 +138,6 @@ export class PluginAuthorizationManager implements IAuthorizationService {
         }
     }
 
-    /**
-     * 通知依赖插件授权状态变化
-     */
-    private async notifyDependentPlugins(
-        pluginId: PluginIdentifier,
-        newStatus: AuthorizationStatus,
-        previousStatus: AuthorizationStatus
-    ): Promise<void> {
-        const dependents = this.getDependentPlugins(pluginId);
-        
-        if (dependents.length > 0) {
-            console.log(`[AUTH-MGR] 🔄 Notifying ${dependents.length} dependent plugins of ${pluginId} status change`);
-            
-            for (const dependentId of dependents) {
-                console.log(`[AUTH-MGR] 📢 Notifying dependent plugin: ${dependentId} about ${pluginId} -> ${newStatus}`);
-                
-                // 可以在这里添加特定的依赖通知逻辑
-                // 比如触发依赖插件的重新评估等
-            }
-        }
-    }
 
     /**
      * 重置所有授权状态（用于测试和调试）
@@ -229,20 +168,16 @@ export class PluginAuthorizationManager implements IAuthorizationService {
         totalPlugins: number;
         authorizedPlugins: number;
         deniedPlugins: number;
-        dependencyRelations: number;
     } {
         const totalPlugins = this.authorizationMap.size;
         const authorizedPlugins = Array.from(this.authorizationMap.values())
             .filter(status => status === AuthorizationStatus.GRANTED).length;
         const deniedPlugins = totalPlugins - authorizedPlugins;
-        const dependencyRelations = Array.from(this.dependencyMap.values())
-            .reduce((sum, deps) => sum + deps.size, 0);
 
         const stats = {
             totalPlugins,
             authorizedPlugins,
             deniedPlugins,
-            dependencyRelations
         };
 
         console.log(`[AUTH-MGR] 📊 Authorization statistics:`, stats);

@@ -16,7 +16,7 @@
 
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { Event } from '@theia/core';
-import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent, pluginAuthorizationPath } from '../../common/plugin-authorization';
+import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent, pluginAuthorizationPath } from '../../../common/plugin-authorization';
 import { WebSocketConnectionProvider } from '@theia/core/lib/browser/messaging';
 
 /**

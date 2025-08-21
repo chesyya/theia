@@ -16,9 +16,9 @@
 
 import { interfaces } from '@theia/core/shared/inversify';
 import { Event } from '@theia/core';
-import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../../common/plugin-authorization';
-import { RPCProtocol } from '../../common/rpc-protocol';
-import { MAIN_RPC_CONTEXT, PluginAuthorizationExt } from '../../common/plugin-api-rpc';
+import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../../../common/plugin-authorization';
+import { RPCProtocol } from '../../../common/rpc-protocol';
+import { MAIN_RPC_CONTEXT, PluginAuthorizationExt } from '../../../common/plugin-api-rpc';
 
 export class PluginAuthorizationMainImpl implements PluginAuthorizationProvider {
 

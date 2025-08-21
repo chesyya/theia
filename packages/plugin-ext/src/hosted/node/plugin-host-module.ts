@@ -36,8 +36,6 @@ import { WebviewsExtImpl } from '../../plugin/webviews';
 import { TerminalServiceExtImpl } from '../../plugin/terminal-ext';
 import { InternalSecretsExt, SecretsExtImpl } from '../../plugin/secrets-ext';
 import { setupPluginHostLogger } from './plugin-host-logger';
-import { PluginAuthorizationService } from '../../common/plugin-authorization-service';
-import { PluginAuthorizationServiceRPC } from '../../plugin/plugin-authorization-service-rpc';
 
 export default new ContainerModule(bind => {
     const channel = new IPCChannel();
@@ -73,7 +71,4 @@ export default new ContainerModule(bind => {
     bind(MinimalTerminalServiceExt).toService(TerminalServiceExtImpl);
     bind(TerminalServiceExtImpl).toSelf().inSingletonScope();
     
-    // Plugin Authorization Service binding - using RPC to communicate with main backend
-    bind(PluginAuthorizationServiceRPC).toSelf().inSingletonScope();
-    bind(PluginAuthorizationService).toService(PluginAuthorizationServiceRPC);
 });

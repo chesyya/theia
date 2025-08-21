@@ -16,9 +16,9 @@
 
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import { Event } from '@theia/core/lib/common/event';
-import { IAuthorizationService, IAuthorizationRPC, IAuthorizationClient } from '../../common/services/authorization/i-authorization-service';
-import { PluginAuthorizationManager } from '../../common/services/authorization/plugin-authorization-manager';
-import { PluginIdentifier, AuthorizationStatus, IAuthorizationStatusChangeEvent } from '../../common/services/authorization/types';
+import { IAuthorizationService, IAuthorizationRPC, IAuthorizationClient } from '../../../common/services/authorization/i-authorization-service';
+import { PluginAuthorizationManager } from '../../../common/services/authorization/plugin-authorization-manager';
+import { PluginIdentifier, AuthorizationStatus, IAuthorizationStatusChangeEvent } from '../../../common/services/authorization/types';
 
 /**
  * 后端授权服务实现
@@ -40,11 +40,11 @@ export class AuthorizationServiceBackendImpl implements IAuthorizationService, I
     @postConstruct()
     protected init(): void {
         console.log(`[AUTH-BACKEND] 🔧 Initializing AuthorizationServiceBackendImpl`);
-        
+
         // 监听授权管理器的状态变化，并广播给所有客户端
         this.authorizationManager.onDidUpdateAuthorizationStatus(event => {
             console.log(`[AUTH-BACKEND] 📡 Broadcasting authorization status change to ${this.clients.length} clients:`, event);
-            
+
             // 通知所有连接的客户端
             this.clients.forEach(client => {
                 try {
@@ -54,7 +54,7 @@ export class AuthorizationServiceBackendImpl implements IAuthorizationService, I
                 }
             });
         });
-        
+
         console.log(`[AUTH-BACKEND] ✅ AuthorizationServiceBackendImpl initialized`);
     }
 
@@ -118,27 +118,6 @@ export class AuthorizationServiceBackendImpl implements IAuthorizationService, I
         }
     }
 
-    /**
-     * 从插件package.json注册依赖关系
-     */
-    registerPluginWithDependencies(pluginId: PluginIdentifier, packageJson: any): void {
-        console.log(`[AUTH-BACKEND] 📦 Registering plugin with dependencies: ${pluginId}`);
-        
-        // 检查是否有authorizationDependencies声明
-        const authDeps = packageJson.authorizationDependencies;
-        if (authDeps && Array.isArray(authDeps)) {
-            console.log(`[AUTH-BACKEND] 🔗 Found authorization dependencies for ${pluginId}:`, authDeps);
-            this.authorizationManager.registerPluginDependencies(pluginId, authDeps);
-        }
-
-        // 检查是否有extensionDependencies (也可能影响授权)
-        const extDeps = packageJson.extensionDependencies;
-        if (extDeps && Array.isArray(extDeps)) {
-            console.log(`[AUTH-BACKEND] 🔗 Found extension dependencies for ${pluginId}:`, extDeps);
-            // 如果需要，也可以将扩展依赖视为授权依赖
-            // this.authorizationManager.registerPluginDependencies(pluginId, extDeps);
-        }
-    }
 
     /**
      * 获取授权统计信息（用于调试和监控）
@@ -161,11 +140,11 @@ export class AuthorizationServiceBackendImpl implements IAuthorizationService, I
      */
     async grantAuthorizationBatch(pluginIds: PluginIdentifier[]): Promise<void> {
         console.log(`[AUTH-BACKEND] 🔓 Batch granting authorization for:`, pluginIds);
-        
+
         for (const pluginId of pluginIds) {
             await this.grantAuthorization(pluginId);
         }
-        
+
         console.log(`[AUTH-BACKEND] ✅ Batch authorization completed for ${pluginIds.length} plugins`);
     }
 
@@ -174,11 +153,11 @@ export class AuthorizationServiceBackendImpl implements IAuthorizationService, I
      */
     async revokeAuthorizationBatch(pluginIds: PluginIdentifier[]): Promise<void> {
         console.log(`[AUTH-BACKEND] 🔒 Batch revoking authorization for:`, pluginIds);
-        
+
         for (const pluginId of pluginIds) {
             await this.revokeAuthorization(pluginId);
         }
-        
+
         console.log(`[AUTH-BACKEND] ❌ Batch revocation completed for ${pluginIds.length} plugins`);
     }
 }

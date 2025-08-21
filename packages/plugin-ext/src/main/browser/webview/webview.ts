@@ -571,7 +571,7 @@ export class WebviewWidget extends BaseWidget implements StatefulWidget, Extract
                         return this.doSend('did-load-resource', {
                             status: 200,
                             path: requestPath,
-                            mime: mime.lookup(normalizedUri.path.toString()) || 'application/octet-stream',
+                            mime: mime.getType(normalizedUri.path.toString()) || 'application/octet-stream',
                             data
                         });
                     }

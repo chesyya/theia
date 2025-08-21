@@ -47,12 +47,11 @@ import { MainFileSystemEventService } from './main-file-system-event-service';
 import { LabelServiceMainImpl } from './label-service-main';
 import { TimelineMainImpl } from './timeline-main';
 import { AuthenticationMainImpl } from './authentication-main';
-import { AuthorizationMainImpl } from './authorization-main';
 import { ThemingMainImpl } from './theming-main';
 import { CommentsMainImp } from './comments/comments-main';
 import { CustomEditorsMainImpl } from './custom-editors/custom-editors-main';
 import { SecretsMainImpl } from './secrets-main';
-import { PluginAuthorizationMainImpl } from './plugin-authorization-main';
+import { PluginAuthorizationMainImpl } from './authorization/plugin-authorization-main-impl';
 import { WebviewViewsMainImpl } from './webview-views/webview-views-main';
 import { MonacoLanguages } from '@theia/monaco/lib/browser/monaco-languages';
 import { UntitledResourceResolver } from '@theia/core/lib/common/resource';
@@ -76,8 +75,6 @@ export function setUpPluginApi(rpc: RPCProtocol, container: interfaces.Container
     const authenticationMain = new AuthenticationMainImpl(rpc, container);
     rpc.set(PLUGIN_RPC_CONTEXT.AUTHENTICATION_MAIN, authenticationMain);
 
-    const authorizationMain = new AuthorizationMainImpl(rpc, container);
-    rpc.set(PLUGIN_RPC_CONTEXT.AUTHORIZATION_MAIN, authorizationMain);
 
     const commandRegistryMain = new CommandRegistryMainImpl(rpc, container);
     rpc.set(PLUGIN_RPC_CONTEXT.COMMAND_REGISTRY_MAIN, commandRegistryMain);
@@ -217,6 +214,7 @@ export function setUpPluginApi(rpc: RPCProtocol, container: interfaces.Container
     const uriMain = new UriMainImpl(rpc, container);
     rpc.set(PLUGIN_RPC_CONTEXT.URI_MAIN, uriMain);
 
-    const pluginAuthorizationMain = new PluginAuthorizationMainImpl(rpc, container);
+    const pluginAuthorizationMain = new PluginAuthorizationMainImpl(rpc);
     rpc.set(PLUGIN_RPC_CONTEXT.PLUGIN_AUTHORIZATION_MAIN, pluginAuthorizationMain);
+    rpc.set(PLUGIN_RPC_CONTEXT.AUTHORIZATION_MAIN, pluginAuthorizationMain);
 }

@@ -74,7 +74,7 @@ import { CustomEditorWidgetFactory } from '../browser/custom-editors/custom-edit
 import { CustomEditorWidget } from './custom-editors/custom-editor-widget';
 import { CustomEditorService } from './custom-editors/custom-editor-service';
 import { WebviewFrontendSecurityWarnings } from './webview/webview-frontend-security-warnings';
-import { PluginAuthenticationServiceImpl } from './plugin-authentication-service';
+import { PluginAuthenticationServiceImpl } from './authorization/plugin-authentication-service';
 import { AuthenticationService } from '@theia/core/lib/browser/authentication-service';
 import { bindTreeViewDecoratorUtilities, TreeViewDecoratorService } from './view/tree-view-decorator-service';
 import { CodeEditorWidgetUtil } from './menus/vscode-theia-menu-mappings';
@@ -99,7 +99,7 @@ import { PluginAuthorizationService } from '../../common/plugin-authorization-se
 import { PluginAuthorizationStatus } from '../../browser/plugin-authorization-status';
 import { PluginAuthorizationServiceProxy } from '../../browser/plugin-authorization-service-proxy';
 import { PluginAuthorizationProvider } from '../../common/plugin-authorization';
-import { PluginAuthorizationFrontendProvider } from './plugin-authorization-frontend-provider';
+import { PluginAuthorizationFrontendProvider } from './authorization/plugin-authorization-frontend-provider';
 // import { PluginAuthorizationMenuContribution } from './plugin-authorization-menu-contribution';
 import { IAuthorizationService } from '../../common/services/authorization';
 import { AuthorizationFrontendProxy } from './authorization-frontend-proxy';

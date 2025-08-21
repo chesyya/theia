@@ -16,8 +16,8 @@
 
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import { Emitter, Event } from '@theia/core/lib/common/event';
-import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../../common/plugin-authorization';
-import { AuthorizationStatus } from '../../common/services/authorization';
+import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../../../common/plugin-authorization';
+import { AuthorizationStatus } from '../../../common/services/authorization';
 import { AuthorizationServiceBackendImpl } from './authorization-service-backend-impl';
 
 /**
@@ -41,12 +41,12 @@ export class PluginAuthorizationProviderImpl implements PluginAuthorizationProvi
         // 监听新授权服务的状态变化，转换为旧接口的事件格式
         this.authorizationService.onDidUpdateAuthorizationStatus(event => {
             console.log(`[OLD-AUTH] 📡 Received authorization update from new service:`, event);
-            
+
             const legacyEvent: PluginAuthorizationChangeEvent = {
                 changedPluginIds: [event.pluginId],
                 changeType: event.status === AuthorizationStatus.GRANTED ? 'granted' : 'revoked'
             };
-            
+
             console.log(`[OLD-AUTH] 🔄 Converting to legacy event format:`, legacyEvent);
             this.onAuthorizationChangedEmitter.fire(legacyEvent);
         });
@@ -59,11 +59,11 @@ export class PluginAuthorizationProviderImpl implements PluginAuthorizationProvi
 
     async $isAuthorized(pluginId: string): Promise<boolean> {
         console.log(`[OLD-AUTH] 🔍 Checking authorization for plugin: ${pluginId} (delegating to new service)`);
-        
+
         try {
             const authStatus = await this.authorizationService.getAuthorizationStatus(pluginId);
             const isAuthorized = authStatus === AuthorizationStatus.GRANTED;
-            
+
             console.log(`[OLD-AUTH] ✅ New service returned status: ${authStatus}, authorized: ${isAuthorized}`);
             return isAuthorized;
         } catch (error) {
@@ -92,7 +92,7 @@ export class PluginAuthorizationProviderImpl implements PluginAuthorizationProvi
      */
     grantAuthorization(pluginIds: string[]): void {
         console.log(`[OLD-AUTH] 🎯 grantAuthorization called with:`, pluginIds);
-        
+
         for (const pluginId of pluginIds) {
             console.log(`[OLD-AUTH] 🔓 Granting authorization for plugin: ${pluginId}`);
             try {
@@ -110,7 +110,7 @@ export class PluginAuthorizationProviderImpl implements PluginAuthorizationProvi
      */
     revokeAuthorization(pluginIds: string[]): void {
         console.log(`[OLD-AUTH] 🎯 revokeAuthorization called with:`, pluginIds);
-        
+
         for (const pluginId of pluginIds) {
             console.log(`[OLD-AUTH] 🔒 Revoking authorization for plugin: ${pluginId}`);
             try {
@@ -144,7 +144,7 @@ export class PluginAuthorizationProviderImpl implements PluginAuthorizationProvi
      */
     async resetAuthorizationState(): Promise<void> {
         console.log(`[OLD-AUTH] 🔄 Resetting authorization state (delegating to new service)`);
-        
+
         try {
             // 撤销测试插件的授权，让它回到未授权状态
             await this.authorizationService.revokeAuthorization('<unpublished>.test-plugin');

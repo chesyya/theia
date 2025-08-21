@@ -17,13 +17,13 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { DisposableCollection } from '@theia/core/lib/common/disposable';
 import { RpcServer } from '@theia/core/lib/common/messaging/proxy-factory';
-import { 
+import {
     IAuthorizationService,
     IAuthorizationRPC,
     IAuthorizationClient,
-    PluginIdentifier, 
+    PluginIdentifier,
     AuthorizationStatus
-} from '../../common/services/authorization';
+} from '../../../common/services/authorization';
 
 /**
  * RPC server that exposes the AuthorizationService to remote processes.

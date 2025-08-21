@@ -32,7 +32,6 @@ import {
     LocalizationExt,
     ExtensionKind
 } from '../common/plugin-api-rpc';
-import { PluginAuthorizationService } from '../common/plugin-authorization-service';
 import { PluginMetadata, PluginJsonValidationContribution } from '../common/plugin-protocol';
 import * as theia from '@theia/plugin';
 import * as types from './types-impl';
@@ -47,7 +46,6 @@ import { WebviewsExtImpl } from './webviews';
 import { URI as Uri } from './types-impl';
 import { InternalSecretsExt, SecretStorageExt } from '../plugin/secrets-ext';
 import { PluginExt } from './plugin-context';
-import { AuthorizationExt } from './authorization-ext';
 import { Deferred } from '@theia/core/lib/common/promise-util';
 import { PluginLogger } from './logger';
 
@@ -109,8 +107,6 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
     @inject(RPCProtocol)
     protected readonly rpc: RPCProtocol;
 
-    @inject(PluginAuthorizationService)
-    protected readonly authorizationService: PluginAuthorizationService;
 
     // Cannot be Inversify-injected because it induces a dependency cycle
     protected host: PluginHost;
@@ -137,11 +133,6 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
         this.messageRegistryProxy = this.rpc.getProxy(PLUGIN_RPC_CONTEXT.MESSAGE_REGISTRY_MAIN);
         this.notificationMain = this.rpc.getProxy(PLUGIN_RPC_CONTEXT.NOTIFICATION_MAIN);
         this.logger = new PluginLogger(this.rpc, 'plugin-manager');
-        
-        // 监听授权状态变更事件
-        this.authorizationService.onAuthorizationChanged(event => {
-            this.handleAuthorizationChange(event);
-        });
     }
 
     setPluginHost(pluginHost: PluginHost): void {
@@ -304,19 +295,7 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
                     location: 'window'
                 });
                 try {
-                    if (plugin.rawModel.extensionDependencies) {
-                        for (const dependencyId of plugin.rawModel.extensionDependencies) {
-                            const dependency = this.registry.get(dependencyId.toLowerCase());
-                            if (dependency) {
-                                const loadedSuccessfully = await this.loadPlugin(dependency, configStorage, visited);
-                                if (!loadedSuccessfully) {
-                                    throw new Error(`Dependent plugin '${dependency.model.displayName || dependency.model.id}' failed to activate.`);
-                                }
-                            } else {
-                                throw new Error(`Dependent plugin '${dependencyId}' is not installed.`);
-                            }
-                        }
-                    }
+                    // 移除扩展依赖管理 - 简化插件加载，不处理插件间依赖关系
 
                     let pluginMain = this.host.loadPlugin(plugin);
                     // see https://github.com/TypeFox/vscode/blob/70b8db24a37fafc77247de7f7cb5bb0195120ed0/src/vs/workbench/api/common/extHostExtensionService.ts#L372-L376
@@ -377,19 +356,6 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
     async $activatePlugin(id: string): Promise<void> {
         const plugin = this.registry.get(id);
         if (plugin && this.configStorage) {
-            // Check plugin authorization status
-            const isAuthorized = await this.authorizationService.isAuthorized(plugin.model.id);
-            if (!isAuthorized) {
-                this.logger.warn(`Plugin '${plugin.model.id}' is not authorized and will not be activated.`);
-                // Notify frontend to display unauthorized message
-                this.messageRegistryProxy.$showMessage(
-                    MainMessageType.Warning,
-                    `Plugin '${plugin.model.displayName || plugin.model.name}' is not authorized.`,
-                    {},
-                    []
-                );
-                return;
-            }
             await this.loadPlugin(plugin, this.configStorage);
         }
     }
@@ -403,7 +369,6 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
         const secrets = new SecretStorageExt(plugin, this.secrets);
         const globalStoragePath = join(configStorage.hostGlobalStoragePath, plugin.model.id);
         const extension = new PluginExt(this, plugin);
-        const authorization = new AuthorizationExt(this.rpc, plugin.model.id);
         const extensionModeValue = plugin.isUnderDevelopment ? types.ExtensionMode.Development : types.ExtensionMode.Production;
 
         const pluginContext: theia.PluginContext = {
@@ -422,7 +387,6 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
             environmentVariableCollection: this.terminalService.getEnvironmentVariableCollection(plugin.model.id),
             extensionMode: extensionModeValue,
             extension,
-            authorization,
             logUri: Uri.file(logPath),
             languageModelAccessInformation: {
                 /** @stubbed LanguageModelChat */
@@ -490,19 +454,6 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
         this.onDidChangeEmitter.fire(undefined);
     }
 
-    /**
-     * 处理授权状态变更事件
-     * 现在由后端的AuthorizationEnforcementService处理，这里只记录日志
-     */
-    private async handleAuthorizationChange(event: import('../common/plugin-authorization').PluginAuthorizationChangeEvent): Promise<void> {
-        const { changedPluginIds, changeType } = event;
-        
-        console.log(`[PLUGIN-MANAGER] 📋 Authorization change notification: ${changeType} for plugins:`, changedPluginIds);
-        console.log('[PLUGIN-MANAGER] 💡 Authorization enforcement is now handled by backend AuthorizationEnforcementService');
-        
-        // 触发插件状态变更事件，通知前端更新UI
-        this.fireOnDidChange();
-    }
 
 }
 

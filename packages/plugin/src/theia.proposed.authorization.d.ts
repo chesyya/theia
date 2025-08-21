@@ -51,30 +51,6 @@ declare module '@theia/plugin' {
         readonly timestamp: Date;
     }
 
-    /**
-     * An event describing dependency authorization status change.
-     */
-    export interface DependencyAuthorizationChangeEvent {
-        /**
-         * The ID of the dependency plugin whose authorization status changed.
-         */
-        readonly dependencyId: string;
-
-        /**
-         * The current authorization status of the dependency plugin.
-         */
-        readonly status: AuthorizationStatus;
-
-        /**
-         * The previous authorization status of the dependency plugin.
-         */
-        readonly previousStatus: AuthorizationStatus;
-
-        /**
-         * The timestamp when the authorization status changed.
-         */
-        readonly timestamp: Date;
-    }
 
     /**
      * Authorization management interface for plugins.
@@ -86,13 +62,6 @@ declare module '@theia/plugin' {
          */
         getStatus(): Thenable<AuthorizationStatus>;
 
-        /**
-         * Get the authorization status of a dependency plugin.
-         * Only works for plugins declared in authorizationDependencies.
-         * @param dependencyId The ID of the dependency plugin
-         * @returns The authorization status of the dependency plugin
-         */
-        getDependencyStatus(dependencyId: string): Thenable<AuthorizationStatus>;
 
         /**
          * An event that is emitted when the authorization status of this plugin changes.
@@ -115,22 +84,6 @@ declare module '@theia/plugin' {
          */
         readonly onDidChangeStatus: Event<AuthorizationChangeEvent>;
 
-        /**
-         * An event that is emitted when the authorization status of a dependency plugin changes.
-         * Only emits events for plugins declared in authorizationDependencies in package.json.
-         * This allows plugins to react to their dependencies' authorization changes.
-         * 
-         * @example
-         * ```typescript
-         * context.authorization.onDependencyStatusChange(event => {
-         *   if (event.dependencyId === 'database-plugin' && event.status === AuthorizationStatus.Denied) {
-         *     console.log('Database plugin lost authorization, switching to local mode...');
-         *     this.switchToLocalMode();
-         *   }
-         * });
-         * ```
-         */
-        readonly onDependencyStatusChange: Event<DependencyAuthorizationChangeEvent>;
     }
 
     export interface ExtensionContext {

@@ -16,12 +16,12 @@
 
 import { injectable } from '@theia/core/shared/inversify';
 import { Emitter } from '@theia/core/lib/common/event';
-import { 
-    IAuthorizationService, 
-    PluginIdentifier, 
-    AuthorizationStatus, 
-    IAuthorizationStatusChangeEvent 
-} from '../../common/services/authorization';
+import {
+    IAuthorizationService,
+    PluginIdentifier,
+    AuthorizationStatus,
+    IAuthorizationStatusChangeEvent
+} from '../../../common/services/authorization';
 
 /**
  * Core authorization service implementation.
@@ -37,7 +37,7 @@ import {
 export class AuthorizationService implements IAuthorizationService {
 
     private readonly _onDidUpdateAuthorizationStatus = new Emitter<IAuthorizationStatusChangeEvent>();
-    
+
     // State storage: Map from plugin ID to authorization status
     private readonly authorizationStates = new Map<PluginIdentifier, AuthorizationStatus>();
 
@@ -53,26 +53,26 @@ export class AuthorizationService implements IAuthorizationService {
 
     async getAuthorizationStatus(pluginId: PluginIdentifier): Promise<AuthorizationStatus> {
         console.log(`[AUTH-SERVICE] 🔍 Getting authorization status for: ${pluginId}`);
-        
+
         const status = this.authorizationStates.get(pluginId) ?? AuthorizationStatus.GRANTED;
-        
+
         console.log(`[AUTH-SERVICE] 📊 Status for ${pluginId}: ${status}`);
         return status;
     }
 
     async grantAuthorization(pluginId: PluginIdentifier): Promise<void> {
         console.log(`[AUTH-SERVICE] ✅ Granting authorization for: ${pluginId}`);
-        
+
         const previousStatus = this.authorizationStates.get(pluginId);
         const newStatus = AuthorizationStatus.GRANTED;
-        
+
         // 总是更新状态和发送事件，确保所有监听者获得最新状态
         // 即使状态看起来相同，也可能有缓存不同步的情况
         console.log(`[AUTH-SERVICE] 🔄 Updating status from ${previousStatus} to ${newStatus} (forced sync)`);
-        
+
         // Update state
         this.authorizationStates.set(pluginId, newStatus);
-        
+
         // Fire event
         const event: IAuthorizationStatusChangeEvent = {
             pluginId,
@@ -80,7 +80,7 @@ export class AuthorizationService implements IAuthorizationService {
             previousStatus,
             timestamp: new Date()
         };
-        
+
         console.log(`[AUTH-SERVICE] 🎉 Authorization granted for ${pluginId}, firing event...`);
         this._onDidUpdateAuthorizationStatus.fire(event);
         console.log(`[AUTH-SERVICE] 📡 Event fired successfully`);
@@ -88,17 +88,17 @@ export class AuthorizationService implements IAuthorizationService {
 
     async revokeAuthorization(pluginId: PluginIdentifier): Promise<void> {
         console.log(`[AUTH-SERVICE] ❌ Revoking authorization for: ${pluginId}`);
-        
+
         const previousStatus = this.authorizationStates.get(pluginId);
         const newStatus = AuthorizationStatus.DENIED;
-        
+
         // 总是更新状态和发送事件，确保所有监听者获得最新状态
         // 即使状态看起来相同，也可能有缓存不同步的情况
         console.log(`[AUTH-SERVICE] 🔄 Updating status from ${previousStatus} to ${newStatus} (forced sync)`);
-        
+
         // Update state
         this.authorizationStates.set(pluginId, newStatus);
-        
+
         // Fire event
         const event: IAuthorizationStatusChangeEvent = {
             pluginId,
@@ -106,7 +106,7 @@ export class AuthorizationService implements IAuthorizationService {
             previousStatus,
             timestamp: new Date()
         };
-        
+
         console.log(`[AUTH-SERVICE] 🚫 Authorization revoked for ${pluginId}, firing event...`);
         this._onDidUpdateAuthorizationStatus.fire(event);
         console.log(`[AUTH-SERVICE] 📡 Event fired successfully`);
@@ -125,15 +125,15 @@ export class AuthorizationService implements IAuthorizationService {
         // Built-in plugins - always granted
         this.authorizationStates.set('vscode.typescript-language-features', AuthorizationStatus.GRANTED);
         this.authorizationStates.set('vscode.json-language-features', AuthorizationStatus.GRANTED);
-        
+
         // Demo plugins - granted by default (fix plugin ID format)
         this.authorizationStates.set('<unpublished>.demo-plugin', AuthorizationStatus.GRANTED);
         this.authorizationStates.set('<unpublished>.theia-webview-test-plugin', AuthorizationStatus.GRANTED);
-        
+
         // Test plugin - starts as denied for testing purposes
         this.authorizationStates.set('<unpublished>.test-plugin', AuthorizationStatus.DENIED);
-        
-        console.log(`[AUTH-SERVICE] 📝 Initialized default states:`, 
+
+        console.log(`[AUTH-SERVICE] 📝 Initialized default states:`,
             Array.from(this.authorizationStates.entries()).map(([id, status]) => `${id}: ${status}`)
         );
     }
@@ -141,12 +141,12 @@ export class AuthorizationService implements IAuthorizationService {
     /**
      * Development/testing helper methods
      */
-    
+
     async resetToDefaults(): Promise<void> {
         console.log(`[AUTH-SERVICE] 🔄 Resetting all authorization states to defaults...`);
         this.authorizationStates.clear();
         this.initializeDefaultStates();
-        
+
         // Fire events for all plugins that changed
         for (const [pluginId, status] of this.authorizationStates.entries()) {
             const event: IAuthorizationStatusChangeEvent = {
@@ -156,7 +156,7 @@ export class AuthorizationService implements IAuthorizationService {
             };
             this._onDidUpdateAuthorizationStatus.fire(event);
         }
-        
+
         console.log(`[AUTH-SERVICE] ✨ Reset complete, events fired for all plugins`);
     }
 }

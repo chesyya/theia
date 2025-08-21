@@ -16,8 +16,8 @@
 
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { Event } from '@theia/core';
-import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../../common/plugin-authorization';
-import { PluginAuthorizationService } from '../../common/plugin-authorization-service';
+import { PluginAuthorizationProvider, PluginAuthorizationChangeEvent } from '../../../common/plugin-authorization';
+import { PluginAuthorizationService } from '../../../common/plugin-authorization-service';
 import { PluginAuthorizationProviderImpl } from './plugin-authorization-provider-impl';
 
 /**
