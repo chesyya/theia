@@ -46,6 +46,8 @@ import { PluginRemoteCliContribution } from './plugin-remote-cli-contribution';
 import { RemoteCliContribution } from '@theia/core/lib/node/remote/remote-cli-contribution';
 import { PluginRemoteCopyContribution } from './plugin-remote-copy-contribution';
 import { RemoteCopyContribution } from '@theia/core/lib/node/remote/remote-copy-contribution';
+import { AuthorizationRpcServer } from './authorization/authorization-rpc-server';
+import { authorizationServicePath, IAuthorizationService, PluginAuthorizationManager } from '../../common/services/authorization';
 
 export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind): void {
     bind(PluginApiContribution).toSelf().inSingletonScope();
@@ -102,5 +104,21 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
     bind(BackendApplicationContribution).toService(WebviewBackendSecurityWarnings);
 
     rebind(LocalizationServerImpl).to(PluginLocalizationServer).inSingletonScope();
+
+    // 核心授权管理器 (状态管理和业务逻辑)
+    bind(PluginAuthorizationManager).toSelf().inSingletonScope();
+    bind(IAuthorizationService).toService(PluginAuthorizationManager);
+
+    // RPC 服务器
+    bind(AuthorizationRpcServer).toSelf().inSingletonScope();
+
+    // 新授权服务RPC连接处理器
+    bind(ConnectionHandler).toDynamicValue(ctx => {
+        return new RpcConnectionHandler(authorizationServicePath, (client: any) => {
+            const service = ctx.container.get(AuthorizationRpcServer);
+            service.setClient(client);
+            return service;
+        });
+    }).inSingletonScope();
 
 }

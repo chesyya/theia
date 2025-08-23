@@ -2287,6 +2287,19 @@ export interface TestingMain {
     $notifyTestRunEnded(controllerId: string, runId: string): void;
 }
 
+export interface PluginAuthorizationMain {
+    $isAuthorized(pluginId: string): Promise<boolean>;
+    $getUnauthorizedPluginIds(): Promise<string[]>;
+    $getAuthorizedPluginIds(): Promise<string[]>;
+    $grantTestPluginAuthorization(): Promise<void>;
+    $revokeTestPluginAuthorization(): Promise<void>;
+    $getAuthorizationStatus(pluginId: string): Promise<string>;
+}
+
+export interface PluginAuthorizationExt {
+    $onDidChangeAuthorizationStatus(event: { pluginId: string; status: string; previousStatus: string }): Promise<void>;
+}
+
 export const PLUGIN_RPC_CONTEXT = {
     AUTHENTICATION_MAIN: <ProxyIdentifier<AuthenticationMain>>createProxyIdentifier<AuthenticationMain>('AuthenticationMain'),
     COMMAND_REGISTRY_MAIN: <ProxyIdentifier<CommandRegistryMain>>createProxyIdentifier<CommandRegistryMain>('CommandRegistryMain'),
@@ -2331,7 +2344,8 @@ export const PLUGIN_RPC_CONTEXT = {
     TELEMETRY_MAIN: <ProxyIdentifier<TelemetryMain>>createProxyIdentifier<TelemetryMain>('TelemetryMain'),
     LOCALIZATION_MAIN: <ProxyIdentifier<LocalizationMain>>createProxyIdentifier<LocalizationMain>('LocalizationMain'),
     TESTING_MAIN: createProxyIdentifier<TestingMain>('TestingMain'),
-    URI_MAIN: createProxyIdentifier<UriMain>('UriMain')
+    URI_MAIN: createProxyIdentifier<UriMain>('UriMain'),
+    PLUGIN_AUTHORIZATION_MAIN: createProxyIdentifier<PluginAuthorizationMain>('PluginAuthorizationMain')
 };
 
 export const MAIN_RPC_CONTEXT = {
@@ -2372,9 +2386,10 @@ export const MAIN_RPC_CONTEXT = {
     THEMING_EXT: createProxyIdentifier<ThemingExt>('ThemingExt'),
     COMMENTS_EXT: createProxyIdentifier<CommentsExt>('CommentsExt'),
     TABS_EXT: createProxyIdentifier<TabsExt>('TabsExt'),
-    TELEMETRY_EXT: createProxyIdentifier<TelemetryExt>('TelemetryExt)'),
+    TELEMETRY_EXT: createProxyIdentifier<TelemetryExt>('TelemetryExt'),
     TESTING_EXT: createProxyIdentifier<TestingExt>('TestingExt'),
-    URI_EXT: createProxyIdentifier<UriExt>('UriExt')
+    URI_EXT: createProxyIdentifier<UriExt>('UriExt'),
+    PLUGIN_AUTHORIZATION_EXT: createProxyIdentifier<PluginAuthorizationExt>('PluginAuthorizationExt')
 };
 
 export interface TasksExt {

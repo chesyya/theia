@@ -3,6 +3,7 @@ node_modules
 build
 lib
 tmp
+refer
 *.log
 .idea
 .metadata
