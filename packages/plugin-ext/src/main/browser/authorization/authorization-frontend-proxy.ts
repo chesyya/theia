@@ -26,7 +26,7 @@ import {
     AuthorizationStatus,
     IAuthorizationStatusChangeEvent,
     authorizationServicePath
-} from '../../../common/services/authorization';
+} from '../../../common/authorization';
 import { ILogger } from '@theia/core/lib/common/logger';
 
 /**

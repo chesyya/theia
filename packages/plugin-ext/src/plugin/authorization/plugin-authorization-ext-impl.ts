@@ -16,8 +16,8 @@
 
 import { Event, Emitter } from '@theia/core/lib/common/event';
 import { RPCProtocol } from '../../common/rpc-protocol';
-import { PluginAuthorizationService } from '../../common/services/authorization';
-import { PluginAuthorizationChangeEvent, PluginIdentifier, AuthorizationStatus, IAuthorizationStatusChangeEvent } from '../../common/services/authorization/types';
+import { PluginAuthorizationService } from '../../common/authorization';
+import { PluginAuthorizationChangeEvent, PluginIdentifier, AuthorizationStatus, IAuthorizationStatusChangeEvent } from '../../common/authorization/types';
 import { PluginAuthorizationExt, PluginAuthorizationMain, PLUGIN_RPC_CONTEXT } from '../../common/plugin-api-rpc';
 
 /**

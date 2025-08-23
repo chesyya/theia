@@ -16,7 +16,7 @@
 
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import { RPCProtocol } from '../../../common/rpc-protocol';
-import { PluginAuthorizationProvider } from '../../../common/services/authorization';
+import { PluginAuthorizationProvider } from '../../../common/authorization';
 import { PluginAuthorizationMain, MAIN_RPC_CONTEXT } from '../../../common/plugin-api-rpc';
 
 /**

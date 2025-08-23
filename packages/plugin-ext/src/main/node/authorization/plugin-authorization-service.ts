@@ -1,17 +1,17 @@
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import { Emitter, Event } from '@theia/core/lib/common/event';
 import { ILogger } from '@theia/core/lib/common/logger';
-import { PluginAuthorizationProvider } from '../../../common/services/authorization/plugin-authorization';
-import { PluginAuthorizationChangeEvent } from '../../../common/services/authorization/types';
+import { PluginAuthorizationProvider } from '../../../common/authorization/plugin-authorization';
+import { PluginAuthorizationChangeEvent } from '../../../common/authorization/types';
 import {
     IAuthorizationRPC,
     IAuthorizationClient
-} from '../../../common/services/authorization/i-authorization-service';
-import { PluginAuthorizationManager } from '../../../common/services/authorization/plugin-authorization-manager';
+} from '../../../common/authorization/i-authorization-service';
+import { PluginAuthorizationManager } from '../../../common/authorization/plugin-authorization-manager';
 import {
     PluginIdentifier,
     AuthorizationStatus
-} from '../../../common/services/authorization/types';
+} from '../../../common/authorization/types';
 
 /**
  * 统一的插件授权服务

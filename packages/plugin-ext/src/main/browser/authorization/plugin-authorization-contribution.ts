@@ -3,7 +3,7 @@ import { CommandContribution, CommandRegistry } from '@theia/core/lib/common/com
 import { MenuContribution, MenuModelRegistry } from '@theia/core/lib/common/menu';
 import { CommonMenus } from '@theia/core/lib/browser/common-frontend-contribution';
 import { QuickPickService } from '@theia/core/lib/common/quick-pick-service';
-import { PluginAuthorizationService } from '../../../common/services/authorization';
+import { PluginAuthorizationService } from '../../../common/authorization';
 
 export namespace PluginAuthorizationCommands {
     export const MANAGE_PLUGIN_AUTHORIZATION = {

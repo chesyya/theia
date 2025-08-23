@@ -6,7 +6,7 @@ import {
     PluginIdentifier,
     AuthorizationStatus,
     IAuthorizationStatusChangeEvent
-} from '../../../common/services/authorization';
+} from '../../../common/authorization';
 
 /**
  * 核心授权服务实现

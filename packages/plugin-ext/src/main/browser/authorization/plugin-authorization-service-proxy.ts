@@ -16,7 +16,7 @@
 
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { Event } from '@theia/core/lib/common/event';
-import { PluginAuthorizationProvider, PluginAuthorizationService, PluginAuthorizationChangeEvent, PluginIdentifier, AuthorizationStatus, IAuthorizationStatusChangeEvent } from '../../../common/services/authorization';
+import { PluginAuthorizationProvider, PluginAuthorizationService, PluginAuthorizationChangeEvent, PluginIdentifier, AuthorizationStatus, IAuthorizationStatusChangeEvent } from '../../../common/authorization';
 
 /**
  * 前端代理，将core包的PluginAuthorizationProvider包装为plugin-ext的PluginAuthorizationService
@@ -46,11 +46,11 @@ export class PluginAuthorizationServiceProxy implements PluginAuthorizationServi
     async getAllAuthorizationStatuses(): Promise<Map<PluginIdentifier, AuthorizationStatus>> {
         const authorized = await this.authorizationProvider.getAuthorizedPluginIds();
         const unauthorized = await this.authorizationProvider.getUnauthorizedPluginIds();
-        
+
         const statuses = new Map<PluginIdentifier, AuthorizationStatus>();
         authorized.forEach(id => statuses.set(id, AuthorizationStatus.GRANTED));
         unauthorized.forEach(id => statuses.set(id, AuthorizationStatus.DENIED));
-        
+
         return statuses;
     }
 

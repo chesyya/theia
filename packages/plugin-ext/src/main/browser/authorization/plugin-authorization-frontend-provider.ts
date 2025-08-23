@@ -17,14 +17,14 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { Event } from '@theia/core';
 import { WebSocketConnectionProvider } from '@theia/core/lib/browser/messaging';
-import { 
-    PluginAuthorizationProvider, 
-    pluginAuthorizationPath, 
-    PluginAuthorizationChangeEvent, 
+import {
+    PluginAuthorizationProvider,
+    pluginAuthorizationPath,
+    PluginAuthorizationChangeEvent,
     PluginIdentifier,
     AuthorizationStatus,
-    IAuthorizationStatusChangeEvent 
-} from '../../../common/services/authorization';
+    IAuthorizationStatusChangeEvent
+} from '../../../common/authorization';
 
 /**
  * Frontend implementation of PluginAuthorizationProvider that communicates with backend via WebSocket

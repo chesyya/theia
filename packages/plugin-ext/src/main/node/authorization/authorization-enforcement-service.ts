@@ -17,7 +17,7 @@
 import { injectable, inject, postConstruct, optional } from '@theia/core/shared/inversify';
 import { BackendApplicationContribution } from '@theia/core/lib/node/backend-application';
 import { PluginServer, PluginIdentifiers } from '../../../common/plugin-protocol';
-import { PluginAuthorizationProvider } from '../../../common/services/authorization/plugin-authorization';
+import { PluginAuthorizationProvider } from '../../../common/authorization/plugin-authorization';
 import { HostedPluginWatcher } from '../../../hosted/browser/hosted-plugin-watcher';
 import { ILogger } from '@theia/core/lib/common/logger';
 

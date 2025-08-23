@@ -91,11 +91,10 @@ import { CellOutputWebviewImpl, createCellOutputWebviewContainer } from './noteb
 import { ArgumentProcessorContribution } from './command-registry-main';
 import { WebviewSecondaryWindowSupport } from './webview/webview-secondary-window-support';
 import { CustomEditorUndoRedoHandler } from './custom-editors/custom-editor-undo-redo-handler';
-import { PluginAuthorizationService } from '../../common/services/authorization/plugin-authorization-service';
-import { PluginAuthorizationProvider } from '../../common/services/authorization/plugin-authorization';
-import { IAuthorizationService } from '../../common/services/authorization/i-authorization-service';
+import { PluginAuthorizationService } from '../../common/authorization/plugin-authorization-service';
+import { PluginAuthorizationProvider } from '../../common/authorization/plugin-authorization';
+import { IAuthorizationService } from '../../common/authorization/i-authorization-service';
 import { PluginAuthorizationServiceProxy } from './authorization/plugin-authorization-service-proxy';
-import { PluginAuthorizationStatus } from './authorization/plugin-authorization-status';
 import { PluginAuthorizationFrontendProvider } from './authorization/plugin-authorization-frontend-provider';
 import { AuthorizationFrontendProxy } from './authorization/authorization-frontend-proxy';
 import { AuthorizationMenuContribution } from './authorization/authorization-menu-contribution';
@@ -298,21 +297,15 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     );
     bindContributionProvider(bind, ArgumentProcessorContribution);
 
-    // 插件授权相关绑定 - 通过WebSocket与后端通信
-    bind(PluginAuthorizationServiceProxy).toSelf().inSingletonScope();
-    bind(PluginAuthorizationService).toService(PluginAuthorizationServiceProxy);
-    bind(PluginAuthorizationStatus).toSelf().inSingletonScope();
-    bind(FrontendApplicationContribution).toService(PluginAuthorizationStatus);
-
-    // 创建通过WebSocket与后端通信的前端授权提供者
-    bind(PluginAuthorizationFrontendProvider).toSelf().inSingletonScope();
-    bind(PluginAuthorizationProvider).toService(PluginAuthorizationFrontendProvider);
-
-    // 新的授权服务前端代理
     bind(AuthorizationFrontendProxy).toSelf().inSingletonScope();
     bind(IAuthorizationService).toService(AuthorizationFrontendProxy);
 
-    // 新的授权菜单贡献
+    bind(PluginAuthorizationServiceProxy).toSelf().inSingletonScope();
+    bind(PluginAuthorizationService).toService(PluginAuthorizationServiceProxy);
+    bind(PluginAuthorizationFrontendProvider).toSelf().inSingletonScope();
+    bind(PluginAuthorizationProvider).toService(PluginAuthorizationFrontendProvider);
+
+
     bind(AuthorizationMenuContribution).toSelf().inSingletonScope();
     bind(CommandContribution).toService(AuthorizationMenuContribution);
     bind(MenuContribution).toService(AuthorizationMenuContribution);

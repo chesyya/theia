@@ -2,7 +2,7 @@ import { injectable, inject, postConstruct } from '@theia/core/shared/inversify'
 import { FrontendApplicationContribution } from '@theia/core/lib/browser';
 import { MessageService } from '@theia/core';
 import { nls } from '@theia/core/lib/common/nls';
-import { PluginAuthorizationService, PluginAuthorizationChangeEvent } from '../../../common/services/authorization';
+import { PluginAuthorizationService, PluginAuthorizationChangeEvent } from '../../../common/authorization';
 
 @injectable()
 export class PluginAuthorizationStatus implements FrontendApplicationContribution {

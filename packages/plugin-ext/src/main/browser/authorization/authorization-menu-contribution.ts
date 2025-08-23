@@ -17,7 +17,7 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { MenuContribution, MenuModelRegistry, MAIN_MENU_BAR } from '@theia/core/lib/common/menu';
 import { Command, CommandContribution, CommandRegistry } from '@theia/core/lib/common/command';
-import { IAuthorizationService } from '../../../common/services/authorization';
+import { IAuthorizationService } from '../../../common/authorization';
 
 export namespace AuthorizationCommands {
     export const GRANT_TEST_PLUGIN: Command = {
