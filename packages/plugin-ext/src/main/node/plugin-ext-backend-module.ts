@@ -22,7 +22,7 @@ import { PluginsKeyValueStorage } from './plugins-key-value-storage';
 import { PluginDeployerContribution } from './plugin-deployer-contribution';
 import {
     PluginDeployer, PluginDeployerResolver, PluginDeployerFileHandler,
-    PluginDeployerDirectoryHandler, PluginServer, pluginServerJsonRpcPath, PluginDeployerParticipant
+    PluginDeployerDirectoryHandler, PluginServer, pluginServerJsonRpcPath, PluginDeployerParticipant, pluginDeployerPath
 } from '../../common/plugin-protocol';
 import { PluginDeployerImpl } from './plugin-deployer-impl';
 import { LocalDirectoryPluginDeployerResolver } from './resolvers/local-directory-plugin-deployer-resolver';
@@ -47,6 +47,7 @@ import { RemoteCliContribution } from '@theia/core/lib/node/remote/remote-cli-co
 import { PluginRemoteCopyContribution } from './plugin-remote-copy-contribution';
 import { RemoteCopyContribution } from '@theia/core/lib/node/remote/remote-copy-contribution';
 import { AuthorizationRpcServer } from './authorization/authorization-rpc-server';
+import { AuthorizationEnforcementService } from './authorization/authorization-enforcement-service';
 import { authorizationServicePath, IAuthorizationService, PluginAuthorizationManager } from '../../common/authorization';
 
 export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind): void {
@@ -89,6 +90,12 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
         )
     ).inSingletonScope();
 
+    bind(ConnectionHandler).toDynamicValue(ctx =>
+        new RpcConnectionHandler(pluginDeployerPath, () =>
+            ctx.container.get(PluginDeployer)
+        )
+    ).inSingletonScope();
+
     bind(PluginCliContribution).toSelf().inSingletonScope();
     bind(CliContribution).toService(PluginCliContribution);
 
@@ -111,6 +118,9 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
 
     // RPC 服务器
     bind(AuthorizationRpcServer).toSelf().inSingletonScope();
+    // 授权强制执行服务
+    bind(AuthorizationEnforcementService).toSelf().inSingletonScope();
+    bind(BackendApplicationContribution).toService(AuthorizationEnforcementService);
 
     // 新授权服务RPC连接处理器
     bind(ConnectionHandler).toDynamicValue(ctx => {

@@ -16,9 +16,7 @@
 
 :root {
   --theia-vsx-extension-icon-size: calc(var(--theia-ui-icon-font-size) * 3);
-  --theia-vsx-extension-editor-icon-size: calc(
-    var(--theia-vsx-extension-icon-size) * 3
-  );
+  --theia-vsx-extension-editor-icon-size: calc(var(--theia-vsx-extension-icon-size) * 3);
 }
 
 .vsx-search-container {
@@ -76,14 +74,14 @@
 }
 
 .theia-vsx-extension,
-.theia-vsx-extensions-view-container .part > .body {
+.theia-vsx-extensions-view-container .part>.body {
   min-height: calc(var(--theia-content-line-height) * 3);
 }
 
 .theia-vsx-extensions-search-bar {
-  padding: var(--theia-ui-padding) var(--theia-scrollbar-width)
-    var(--theia-ui-padding) 18px
-    /* expansion toggle padding of tree elements in result list */;
+  padding: var(--theia-ui-padding) var(--theia-scrollbar-width) var(--theia-ui-padding) 18px
+    /* expansion toggle padding of tree elements in result list */
+  ;
   display: flex;
   align-content: center;
 }
@@ -100,6 +98,7 @@
   border: none;
   outline: none;
 }
+
 .theia-vsx-extension {
   display: flex;
   flex-direction: row;
@@ -125,9 +124,7 @@
 .theia-vsx-extension-content {
   display: flex;
   flex-direction: column;
-  width: calc(
-    100% - var(--theia-vsx-extension-icon-size) - var(--theia-ui-padding) * 2.5
-  );
+  width: calc(100% - var(--theia-vsx-extension-icon-size) - var(--theia-ui-padding) * 2.5);
 }
 
 .theia-vsx-extension-content .title {
@@ -140,6 +137,67 @@
 
 .theia-vsx-extension-content .title .name {
   font-weight: bold;
+}
+
+.theia-vsx-extension-content .disabled {
+  font-weight: bold;
+}
+
+/* Disabled and Unauthorized plugin styles */
+.theia-vsx-extension.disabled,
+.theia-vsx-extension.unauthorized {
+  opacity: 0.5;
+  background-color: var(--theia-list-errorBackground, rgba(255, 0, 0, 0.1));
+  filter: grayscale(70%);
+  border-left: 3px solid var(--theia-list-errorForeground, #ff6b6b);
+}
+
+.theia-vsx-extension.disabled:hover,
+.theia-vsx-extension.unauthorized:hover {
+  background-color: var(--theia-list-errorBackground, rgba(255, 0, 0, 0.15));
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.theia-vsx-extension.unauthorized .theia-vsx-extension-icon {
+  filter: grayscale(100%) brightness(0.8);
+  position: relative;
+}
+
+.theia-vsx-extension.unauthorized .theia-vsx-extension-icon::after {
+  content: "🚫";
+  position: absolute;
+  bottom: 0;
+  right: 8px;
+  font-size: 12px;
+  background: var(--theia-editor-background);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theia-vsx-extension.pending-authorization {
+  opacity: 0.7;
+  background-color: var(--theia-list-warningBackground, rgba(255, 165, 0, 0.1));
+  border-left: 3px solid var(--theia-list-warningForeground, #ffa500);
+}
+
+.theia-vsx-extension-content .disabled,
+.theia-vsx-extension-content .unauthorized-status {
+  color: var(--theia-list-errorForeground, #ff6b6b);
+  font-weight: 600;
+  margin-left: 4px;
+  font-size: 0.85em;
+}
+
+.theia-vsx-extension-content .pending-status {
+  color: var(--theia-list-warningForeground, #ffa500);
+  font-weight: 500;
+  margin-left: 4px;
+  font-size: 0.85em;
 }
 
 .theia-vsx-extension-content .title .version,
@@ -158,13 +216,13 @@
   align-items: center;
 }
 
-.theia-vsx-extension-content .title .stat .average-rating > i {
+.theia-vsx-extension-content .title .stat .average-rating>i {
   color: #ff8e00;
 }
 
-.theia-vsx-extension-editor .download-count > i,
-.theia-vsx-extension-content .title .stat .average-rating > i,
-.theia-vsx-extension-content .title .stat .download-count > i {
+.theia-vsx-extension-editor .download-count>i,
+.theia-vsx-extension-content .title .stat .average-rating>i,
+.theia-vsx-extension-content .title .stat .download-count>i {
   padding-right: calc(var(--theia-ui-padding) / 2);
 }
 
@@ -220,8 +278,7 @@
 
 .theia-vsx-extension-editor .header {
   display: flex;
-  padding: calc(var(--theia-ui-padding) * 3) calc(var(--theia-ui-padding) * 3)
-    calc(var(--theia-ui-padding) * 3);
+  padding: calc(var(--theia-ui-padding) * 3) calc(var(--theia-ui-padding) * 3) calc(var(--theia-ui-padding) * 3);
   flex-shrink: 0;
   border-bottom: 1px solid hsla(0, 0%, 50%, 0.5);
   width: 100%;
@@ -262,19 +319,19 @@
   border-collapse: collapse;
 }
 
-.theia-vsx-extension-editor .body table > thead > tr > th {
+.theia-vsx-extension-editor .body table>thead>tr>th {
   text-align: left;
   border-bottom: 1px solid var(--theia-extensionEditor-tableHeadBorder);
 }
 
-.theia-vsx-extension-editor .body table > thead > tr > th,
-.theia-vsx-extension-editor .body table > thead > tr > td,
-.theia-vsx-extension-editor .body table > tbody > tr > th,
-.theia-vsx-extension-editor .body table > tbody > tr > td {
+.theia-vsx-extension-editor .body table>thead>tr>th,
+.theia-vsx-extension-editor .body table>thead>tr>td,
+.theia-vsx-extension-editor .body table>tbody>tr>th,
+.theia-vsx-extension-editor .body table>tbody>tr>td {
   padding: 5px 10px;
 }
 
-.theia-vsx-extension-editor .body table > tbody > tr + tr > td {
+.theia-vsx-extension-editor .body table>tbody>tr+tr>td {
   border-top: 1px solid var(--theia-extensionEditor-tableCellBorder);
 }
 
@@ -364,7 +421,7 @@
   white-space: nowrap;
 }
 
-.theia-vsx-extension-editor .header .details .subtitle > span {
+.theia-vsx-extension-editor .header .details .subtitle>span {
   display: flex;
   align-items: center;
   cursor: pointer;
@@ -372,11 +429,7 @@
   height: var(--theia-content-line-height);
 }
 
-.theia-vsx-extension-editor
-  .header
-  .details
-  .subtitle
-  > span:not(:first-child):not(:empty) {
+.theia-vsx-extension-editor .header .details .subtitle>span:not(:first-child):not(:empty) {
   border-left: 1px solid hsla(0, 0%, 50%, 0.7);
   padding-left: calc(var(--theia-ui-padding) * 2);
   margin-left: calc(var(--theia-ui-padding) * 2);
@@ -387,26 +440,16 @@
   font-size: var(--theia-ui-font-size3);
 }
 
-.theia-vsx-extension-editor
-  .header
-  .details
-  .subtitle
-  .publisher
-  .namespace-access,
+.theia-vsx-extension-editor .header .details .subtitle .publisher .namespace-access,
 .theia-vsx-extension-editor .header .details .subtitle .download-count::before {
   padding-right: var(--theia-ui-padding);
 }
 
-.theia-vsx-extension-editor .header .details .subtitle .average-rating > i {
+.theia-vsx-extension-editor .header .details .subtitle .average-rating>i {
   color: #ff8e00;
 }
 
-.theia-vsx-extension-editor
-  .header
-  .details
-  .subtitle
-  .average-rating
-  > i:not(:first-child) {
+.theia-vsx-extension-editor .header .details .subtitle .average-rating>i:not(:first-child) {
   padding-left: calc(var(--theia-ui-padding) / 2);
 }
 
@@ -433,4 +476,80 @@
 .theia-vsx-extension-editor .action.prominent:hover,
 .theia-vsx-extension-action-bar .action.prominent:hover {
   background-color: var(--theia-extensionButton-prominentHoverBackground);
+}
+
+/* Authorization and plugin state styles */
+
+/* Unauthorized plugin styling */
+.theia-vsx-extension.unauthorized {
+  opacity: 0.6;
+  filter: grayscale(50%);
+}
+
+.theia-vsx-extension.unauthorized .theia-vsx-extension-icon {
+  opacity: 0.5;
+}
+
+/* Pending authorization styling */
+.theia-vsx-extension.pending-authorization {
+  border-left: 3px solid var(--theia-editorWarning-foreground, orange);
+}
+
+/* Disabled plugin styling */
+.theia-vsx-extension.disabled {
+  opacity: 0.4;
+  filter: grayscale(80%);
+}
+
+.theia-vsx-extension.disabled .theia-vsx-extension-icon {
+  opacity: 0.3;
+}
+
+/* Status badges */
+.unauthorized-status {
+  background-color: var(--theia-errorBackground, #ff4444);
+  color: var(--theia-errorForeground, white);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 10px;
+  margin-left: 4px;
+  font-weight: bold;
+}
+
+.pending-status {
+  background-color: var(--theia-editorWarning-foreground, orange);
+  color: var(--theia-editor-background, white);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 10px;
+  margin-left: 4px;
+  font-weight: bold;
+}
+
+.disabled-status {
+  background-color: var(--theia-descriptionForeground, gray);
+  color: var(--theia-editor-background, white);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 10px;
+  margin-left: 4px;
+  font-weight: bold;
+}
+
+/* Authorization buttons */
+.authorization-btn {
+  margin-right: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+.extension-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.authorization-pending {
+  display: flex;
+  gap: 2px;
 }

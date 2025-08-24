@@ -33,6 +33,10 @@ import { OVSXClientProvider } from '../common/ovsx-client-provider';
 import { RequestContext, RequestService } from '@theia/core/shared/@theia/request';
 import { OVSXApiFilterProvider } from '@theia/ovsx-client';
 import { ApplicationServer } from '@theia/core/lib/common/application-protocol';
+import { HostedPluginServer, PluginIdentifiers } from '@theia/plugin-ext';
+import { HostedPluginWatcher } from '@theia/plugin-ext/lib/hosted/browser/hosted-plugin-watcher';
+import { PluginAuthorizationProvider } from '@theia/plugin-ext/lib/common/authorization/plugin-authorization';
+import { FileService } from '@theia/filesystem/lib/browser/file-service';
 
 @injectable()
 export class VSXExtensionsModel {
@@ -43,9 +47,13 @@ export class VSXExtensionsModel {
      */
     protected readonly extensions = new Map<string, VSXExtension>();
     protected readonly onDidChangeEmitter = new Emitter<void>();
+    protected disabled = new Set<PluginIdentifiers.UnversionedId>();
+    protected uninstalled = new Set<PluginIdentifiers.UnversionedId>();
+    protected deployed = new Set<PluginIdentifiers.UnversionedId>();
     protected _installed = new Set<string>();
     protected _recommended = new Set<string>();
     protected _searchResult = new Set<string>();
+    protected builtins = new Set<PluginIdentifiers.UnversionedId>();
     protected _searchError?: string;
 
     protected searchCancellationTokenSource = new CancellationTokenSource();
@@ -59,6 +67,12 @@ export class VSXExtensionsModel {
 
     @inject(HostedPluginSupport)
     protected readonly pluginSupport: HostedPluginSupport;
+
+    @inject(HostedPluginWatcher)
+    protected pluginWatcher: HostedPluginWatcher;
+
+    @inject(HostedPluginServer)
+    protected readonly pluginServer: HostedPluginServer;
 
     @inject(VSXExtensionFactory)
     protected readonly extensionFactory: VSXExtensionFactory;
@@ -81,12 +95,22 @@ export class VSXExtensionsModel {
     @inject(OVSXApiFilterProvider)
     protected vsxApiFilter: OVSXApiFilterProvider;
 
+    @inject(FileService)
+    protected readonly fileService: FileService;
+
     @inject(ApplicationServer)
     protected readonly applicationServer: ApplicationServer;
+
+    @inject(PluginAuthorizationProvider)
+    protected readonly authorizationProvider: PluginAuthorizationProvider;
 
     @postConstruct()
     protected init(): void {
         this.initialized = this.doInit().catch(console.error);
+        // 监听授权状态变更
+        this.authorizationProvider.onAuthorizationChanged(event => {
+            this.handleAuthorizationChange(event);
+        });
     }
 
     protected async doInit(): Promise<void> {
@@ -94,6 +118,7 @@ export class VSXExtensionsModel {
             this.initInstalled(),
             this.initSearchResult(),
             this.initRecommended(),
+            this.initAuthorization(),
         ]);
     }
 
@@ -128,6 +153,18 @@ export class VSXExtensionsModel {
         return this._installed.has(id);
     }
 
+    isUninstalled(id: string): boolean {
+        return this.uninstalled.has(id as PluginIdentifiers.UnversionedId);
+    }
+
+    isDeployed(id: string): boolean {
+        return this.deployed.has(id as PluginIdentifiers.UnversionedId);
+    }
+
+    isDisabled(id: string): boolean {
+        return this.disabled.has(id as PluginIdentifiers.UnversionedId);
+    }
+
     getExtension(id: string): VSXExtension | undefined {
         return this.extensions.get(id);
     }
@@ -157,6 +194,10 @@ export class VSXExtensionsModel {
     protected async initInstalled(): Promise<void> {
         await this.pluginSupport.willStart;
         this.pluginSupport.onDidChangePlugins(() => this.updateInstalled());
+        this.pluginWatcher.onDidDeploy(() => {
+            this.updateInstalled();
+        });
+        
         try {
             await this.updateInstalled();
         } catch (e) {
@@ -192,10 +233,11 @@ export class VSXExtensionsModel {
         return this.searchCancellationTokenSource = new CancellationTokenSource();
     }
 
-    protected setExtension(id: string): VSXExtension {
+    protected setExtension(id: string, version?: string): VSXExtension {
         let extension = this.extensions.get(id);
         if (!extension) {
-            extension = this.extensionFactory({ id });
+            extension = this.extensionFactory({ id, version });
+            extension.setModel(this);
             this.extensions.set(id, extension);
         }
         return extension;
@@ -297,29 +339,61 @@ export class VSXExtensionsModel {
     }
 
     protected async updateInstalled(): Promise<void> {
+        // 获取所有状态：已部署、已卸载、已禁用
+        const [deployed, uninstalled, disabled] = await Promise.all([
+            this.pluginServer.getDeployedPluginIds(),
+            this.pluginServer.getUninstalledPluginIds(),
+            this.pluginServer.getDisabledPluginIds()
+        ]);
+
+        this.uninstalled = new Set();
+        uninstalled.forEach(id => this.uninstalled.add(PluginIdentifiers.unversionedFromVersioned(id)));
+        
+        this.disabled = new Set();
+        disabled.forEach(id => this.disabled.add(PluginIdentifiers.unversionedFromVersioned(id)));
+        
+        this.deployed = new Set();
+        deployed.forEach(id => this.deployed.add(PluginIdentifiers.unversionedFromVersioned(id)));
+
         const prevInstalled = this._installed;
         return this.doChange(async () => {
-            const plugins = this.pluginSupport.plugins;
             const currInstalled = new Set<string>();
             const refreshing = [];
-            for (const plugin of plugins) {
-                if (plugin.model.engine.type === 'vscode') {
-                    const version = plugin.model.version;
-                    const id = plugin.model.id;
-                    this._installed.delete(id);
-                    const extension = this.setExtension(id);
-                    currInstalled.add(extension.id);
-                    refreshing.push(this.refresh(id, version));
+            
+            // 处理已部署的插件
+            for (const versionedId of deployed) {
+                const idAndVersion = PluginIdentifiers.idAndVersionFromVersionedId(versionedId);
+                if (idAndVersion && idAndVersion.id) {
+                    this._installed.delete(idAndVersion.id);
+                    this.setExtension(idAndVersion.id);
+                    currInstalled.add(idAndVersion.id);
+                    refreshing.push(this.refresh(idAndVersion.id, idAndVersion.version));
                 }
             }
+            
+            // 处理已禁用的插件（仍然算作已安装，但不是已部署）
+            for (const versionedId of disabled) {
+                const idAndVersion = PluginIdentifiers.idAndVersionFromVersionedId(versionedId);
+                if (idAndVersion && idAndVersion.id && !this.isUninstalled(idAndVersion.id)) {
+                    if (!currInstalled.has(idAndVersion.id)) {
+                        this._installed.delete(idAndVersion.id);
+                        this.setExtension(idAndVersion.id);
+                        currInstalled.add(idAndVersion.id);
+                        refreshing.push(this.refresh(idAndVersion.id, idAndVersion.version));
+                    }
+                }
+            }
+            
             for (const id of this._installed) {
                 const extension = this.getExtension(id);
                 if (!extension) { continue; }
                 refreshing.push(this.refresh(id, extension.version));
             }
+            
             const installed = new Set([...prevInstalled, ...currInstalled]);
             const installedSorted = Array.from(installed).sort((a, b) => this.compareExtensions(a, b));
             this._installed = new Set(installedSorted.values());
+            
             await Promise.all(refreshing);
         });
     }
@@ -451,6 +525,34 @@ export class VSXExtensionsModel {
             return extensionA.publisher.localeCompare(extensionB.publisher);
         }
         return 0;
+    }
+
+    protected async initAuthorization(): Promise<void> {
+        try {
+            await this.updateAuthorizationStatus();
+        } catch (e) {
+            console.error('Failed to initialize authorization status:', e);
+        }
+    }
+
+    protected async updateAuthorizationStatus(): Promise<void> {
+        const extensions = Array.from(this.extensions.values());
+        await Promise.all(extensions.map(extension => extension.updateAuthorizationStatus()));
+    }
+
+    protected async handleAuthorizationChange(event: import('@theia/plugin-ext/lib/common/authorization/types').PluginAuthorizationChangeEvent): Promise<void> {
+        const pluginId = event.pluginId;
+        console.log(`[VSX-MODEL] 收到授权状态变化事件: ${pluginId} -> ${event.authorized ? 'authorized' : 'denied'}`);
+        const affectedExtension = this.getExtension(pluginId);
+
+        if (affectedExtension) {
+            console.log(`[VSX-MODEL] 找到插件扩展，更新授权状态...`);
+            await affectedExtension.updateAuthorizationStatus();
+            console.log(`[VSX-MODEL] 插件 ${pluginId} 授权状态更新完成，触发UI刷新`);
+            this.onDidChangeEmitter.fire();
+        } else {
+            console.log(`[VSX-MODEL] 未找到插件扩展: ${pluginId}`);
+        }
     }
 
 }

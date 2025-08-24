@@ -89,7 +89,7 @@ export class AuthorizationService implements IAuthorizationService {
         this.authorizationStates.set('vscode.json-language-features', AuthorizationStatus.GRANTED);
         this.authorizationStates.set('<unpublished>.demo-plugin', AuthorizationStatus.GRANTED);
         this.authorizationStates.set('<unpublished>.theia-webview-test-plugin', AuthorizationStatus.GRANTED);
-        this.authorizationStates.set('<unpublished>.test-plugin', AuthorizationStatus.DENIED);
+        // 注意：不再硬编码test-plugin的状态，让它使用通用的默认逻辑（GRANTED）
 
         this.logger.debug('[PLUGIN] 默认授权状态已初始化',
             Array.from(this.authorizationStates.entries()).map(([id, status]) => `${id}: ${status}`)

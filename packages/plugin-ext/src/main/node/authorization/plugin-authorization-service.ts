@@ -36,6 +36,7 @@ export class PluginAuthorizationService implements PluginAuthorizationProvider, 
             // Legacy接口事件转换
             const legacyEvent: PluginAuthorizationChangeEvent = {
                 pluginId: event.pluginId,
+                authorized: event.status === AuthorizationStatus.GRANTED,
                 status: event.status === AuthorizationStatus.GRANTED ? 'granted' : 'denied',
                 previousStatus: event.previousStatus === AuthorizationStatus.GRANTED ? 'granted' : 'denied'
             };
@@ -120,6 +121,10 @@ export class PluginAuthorizationService implements PluginAuthorizationProvider, 
 
     async $getAllAuthorizationStatuses(): Promise<Map<PluginIdentifier, AuthorizationStatus>> {
         return this.manager.getAllAuthorizationStatuses();
+    }
+
+    async $resetToDefaults(): Promise<void> {
+        this.resetAllAuthorizations();
     }
 
     // RPC客户端管理

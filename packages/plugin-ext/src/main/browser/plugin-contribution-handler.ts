@@ -53,7 +53,19 @@ import { PluginTerminalRegistry } from './plugin-terminal-registry';
 import { ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 import { LanguageService } from '@theia/core/lib/browser/language-service';
 import { ThemeIcon } from '@theia/monaco-editor-core/esm/vs/base/common/themables';
-import { StandardTokenType } from '@theia/monaco-editor-core/esm/vs/editor/common/encodedTokenAttributes';
+import { PluginAuthorizationProvider } from '../../common/authorization/plugin-authorization';
+import { PluginAuthorizationChangeEvent } from '../../common/authorization/types';
+import { IAuthorizationService } from '../../common/authorization/i-authorization-service';
+import { HostedPluginServer, PluginDeployer } from '../../common/plugin-protocol';
+import { postConstruct } from '@theia/core/shared/inversify';
+
+// The enum export is missing from `vscode-textmate@9.2.0`
+const enum StandardTokenType {
+    Other = 0,
+    Comment = 1,
+    String = 2,
+    RegEx = 3
+}
 
 @injectable()
 export class PluginContributionHandler {
@@ -138,16 +150,40 @@ export class PluginContributionHandler {
     @inject(NotebookRendererRegistry)
     protected readonly notebookRendererRegistry: NotebookRendererRegistry;
 
+
     @inject(ContributionProvider) @named(LabelProviderContribution)
     protected readonly contributionProvider: ContributionProvider<LabelProviderContribution>;
 
     @inject(ContextKeyService)
     protected readonly contextKeyService: ContextKeyService;
 
+    @inject(IAuthorizationService)
+    protected readonly authorizationService: IAuthorizationService;
+
+    @inject(PluginAuthorizationProvider)
+    protected readonly authorizationProvider: PluginAuthorizationProvider;
+
+    @inject(HostedPluginServer)
+    protected readonly hostedPluginServer: HostedPluginServer;
+
+    @inject(PluginDeployer)
+    protected readonly pluginDeployer: PluginDeployer;
+
     protected readonly commandHandlers = new Map<string, CommandHandler['execute'] | undefined>();
+    protected readonly pluginContributions = new Map<string, Disposable>();
+    // 存储插件信息，用于重新注册
+    protected readonly deployedPlugins = new Map<string, { clientId: string; plugin: DeployedPlugin }>();
 
     protected readonly onDidRegisterCommandHandlerEmitter = new Emitter<string>();
     readonly onDidRegisterCommandHandler = this.onDidRegisterCommandHandlerEmitter.event;
+
+    @postConstruct()
+    protected initAuthorizationListener(): void {
+        // 监听授权状态变化
+        this.authorizationProvider.onAuthorizationChanged(event => {
+            this.handleAuthorizationChanged(event);
+        });
+    }
 
     /**
      * Always synchronous in order to simplify handling disconnections.
@@ -159,6 +195,28 @@ export class PluginContributionHandler {
         if (!contributions) {
             return Disposable.NULL;
         }
+
+        const pluginId = plugin.metadata.model.id;
+
+        // 存储插件信息，用于重新注册
+        this.deployedPlugins.set(pluginId, { clientId, plugin });
+
+        // 授权检查现在由授权管理器通过 undeploy 机制处理
+        // 如果插件到达这里，说明已经通过了授权检查
+        console.log(`[PLUGIN-CONTRIB] 处理插件 ${pluginId} 的贡献点`);
+        
+        // 异步检查授权状态，但不阻塞当前注册过程
+        this.checkAndHandleAuthorization(pluginId).then(isAuthorized => {
+            if (!isAuthorized) {
+                console.log(`[PLUGIN-CONTRIB] 插件 ${pluginId} 授权检查失败，将清理贡献点`);
+                // 授权失败时，授权管理器会 undeploy 插件
+            }
+        }).catch(error => {
+            console.error(`[PLUGIN-CONTRIB] 插件 ${pluginId} 授权检查出错:`, error);
+        });
+
+        // 先清理已存在的贡献点（用于重新安装场景）
+        this.disposePluginContributions(pluginId);
         const toDispose = new DisposableCollection(Disposable.create(() => { /* mark as not disposed */ }));
         /* eslint-disable @typescript-eslint/no-explicit-any */
         const logError = (message: string, ...args: any[]) => console.error(`[${clientId}][${plugin.metadata.model.id}]: ${message}`, ...args);
@@ -281,7 +339,7 @@ export class PluginContributionHandler {
             });
         }
 
-        pushContribution('commands', () => this.registerCommands(contributions));
+        pushContribution('commands', () => this.registerCommands(contributions, plugin.metadata.model.id));
         pushContribution('menus', () => this.menusContributionHandler.handle(plugin));
         pushContribution('keybindings', () => this.keybindingsContributionHandler.handle(contributions));
 
@@ -297,8 +355,18 @@ export class PluginContributionHandler {
             for (const location in contributions.viewsContainers) {
                 if (contributions.viewsContainers!.hasOwnProperty(location)) {
                     for (const viewContainer of contributions.viewsContainers[location]) {
+                        console.log(`[PLUGIN-CONTRIB] 注册viewContainer: ${viewContainer.id} 位置: ${location} 插件: ${pluginId}`);
                         pushContribution(`viewContainers.${viewContainer.id}`,
-                            () => this.viewRegistry.registerViewContainer(location, viewContainer)
+                            () => {
+                                console.log(`[PLUGIN-CONTRIB] 执行registerViewContainer: ${viewContainer.id} 插件: ${pluginId}`);
+                                const disposable = this.viewRegistry.registerViewContainer(location, viewContainer);
+                                if (disposable === Disposable.NULL) {
+                                    console.warn(`[PLUGIN-CONTRIB] ViewContainer ${viewContainer.id} 注册失败 - 可能已存在`);
+                                } else {
+                                    console.log(`[PLUGIN-CONTRIB] ViewContainer ${viewContainer.id} 注册成功`);
+                                }
+                                return disposable;
+                            }
                         );
                     }
                 }
@@ -455,10 +523,13 @@ export class PluginContributionHandler {
             }
         }
 
+        // 存储这个插件的所有贡献点，用于后续统一清理
+        this.pluginContributions.set(pluginId, toDispose);
+
         return toDispose;
     }
 
-    protected registerCommands(contribution: PluginContribution): Disposable {
+    protected registerCommands(contribution: PluginContribution, pluginId?: string): Disposable {
         if (!contribution.commands) {
             return Disposable.NULL;
         }
@@ -473,12 +544,12 @@ export class PluginContributionHandler {
             } else if (icon) {
                 iconClass = ThemeIcon.asClassName(icon);
             }
-            toDispose.push(this.registerCommand({ id: command, category, shortTitle, label: title, originalLabel: originalTitle, iconClass }, enablement));
+            toDispose.push(this.registerCommand({ id: command, category, shortTitle, label: title, originalLabel: originalTitle, iconClass }, enablement, pluginId));
         }
         return toDispose;
     }
 
-    registerCommand(command: Command, enablement?: string): Disposable {
+    registerCommand(command: Command, enablement?: string, pluginId?: string): Disposable {
         if (this.hasCommand(command.id)) {
             console.warn(`command '${command.id}' already registered`);
             return Disposable.NULL;
@@ -486,6 +557,14 @@ export class PluginContributionHandler {
 
         const commandHandler: CommandHandler = {
             execute: async (...args) => {
+                // 检查插件授权状态
+                if (pluginId) {
+                    const isAuthorized = await this.authorizationProvider.isAuthorized(pluginId);
+                    if (!isAuthorized) {
+                        throw new Error(`Plugin '${pluginId}' is not authorized to execute command '${command.id}'`);
+                    }
+                }
+
                 const handler = this.commandHandlers.get(command.id);
                 if (!handler) {
                     throw new Error(`command '${command.id}' not found`);
@@ -694,5 +773,63 @@ export class PluginContributionHandler {
                 break;
         }
         return { indentAction, appendText: action.appendText, removeText: action.removeText };
+    }
+
+    /**
+     * Clean up all contributions for a specific plugin
+     */
+    disposePluginContributions(pluginId: string): void {
+        const existing = this.pluginContributions.get(pluginId);
+        if (existing) {
+            console.log(`[PLUGIN-CONTRIB] 开始清理插件 ${pluginId} 的贡献点 (包括viewContainer)`);
+            existing.dispose();
+            this.pluginContributions.delete(pluginId);
+            console.log(`[PLUGIN-CONTRIB] 插件 ${pluginId} 贡献点清理完成`);
+        } else {
+            console.log(`[PLUGIN-CONTRIB] 插件 ${pluginId} 没有找到需要清理的贡献点`);
+        }
+    }
+
+    /**
+     * Check if a plugin has active contributions
+     */
+    hasActiveContributions(pluginId: string): boolean {
+        return this.pluginContributions.has(pluginId);
+    }
+
+    /**
+     * 检查并处理插件的授权状态
+     */
+    protected async checkAndHandleAuthorization(pluginId: string): Promise<boolean> {
+        try {
+            const authStatus = await this.authorizationService.getAuthorizationStatus(pluginId);
+            const isAuthorized = authStatus === 'granted';
+            console.log(`[PLUGIN-CONTRIB] Authorization check for ${pluginId}: ${authStatus} (${isAuthorized})`);
+            return isAuthorized;
+        } catch (error) {
+            console.warn(`[PLUGIN-CONTRIB] Failed to check authorization for ${pluginId}:`, error);
+            return true; // 默认授权以保持兼容性
+        }
+    }
+
+    /**
+     * 处理授权状态变化 - 使用插件系统的启用/禁用机制
+     */
+    protected async handleAuthorizationChanged(event: PluginAuthorizationChangeEvent): Promise<void> {
+        console.log(`[PLUGIN-CONTRIB] 授权状态变化:`, event);
+
+        try {
+            if (!event.authorized) {
+                // 撤销授权时 undeploy 插件 - 由授权管理器处理，这里只需要清理贡献点
+                console.log(`[PLUGIN-CONTRIB] 撤销授权，清理插件贡献点: ${event.pluginId}`);
+                // 授权管理器会处理 undeploy，这里不需要额外操作
+            } else {
+                // 授权恢复时，插件会在下次启动或扫描时自动重新部署
+                console.log(`[PLUGIN-CONTRIB] 授权恢复，等待插件自动重新部署: ${event.pluginId}`);
+                // 插件系统会自动重新部署和注册贡献点
+            }
+        } catch (error) {
+            console.error(`[PLUGIN-CONTRIB] 处理插件 ${event.pluginId} 授权变更失败:`, error);
+        }
     }
 }

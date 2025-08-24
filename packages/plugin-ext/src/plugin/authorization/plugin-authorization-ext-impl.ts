@@ -46,6 +46,7 @@ export class PluginAuthorizationExtImpl implements PluginAuthorizationService, P
             // 新格式，转换为旧格式
             legacyEvent = {
                 pluginId: event.pluginId,
+                authorized: event.status === 'granted',
                 status: event.status,
                 previousStatus: event.previousStatus
             };

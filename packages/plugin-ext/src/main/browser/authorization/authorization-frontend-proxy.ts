@@ -117,12 +117,8 @@ export class AuthorizationFrontendProxy implements IAuthorizationService, IAutho
     async resetToDefaults(): Promise<void> {
         this.loggerChild.info(`📞 请求后端 resetToDefaults()...`);
         try {
-            if ('$resetToDefaults' in this.rpcProxy) {
-                await (this.rpcProxy as any).$resetToDefaults();
-                this.loggerChild.info(`✅ resetToDefaults 完成`);
-            } else {
-                this.loggerChild.warn(`⚠️ 后端 RPC proxy 不支持 resetToDefaults`);
-            }
+            await (this.rpcProxy as any).$resetToDefaults();
+            this.loggerChild.info(`✅ resetToDefaults 完成`);
         } catch (error) {
             this.loggerChild.error(`❌ resetToDefaults 调用失败:`, error);
             throw error;

@@ -271,4 +271,5 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
         storedLocations.forEach(location => knownLocations.add(location));
         this.sourceLocations.set(id, knownLocations);
     }
+
 }

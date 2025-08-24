@@ -28,7 +28,7 @@ import { VSXExtensionsSearchBar } from './vsx-extensions-search-bar';
 import { VSXExtensionsModel } from './vsx-extensions-model';
 import { ColorContribution } from '@theia/core/lib/browser/color-application-contribution';
 import { VSXExtensionsWidget, VSXExtensionsWidgetOptions } from './vsx-extensions-widget';
-import { VSXExtensionFactory, VSXExtension, VSXExtensionOptions } from './vsx-extension';
+import { VSXExtensionFactory, VSXExtension, VSXExtensionOptions, VSXExtensionOptionsInterface } from './vsx-extension';
 import { VSXExtensionEditor } from './vsx-extension-editor';
 import { VSXExtensionEditorManager } from './vsx-extension-editor-manager';
 import { VSXExtensionsSourceOptions } from './vsx-extensions-source';
@@ -47,7 +47,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
         .toDynamicValue(ctx => WebSocketConnectionProvider.createProxy(ctx.container, VSX_ENVIRONMENT_PATH))
         .inSingletonScope();
     bind(VSXExtension).toSelf();
-    bind(VSXExtensionFactory).toFactory(ctx => (option: VSXExtensionOptions) => {
+    bind(VSXExtensionFactory).toFactory(ctx => (option: VSXExtensionOptionsInterface) => {
         const child = ctx.container.createChild();
         child.bind(VSXExtensionOptions).toConstantValue(option);
         return child.get(VSXExtension);
@@ -57,7 +57,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(VSXExtensionEditor).toSelf();
     bind(WidgetFactory).toDynamicValue(ctx => ({
         id: VSXExtensionEditor.ID,
-        createWidget: async (options: VSXExtensionOptions) => {
+        createWidget: async (options: VSXExtensionOptionsInterface) => {
             const extension = await ctx.container.get(VSXExtensionsModel).resolve(options.id);
             const child = ctx.container.createChild();
             child.bind(VSXExtension).toConstantValue(extension);

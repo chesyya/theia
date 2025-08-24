@@ -17,7 +17,7 @@
 import { injectable } from '@theia/core/shared/inversify';
 import URI from '@theia/core/lib/common/uri';
 import { WidgetOpenHandler } from '@theia/core/lib/browser';
-import { VSXExtensionOptions } from './vsx-extension';
+import { VSXExtensionOptionsInterface } from './vsx-extension';
 import { VSCodeExtensionUri } from '@theia/plugin-ext-vscode/lib/common/plugin-vscode-uri';
 import { VSXExtensionEditor } from './vsx-extension-editor';
 
@@ -31,7 +31,7 @@ export class VSXExtensionEditorManager extends WidgetOpenHandler<VSXExtensionEdi
         return !!id ? 500 : 0;
     }
 
-    protected createWidgetOptions(uri: URI): VSXExtensionOptions {
+    protected createWidgetOptions(uri: URI): VSXExtensionOptionsInterface {
         const id = VSCodeExtensionUri.toId(uri);
         if (!id) {
             throw new Error('Invalid URI: ' + uri.toString());

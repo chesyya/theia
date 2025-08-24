@@ -29,6 +29,7 @@ import { PluginIdentifiers } from './plugin-identifiers';
 
 export { PluginIdentifiers };
 export const hostedServicePath = '/services/hostedPlugin';
+export const pluginDeployerPath = '/services/pluginDeployer';
 
 /**
  * Plugin engine (API) type, i.e. 'theiaPlugin', 'vscode', 'theiaHeadlessPlugin', etc.
@@ -440,6 +441,8 @@ export const PluginDeployer = Symbol('PluginDeployer');
 export interface PluginDeployer {
 
     start(): Promise<void>;
+    undeploy(pluginId: PluginIdentifiers.VersionedId): Promise<void>;
+    uninstall(pluginId: PluginIdentifiers.VersionedId): Promise<void>;
 
 }
 
@@ -1002,6 +1005,7 @@ export interface PluginDeployerHandler {
     undeployPlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean>;
 
     getPluginDependencies(pluginToBeInstalled: PluginDeployerEntry): Promise<PluginDependencies | undefined>;
+
 }
 
 export interface GetDeployedPluginsParams {
@@ -1023,6 +1027,8 @@ export interface HostedPluginServer extends RpcServer<HostedPluginClient> {
     getDeployedPluginIds(): Promise<PluginIdentifiers.VersionedId[]>;
 
     getUninstalledPluginIds(): Promise<readonly PluginIdentifiers.VersionedId[]>;
+
+    getDisabledPluginIds(): Promise<readonly PluginIdentifiers.VersionedId[]>;
 
     getDeployedPlugins(params: GetDeployedPluginsParams): Promise<DeployedPlugin[]>;
 

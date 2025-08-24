@@ -284,8 +284,11 @@ export class PluginViewRegistry implements FrontendApplicationContribution {
 
     registerViewContainer(location: string, viewContainer: ViewContainer): Disposable {
         const containerId = `workbench.view.extension.${viewContainer.id}`;
+        console.log(`[VIEW-REGISTRY] 尝试注册ViewContainer: ${viewContainer.id} (containerId: ${containerId})`);
+        console.log(`[VIEW-REGISTRY] 当前已注册的viewContainers:`, Array.from(this.viewContainers.keys()));
+        
         if (this.viewContainers.has(containerId)) {
-            console.warn('view container such id already registered: ', JSON.stringify(viewContainer));
+            console.warn(`[VIEW-REGISTRY] ViewContainer ${containerId} 已存在，注册失败`);
             return Disposable.NULL;
         }
         const toDispose = new DisposableCollection();
@@ -314,6 +317,7 @@ export class PluginViewRegistry implements FrontendApplicationContribution {
             iconClass: (themeIconClass || containerClass) + ' ' + iconClass,
             closeable: true
         }));
+        console.log(`[VIEW-REGISTRY] ViewContainer ${containerId} 注册成功`);
         return toDispose;
     }
 
@@ -331,7 +335,10 @@ export class PluginViewRegistry implements FrontendApplicationContribution {
 
     protected doRegisterViewContainer(id: string, location: string, options: ViewContainerTitleOptions): Disposable {
         const toDispose = new DisposableCollection();
-        toDispose.push(Disposable.create(() => this.viewContainers.delete(id)));
+        toDispose.push(Disposable.create(() => {
+            console.log(`[VIEW-REGISTRY] 清理ViewContainer: ${id}`);
+            this.viewContainers.delete(id);
+        }));
         const toggleCommandId = `plugin.view-container.${id}.toggle`;
         // Some plugins may register empty view containers.
         // We should not register commands for them immediately, as that leads to bad UX.

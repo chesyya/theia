@@ -76,6 +76,7 @@ export interface IAuthorizationRPC {
     $grantAuthorization(pluginId: PluginIdentifier): Promise<void>;
     $revokeAuthorization(pluginId: PluginIdentifier): Promise<void>;
     $getAllAuthorizationStatuses(): Promise<Map<PluginIdentifier, AuthorizationStatus>>;
+    $resetToDefaults(): Promise<void>;
 }
 
 /**

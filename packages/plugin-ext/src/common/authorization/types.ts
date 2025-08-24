@@ -54,7 +54,8 @@ export interface IAuthorizationStatusChangeEvent {
  */
 export interface PluginAuthorizationChangeEvent {
     readonly pluginId: string;
-    readonly status: string;
+    readonly authorized: boolean;
+    readonly status?: string;
     readonly previousStatus?: string;
 }
 

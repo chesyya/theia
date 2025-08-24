@@ -32,7 +32,7 @@ import { HostedPluginSupport } from '../../hosted/browser/hosted-plugin';
 import { HostedPluginWatcher } from '../../hosted/browser/hosted-plugin-watcher';
 import { OpenUriCommandHandler } from './commands';
 import { PluginApiFrontendContribution } from './plugin-frontend-contribution';
-import { HostedPluginServer, hostedServicePath, PluginServer, pluginServerJsonRpcPath } from '../../common/plugin-protocol';
+import { HostedPluginServer, hostedServicePath, PluginServer, pluginServerJsonRpcPath, PluginDeployer, pluginDeployerPath } from '../../common/plugin-protocol';
 import { ModalNotification } from './dialogs/modal-notification';
 import { PluginWidget } from './plugin-ext-widget';
 import { PluginFrontendViewContribution } from './plugin-frontend-view-contribution';
@@ -98,6 +98,7 @@ import { PluginAuthorizationServiceProxy } from './authorization/plugin-authoriz
 import { PluginAuthorizationFrontendProvider } from './authorization/plugin-authorization-frontend-provider';
 import { AuthorizationFrontendProxy } from './authorization/authorization-frontend-proxy';
 import { AuthorizationMenuContribution } from './authorization/authorization-menu-contribution';
+// import { PluginAuthorizationStatus } from './authorization/plugin-authorization-status';
 import { MenuContribution } from '@theia/core/lib/common';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
@@ -156,6 +157,11 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(PluginServer).toDynamicValue(ctx => {
         const provider = ctx.container.get(WebSocketConnectionProvider);
         return provider.createProxy<PluginServer>(pluginServerJsonRpcPath);
+    }).inSingletonScope();
+
+    bind(PluginDeployer).toDynamicValue(ctx => {
+        const provider = ctx.container.get(WebSocketConnectionProvider);
+        return provider.createProxy<PluginDeployer>(pluginDeployerPath);
     }).inSingletonScope();
 
     bind(ViewContextKeyService).toSelf().inSingletonScope();
@@ -305,6 +311,8 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(PluginAuthorizationFrontendProvider).toSelf().inSingletonScope();
     bind(PluginAuthorizationProvider).toService(PluginAuthorizationFrontendProvider);
 
+    // bind(PluginAuthorizationStatus).toSelf().inSingletonScope();
+    // bind(FrontendApplicationContribution).toService(PluginAuthorizationStatus);
 
     bind(AuthorizationMenuContribution).toSelf().inSingletonScope();
     bind(CommandContribution).toService(AuthorizationMenuContribution);

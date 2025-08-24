@@ -129,11 +129,14 @@ export class AuthorizationRpcServer implements IAuthorizationRPC, RpcServer<IAut
     async $resetToDefaults(): Promise<void> {
         this.logger.info('[PLUGIN] 📞 RPC 调用: $resetToDefaults()');
         try {
-            if ('resetToDefaults' in this.authorizationService) {
+            if ('resetAllAuthorizations' in this.authorizationService) {
+                (this.authorizationService as any).resetAllAuthorizations();
+                this.logger.info('[PLUGIN] ✅ RPC 完成: $resetToDefaults');
+            } else if ('resetToDefaults' in this.authorizationService) {
                 await (this.authorizationService as any).resetToDefaults();
                 this.logger.info('[PLUGIN] ✅ RPC 完成: $resetToDefaults');
             } else {
-                this.logger.warn('[PLUGIN] ⚠️ resetToDefaults 方法在 service 中不可用');
+                this.logger.warn('[PLUGIN] ⚠️ resetToDefaults/resetAllAuthorizations 方法在 service 中不可用');
             }
         } catch (error) {
             this.logger.error('[PLUGIN] ❌ $resetToDefaults 执行出错', error);

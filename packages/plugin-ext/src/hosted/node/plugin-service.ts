@@ -22,6 +22,7 @@ import { HostedPluginDeployerHandler } from './hosted-plugin-deployer-handler';
 import { PluginDeployerImpl } from '../../main/node/plugin-deployer-impl';
 import { HostedPluginLocalizationService } from './hosted-plugin-localization-service';
 import { PluginUninstallationManager } from '../../main/node/plugin-uninstallation-manager';
+import { AuthorizationEnforcementService } from '../../main/node/authorization/authorization-enforcement-service';
 
 export const BackendPluginHostableFilter = Symbol('BackendPluginHostableFilter');
 /**
@@ -50,6 +51,8 @@ export class HostedPluginServerImpl implements HostedPluginServer {
     protected readonly extPluginAPIContributions: ContributionProvider<ExtPluginApiProvider>;
 
     @inject(PluginUninstallationManager) protected readonly uninstallationManager: PluginUninstallationManager;
+
+    @inject(AuthorizationEnforcementService) protected readonly authorizationEnforcement: AuthorizationEnforcementService;
 
     @inject(BackendPluginHostableFilter)
     @optional()
@@ -159,6 +162,11 @@ export class HostedPluginServerImpl implements HostedPluginServer {
         return Promise.resolve(this.uninstallationManager.getUninstalledPluginIds());
     }
 
+    getDisabledPluginIds(): Promise<readonly PluginIdentifiers.VersionedId[]> {
+        // 暂时返回空数组，等待实现真正的disable机制
+        return Promise.resolve([]);
+    }
+
     async getDeployedPlugins({ pluginIds }: GetDeployedPluginsParams): Promise<DeployedPlugin[]> {
         if (!pluginIds.length) {
             return [];
@@ -194,4 +202,5 @@ export class HostedPluginServerImpl implements HostedPluginServer {
     getExtPluginAPI(): Promise<ExtPluginApi[]> {
         return Promise.resolve(this.extPluginAPIContributions.getContributions().map(p => p.provideApi()));
     }
+
 }

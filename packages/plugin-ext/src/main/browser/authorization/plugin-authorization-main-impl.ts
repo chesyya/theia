@@ -40,8 +40,8 @@ export class PluginAuthorizationMainImpl implements PluginAuthorizationMain {
             const proxy = this.rpc.getProxy(MAIN_RPC_CONTEXT.PLUGIN_AUTHORIZATION_EXT);
             proxy.$onDidChangeAuthorizationStatus({
                 pluginId: event.pluginId,
-                status: event.status,
-                previousStatus: event.previousStatus || 'denied'
+                status: event.status || (event.authorized ? 'granted' : 'denied'),
+                previousStatus: event.previousStatus || 'pending'
             });
         });
     }
