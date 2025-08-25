@@ -22,7 +22,6 @@ import { HostedPluginDeployerHandler } from './hosted-plugin-deployer-handler';
 import { PluginDeployerImpl } from '../../main/node/plugin-deployer-impl';
 import { HostedPluginLocalizationService } from './hosted-plugin-localization-service';
 import { PluginUninstallationManager } from '../../main/node/plugin-uninstallation-manager';
-import { AuthorizationEnforcementService } from '../../main/node/authorization/authorization-enforcement-service';
 
 export const BackendPluginHostableFilter = Symbol('BackendPluginHostableFilter');
 /**
@@ -51,8 +50,6 @@ export class HostedPluginServerImpl implements HostedPluginServer {
     protected readonly extPluginAPIContributions: ContributionProvider<ExtPluginApiProvider>;
 
     @inject(PluginUninstallationManager) protected readonly uninstallationManager: PluginUninstallationManager;
-
-    @inject(AuthorizationEnforcementService) protected readonly authorizationEnforcement: AuthorizationEnforcementService;
 
     @inject(BackendPluginHostableFilter)
     @optional()
@@ -201,6 +198,41 @@ export class HostedPluginServerImpl implements HostedPluginServer {
 
     getExtPluginAPI(): Promise<ExtPluginApi[]> {
         return Promise.resolve(this.extPluginAPIContributions.getContributions().map(p => p.provideApi()));
+    }
+
+    async stopPlugin(pluginId: PluginIdentifiers.VersionedId): Promise<void> {
+        this.logger.info(`[PLUGIN] Stopping plugin: ${pluginId}`);
+        try {
+            // 通知HostedPluginSupport停用插件
+            await this.hostedPlugin.stopPlugin(pluginId);
+            this.logger.info(`[PLUGIN] Plugin stopped successfully: ${pluginId}`);
+        } catch (error) {
+            this.logger.error(`[PLUGIN] Error stopping plugin ${pluginId}:`, error);
+            throw error;
+        }
+    }
+
+    async disablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<void> {
+        this.logger.info(`[PLUGIN] Disabling plugin: ${pluginId}`);
+        try {
+            // 停用插件并清除其贡献
+            await this.stopPlugin(pluginId);
+
+            // 通知客户端清除静态贡献
+            if (this.client) {
+                try {
+                    await this.client.postMessage('plugin.disable', Buffer.from(JSON.stringify({ pluginId })));
+                    this.logger.info(`[PLUGIN] Notified client to clear contributions for: ${pluginId}`);
+                } catch (notifyError) {
+                    this.logger.warn(`[PLUGIN] Failed to notify client about disabling ${pluginId}:`, notifyError);
+                }
+            }
+
+            this.logger.info(`[PLUGIN] Plugin disabled successfully: ${pluginId}`);
+        } catch (error) {
+            this.logger.error(`[PLUGIN] Error disabling plugin ${pluginId}:`, error);
+            throw error;
+        }
     }
 
 }

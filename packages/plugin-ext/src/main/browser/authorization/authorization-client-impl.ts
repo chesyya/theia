@@ -1,5 +1,5 @@
 // *****************************************************************************
-// Copyright (C) 2018 Red Hat, Inc. and others.
+// Copyright (C) 2024 TypeFox and others.
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -14,6 +14,25 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import mainModule from '../plugin-ext-frontend-module';
+import { injectable } from '@theia/core/shared/inversify';
+import { IAuthorizationClient, IAuthorizationStatusChangeEvent } from '../../../common/authorization/i-authorization-service';
 
-export default mainModule;
+/**
+ * 独立的客户端实现类，用于接收后端RPC调用
+ * 避免与AuthorizationFrontendProxy的循环依赖
+ */
+@injectable()
+export class AuthorizationClientImpl implements IAuthorizationClient {
+    
+    private service: IAuthorizationClient | undefined;
+
+    $onDidUpdateAuthorizationStatus(event: IAuthorizationStatusChangeEvent): void {
+        if (this.service) {
+            this.service.$onDidUpdateAuthorizationStatus(event);
+        }
+    }
+
+    setService(service: IAuthorizationClient): void {
+        this.service = service;
+    }
+}

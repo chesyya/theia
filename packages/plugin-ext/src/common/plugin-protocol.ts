@@ -26,6 +26,7 @@ import { ProblemMatcherContribution, ProblemPatternContribution, TaskDefinition 
 import { ColorDefinition } from '@theia/core/lib/common/color';
 import { ResourceLabelFormatter } from '@theia/core/lib/common/label-protocol';
 import { PluginIdentifiers } from './plugin-identifiers';
+import { IAuthorizationStatusChangeEvent } from './authorization/i-authorization-service';
 
 export { PluginIdentifiers };
 export const hostedServicePath = '/services/hostedPlugin';
@@ -972,6 +973,8 @@ export interface HostedPluginClient {
     log(logPart: LogPart): void;
 
     onDidDeploy(): void;
+
+    onAuthorizationStatusChanged(event: IAuthorizationStatusChangeEvent): void;
 }
 
 export interface PluginDependencies {
@@ -1035,6 +1038,10 @@ export interface HostedPluginServer extends RpcServer<HostedPluginClient> {
     getExtPluginAPI(): Promise<ExtPluginApi[]>;
 
     onMessage(targetHost: string, message: Uint8Array): Promise<void>;
+
+    stopPlugin(pluginId: PluginIdentifiers.VersionedId): Promise<void>;
+
+    disablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<void>;
 
 }
 

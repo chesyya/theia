@@ -14,56 +14,52 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { injectable, inject } from '@theia/core/shared/inversify';
+import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import { Emitter } from '@theia/core/lib/common/event';
 import { DisposableCollection } from '@theia/core/lib/common/disposable';
-import { WebSocketConnectionProvider } from '@theia/core/lib/browser/messaging';
-import {
-    IAuthorizationService,
-    IAuthorizationRPC,
-    IAuthorizationClient,
-    PluginIdentifier,
-    AuthorizationStatus,
-    IAuthorizationStatusChangeEvent,
-    authorizationServicePath
-} from '../../../common/authorization';
 import { ILogger } from '@theia/core/lib/common/logger';
+import { AuthorizationStatus, IAuthorizationClient, IAuthorizationRPC, IAuthorizationService, IAuthorizationStatusChangeEvent, PluginIdentifier, IAuthorizationRPCToken } from '../../../common/authorization/i-authorization-service';
+import { AuthorizationClientImpl } from './authorization-client-impl';
 
 /**
  * Frontend proxy 实现 IAuthorizationService
+ * 按照Theia标准模式实现
  */
 @injectable()
 export class AuthorizationFrontendProxy implements IAuthorizationService, IAuthorizationClient {
 
-    private readonly disposables = new DisposableCollection();
     private readonly _onDidUpdateAuthorizationStatus = new Emitter<IAuthorizationStatusChangeEvent>();
-    private readonly rpcProxy: IAuthorizationRPC;
+    private readonly disposables = new DisposableCollection();
     private readonly loggerChild: ILogger;
 
     constructor(
-        @inject(WebSocketConnectionProvider) protected readonly connectionProvider: WebSocketConnectionProvider,
-        @inject(ILogger) protected readonly logger: ILogger
+        @inject(ILogger) protected readonly logger: ILogger,
+        @inject(IAuthorizationRPCToken) protected readonly rpcProxy: IAuthorizationRPC,
+        @inject(AuthorizationClientImpl) protected readonly client: AuthorizationClientImpl
     ) {
         // 创建子 logger，附带类名
         this.loggerChild = this.logger.child(`[PLUGIN] ${AuthorizationFrontendProxy.name}`);
-
-        this.loggerChild.info('🔗 AuthorizationFrontendProxy 初始化中...');
-
-        this.rpcProxy = this.connectionProvider.createProxy<IAuthorizationRPC>(authorizationServicePath, this);
-
-        this.loggerChild.info('✅ AuthorizationFrontendProxy 初始化完成');
+        this.loggerChild.info('🔗 AuthorizationFrontendProxy 构造函数完成');
     }
+
+    @postConstruct()
+    protected init(): void {
+        // 设置客户端服务，这样客户端实现就能将事件转发给我们
+        this.client.setService(this);
+        this.loggerChild.info('🔗 AuthorizationFrontendProxy 初始化完成');
+    }
+
+
 
     get onDidUpdateAuthorizationStatus() {
         return this._onDidUpdateAuthorizationStatus.event;
     }
 
     // --- IAuthorizationClient 实现 ---
+    // Theia RPC 系统会自动调用这个方法来传播后端事件
     $onDidUpdateAuthorizationStatus(event: IAuthorizationStatusChangeEvent): void {
         this.loggerChild.info('🎉 收到来自后端的授权状态变更事件:', event);
-
         this._onDidUpdateAuthorizationStatus.fire(event);
-
         this.loggerChild.info('📢 已重新触发事件到前端监听者');
     }
 
@@ -124,6 +120,7 @@ export class AuthorizationFrontendProxy implements IAuthorizationService, IAutho
             throw error;
         }
     }
+
 
     dispose(): void {
         this.loggerChild.info('🧹 释放 AuthorizationFrontendProxy...');

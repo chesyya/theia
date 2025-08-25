@@ -53,11 +53,10 @@ import { PluginTerminalRegistry } from './plugin-terminal-registry';
 import { ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 import { LanguageService } from '@theia/core/lib/browser/language-service';
 import { ThemeIcon } from '@theia/monaco-editor-core/esm/vs/base/common/themables';
-import { PluginAuthorizationProvider } from '../../common/authorization/plugin-authorization';
-import { PluginAuthorizationChangeEvent } from '../../common/authorization/types';
-import { IAuthorizationService } from '../../common/authorization/i-authorization-service';
+import { AuthorizationStatus, IAuthorizationService, IAuthorizationStatusChangeEvent } from '../../common/authorization/i-authorization-service';
 import { HostedPluginServer, PluginDeployer } from '../../common/plugin-protocol';
 import { postConstruct } from '@theia/core/shared/inversify';
+import { AuthorizationFrontendProxy } from './authorization/authorization-frontend-proxy';
 
 // The enum export is missing from `vscode-textmate@9.2.0`
 const enum StandardTokenType {
@@ -160,8 +159,8 @@ export class PluginContributionHandler {
     @inject(IAuthorizationService)
     protected readonly authorizationService: IAuthorizationService;
 
-    @inject(PluginAuthorizationProvider)
-    protected readonly authorizationProvider: PluginAuthorizationProvider;
+    @inject(AuthorizationFrontendProxy)
+    protected readonly authorizationFrontendProxy: AuthorizationFrontendProxy;
 
     @inject(HostedPluginServer)
     protected readonly hostedPluginServer: HostedPluginServer;
@@ -179,8 +178,8 @@ export class PluginContributionHandler {
 
     @postConstruct()
     protected initAuthorizationListener(): void {
-        // 监听授权状态变化
-        this.authorizationProvider.onAuthorizationChanged(event => {
+        // 使用新架构的 AuthorizationClient 监听授权状态变化
+        this.authorizationFrontendProxy.onDidUpdateAuthorizationStatus(event => {
             this.handleAuthorizationChanged(event);
         });
     }
@@ -204,12 +203,13 @@ export class PluginContributionHandler {
         // 授权检查现在由授权管理器通过 undeploy 机制处理
         // 如果插件到达这里，说明已经通过了授权检查
         console.log(`[PLUGIN-CONTRIB] 处理插件 ${pluginId} 的贡献点`);
-        
+
         // 异步检查授权状态，但不阻塞当前注册过程
         this.checkAndHandleAuthorization(pluginId).then(isAuthorized => {
             if (!isAuthorized) {
                 console.log(`[PLUGIN-CONTRIB] 插件 ${pluginId} 授权检查失败，将清理贡献点`);
-                // 授权失败时，授权管理器会 undeploy 插件
+                // 授权失败时，清理已注册的贡献点
+                this.disposePluginContributions(pluginId);
             }
         }).catch(error => {
             console.error(`[PLUGIN-CONTRIB] 插件 ${pluginId} 授权检查出错:`, error);
@@ -557,10 +557,10 @@ export class PluginContributionHandler {
 
         const commandHandler: CommandHandler = {
             execute: async (...args) => {
-                // 检查插件授权状态
+                // 检查插件授权状态 - 使用新架构的 AuthorizationClient
                 if (pluginId) {
-                    const isAuthorized = await this.authorizationProvider.isAuthorized(pluginId);
-                    if (!isAuthorized) {
+                    const isAuthorized = await this.authorizationFrontendProxy.getAuthorizationStatus(pluginId);
+                    if (isAuthorized == AuthorizationStatus.DENIED) {
                         throw new Error(`Plugin '${pluginId}' is not authorized to execute command '${command.id}'`);
                     }
                 }
@@ -798,35 +798,46 @@ export class PluginContributionHandler {
     }
 
     /**
-     * 检查并处理插件的授权状态
+     * 检查并处理插件的授权状态 - 使用新架构
      */
     protected async checkAndHandleAuthorization(pluginId: string): Promise<boolean> {
         try {
-            const authStatus = await this.authorizationService.getAuthorizationStatus(pluginId);
-            const isAuthorized = authStatus === 'granted';
-            console.log(`[PLUGIN-CONTRIB] Authorization check for ${pluginId}: ${authStatus} (${isAuthorized})`);
-            return isAuthorized;
+            const isAuthorized = await this.authorizationFrontendProxy.getAuthorizationStatus(pluginId);
+            console.log(`[PLUGIN-CONTRIB] Authorization check for ${pluginId}: ${isAuthorized}`);
+            return isAuthorized == AuthorizationStatus.GRANTED ? true : false;
         } catch (error) {
             console.warn(`[PLUGIN-CONTRIB] Failed to check authorization for ${pluginId}:`, error);
-            return true; // 默认授权以保持兼容性
+            return false; // 默认授权以保持兼容性
         }
     }
 
     /**
-     * 处理授权状态变化 - 使用插件系统的启用/禁用机制
+     * 处理授权状态变化 - 使用新架构，集成静态贡献清理
      */
-    protected async handleAuthorizationChanged(event: PluginAuthorizationChangeEvent): Promise<void> {
+    protected async handleAuthorizationChanged(event: IAuthorizationStatusChangeEvent): Promise<void> {
         console.log(`[PLUGIN-CONTRIB] 授权状态变化:`, event);
 
         try {
-            if (!event.authorized) {
-                // 撤销授权时 undeploy 插件 - 由授权管理器处理，这里只需要清理贡献点
+            if (event.status == AuthorizationStatus.DENIED) {
+                // 撤销授权时清理插件的静态贡献点
                 console.log(`[PLUGIN-CONTRIB] 撤销授权，清理插件贡献点: ${event.pluginId}`);
-                // 授权管理器会处理 undeploy，这里不需要额外操作
+                this.disposePluginContributions(event.pluginId);
+
+                // 从存储中移除插件信息
+                this.deployedPlugins.delete(event.pluginId);
+
             } else {
-                // 授权恢复时，插件会在下次启动或扫描时自动重新部署
-                console.log(`[PLUGIN-CONTRIB] 授权恢复，等待插件自动重新部署: ${event.pluginId}`);
-                // 插件系统会自动重新部署和注册贡献点
+                // 授权恢复时，检查是否需要重新注册贡献点
+                console.log(`[PLUGIN-CONTRIB] 授权恢复，检查重新注册: ${event.pluginId}`);
+
+                const deployedPluginInfo = this.deployedPlugins.get(event.pluginId);
+                if (deployedPluginInfo) {
+                    // 如果插件信息还在，重新注册贡献点
+                    console.log(`[PLUGIN-CONTRIB] 重新注册插件 ${event.pluginId} 的贡献点`);
+                    this.handleContributions(deployedPluginInfo.clientId, deployedPluginInfo.plugin);
+                } else {
+                    console.log(`[PLUGIN-CONTRIB] 插件 ${event.pluginId} 需要重新部署才能恢复贡献点`);
+                }
             }
         } catch (error) {
             console.error(`[PLUGIN-CONTRIB] 处理插件 ${event.pluginId} 授权变更失败:`, error);

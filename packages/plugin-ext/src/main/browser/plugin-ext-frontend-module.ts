@@ -91,12 +91,9 @@ import { CellOutputWebviewImpl, createCellOutputWebviewContainer } from './noteb
 import { ArgumentProcessorContribution } from './command-registry-main';
 import { WebviewSecondaryWindowSupport } from './webview/webview-secondary-window-support';
 import { CustomEditorUndoRedoHandler } from './custom-editors/custom-editor-undo-redo-handler';
-import { PluginAuthorizationService } from '../../common/authorization/plugin-authorization-service';
-import { PluginAuthorizationProvider } from '../../common/authorization/plugin-authorization';
-import { IAuthorizationService } from '../../common/authorization/i-authorization-service';
-import { PluginAuthorizationServiceProxy } from './authorization/plugin-authorization-service-proxy';
-import { PluginAuthorizationFrontendProvider } from './authorization/plugin-authorization-frontend-provider';
 import { AuthorizationFrontendProxy } from './authorization/authorization-frontend-proxy';
+import { AuthorizationClientImpl } from './authorization/authorization-client-impl';
+import { authorizationServicePath, IAuthorizationService, IAuthorizationRPC, IAuthorizationRPCToken } from '../../common/authorization/i-authorization-service';
 import { AuthorizationMenuContribution } from './authorization/authorization-menu-contribution';
 // import { PluginAuthorizationStatus } from './authorization/plugin-authorization-status';
 import { MenuContribution } from '@theia/core/lib/common';
@@ -303,13 +300,16 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     );
     bindContributionProvider(bind, ArgumentProcessorContribution);
 
+    // 按照search-in-workspace模式：独立的客户端实现避免循环依赖
+    bind(AuthorizationClientImpl).toSelf().inSingletonScope();
+    
+    bind(IAuthorizationRPCToken).toDynamicValue(ctx => {
+        const client = ctx.container.get(AuthorizationClientImpl);
+        return WebSocketConnectionProvider.createProxy<IAuthorizationRPC>(ctx.container, authorizationServicePath, client);
+    }).inSingletonScope();
+    
     bind(AuthorizationFrontendProxy).toSelf().inSingletonScope();
     bind(IAuthorizationService).toService(AuthorizationFrontendProxy);
-
-    bind(PluginAuthorizationServiceProxy).toSelf().inSingletonScope();
-    bind(PluginAuthorizationService).toService(PluginAuthorizationServiceProxy);
-    bind(PluginAuthorizationFrontendProvider).toSelf().inSingletonScope();
-    bind(PluginAuthorizationProvider).toService(PluginAuthorizationFrontendProvider);
 
     // bind(PluginAuthorizationStatus).toSelf().inSingletonScope();
     // bind(FrontendApplicationContribution).toService(PluginAuthorizationStatus);

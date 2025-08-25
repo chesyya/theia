@@ -17,14 +17,7 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { Event, Emitter } from '@theia/core/lib/common/event';
 import { ILogger } from '@theia/core/lib/common/logger';
-import { 
-    PluginIdentifier, 
-    AuthorizationStatus, 
-    IAuthorizationStatusChangeEvent,
-    AuthorizationStats,
-    PluginAuthorizationInfo
-} from './types';
-import { IAuthorizationService } from './i-authorization-service';
+import { AuthorizationStatus, IAuthorizationService, IAuthorizationStatusChangeEvent, PluginIdentifier } from './i-authorization-service';
 
 /**
  * 核心授权管理器 - 管理插件授权的核心业务逻辑
@@ -46,12 +39,12 @@ export class PluginAuthorizationManager implements IAuthorizationService {
         if (status !== undefined) {
             return status;
         }
-        
+
         // Special case: Test Plugin starts as PENDING (unauthorized) for demonstration
         if (pluginId === 'test-plugin' || pluginId.startsWith('test-plugin@')) {
-            return AuthorizationStatus.PENDING;
+            return AuthorizationStatus.GRANTED;
         }
-        
+
         // Default to GRANTED for normal operation - plugins are authorized by default
         // unless explicitly denied through the authorization system
         return AuthorizationStatus.GRANTED;
@@ -60,12 +53,11 @@ export class PluginAuthorizationManager implements IAuthorizationService {
     async grantAuthorization(pluginId: PluginIdentifier): Promise<void> {
         const previousStatus = await this.getAuthorizationStatus(pluginId);
         this.authorizationStatuses.set(pluginId, AuthorizationStatus.GRANTED);
-        
+
         const event: IAuthorizationStatusChangeEvent = {
             pluginId,
             status: AuthorizationStatus.GRANTED,
-            previousStatus,
-            timestamp: new Date()
+            previousStatus
         };
 
         this._onDidUpdateAuthorizationStatus.fire(event);
@@ -75,85 +67,21 @@ export class PluginAuthorizationManager implements IAuthorizationService {
     async revokeAuthorization(pluginId: PluginIdentifier): Promise<void> {
         const previousStatus = await this.getAuthorizationStatus(pluginId);
         this.authorizationStatuses.set(pluginId, AuthorizationStatus.DENIED);
-        
+
         const event: IAuthorizationStatusChangeEvent = {
             pluginId,
             status: AuthorizationStatus.DENIED,
-            previousStatus,
-            timestamp: new Date()
+            previousStatus
         };
 
         this._onDidUpdateAuthorizationStatus.fire(event);
         this.logger.info(`[AUTH] 插件 ${pluginId} 授权状态变更: ${previousStatus} -> ${AuthorizationStatus.DENIED}`);
-        
+
         // 状态变更会通过事件传播到 AuthorizationEnforcementService 执行实际的 undeploy
     }
 
     async getAllAuthorizationStatuses(): Promise<Map<PluginIdentifier, AuthorizationStatus>> {
         return new Map(this.authorizationStatuses);
-    }
-
-    async resetToDefaults(): Promise<void> {
-        this.logger.info('[AUTH] 重置所有插件授权状态为默认值');
-        this.authorizationStatuses.clear();
-    }
-
-    getAuthorizationStats(): AuthorizationStats {
-        let authorizedCount = 0;
-        let deniedCount = 0;
-        let pendingCount = 0;
-
-        for (const status of this.authorizationStatuses.values()) {
-            switch (status) {
-                case AuthorizationStatus.GRANTED:
-                    authorizedCount++;
-                    break;
-                case AuthorizationStatus.DENIED:
-                    deniedCount++;
-                    break;
-                case AuthorizationStatus.PENDING:
-                    pendingCount++;
-                    break;
-            }
-        }
-
-        return {
-            totalPlugins: this.authorizationStatuses.size,
-            authorizedPlugins: authorizedCount,
-            deniedPlugins: deniedCount,
-            pendingPlugins: pendingCount,
-            dependencyRelations: 0 // TODO: 实现依赖关系计算
-        };
-    }
-
-    async getPluginAuthorizationInfo(pluginId: PluginIdentifier): Promise<PluginAuthorizationInfo> {
-        const status = await this.getAuthorizationStatus(pluginId);
-        
-        return {
-            pluginId,
-            status,
-            dependencies: [], // TODO: 实现依赖关系查询
-            dependents: [],   // TODO: 实现依赖关系查询
-            lastStatusChange: new Date()
-        };
-    }
-
-    resetAllAuthorizations(): void {
-        const previousStatuses = new Map(this.authorizationStatuses);
-        this.authorizationStatuses.clear();
-        
-        // 为每个插件触发状态变更事件
-        for (const [pluginId, previousStatus] of previousStatuses) {
-            const event: IAuthorizationStatusChangeEvent = {
-                pluginId,
-                status: AuthorizationStatus.PENDING,
-                previousStatus,
-                timestamp: new Date()
-            };
-            this._onDidUpdateAuthorizationStatus.fire(event);
-        }
-
-        this.logger.warn('[AUTH] 已重置所有插件授权状态');
     }
 
 }

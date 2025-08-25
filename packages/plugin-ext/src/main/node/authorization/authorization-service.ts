@@ -1,12 +1,7 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { Emitter } from '@theia/core/lib/common/event';
 import { ILogger } from '@theia/core/lib/common/logger';
-import {
-    IAuthorizationService,
-    PluginIdentifier,
-    AuthorizationStatus,
-    IAuthorizationStatusChangeEvent
-} from '../../../common/authorization';
+import { AuthorizationStatus, IAuthorizationService, IAuthorizationStatusChangeEvent, PluginIdentifier } from '../../../common/authorization/i-authorization-service';
 
 /**
  * 核心授权服务实现
@@ -50,8 +45,7 @@ export class AuthorizationService implements IAuthorizationService {
         const event: IAuthorizationStatusChangeEvent = {
             pluginId,
             status: newStatus,
-            previousStatus,
-            timestamp: new Date()
+            previousStatus
         };
 
         this._onDidUpdateAuthorizationStatus.fire(event);
@@ -67,8 +61,7 @@ export class AuthorizationService implements IAuthorizationService {
         const event: IAuthorizationStatusChangeEvent = {
             pluginId,
             status: newStatus,
-            previousStatus,
-            timestamp: new Date()
+            previousStatus
         };
 
         this._onDidUpdateAuthorizationStatus.fire(event);
@@ -107,8 +100,7 @@ export class AuthorizationService implements IAuthorizationService {
         for (const [pluginId, status] of this.authorizationStates.entries()) {
             const event: IAuthorizationStatusChangeEvent = {
                 pluginId,
-                status,
-                timestamp: new Date()
+                status
             };
             this._onDidUpdateAuthorizationStatus.fire(event);
         }

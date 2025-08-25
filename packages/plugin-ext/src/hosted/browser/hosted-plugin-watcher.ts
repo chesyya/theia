@@ -18,6 +18,7 @@ import { injectable } from '@theia/core/shared/inversify';
 import { Emitter, Event } from '@theia/core/lib/common/event';
 import { HostedPluginClient } from '../../common/plugin-protocol';
 import { LogPart } from '../../common/types';
+import { IAuthorizationStatusChangeEvent } from '../../common/authorization/i-authorization-service';
 
 @injectable()
 export class HostedPluginWatcher {
@@ -28,9 +29,13 @@ export class HostedPluginWatcher {
     private readonly onDidDeployEmitter = new Emitter<void>();
     readonly onDidDeploy = this.onDidDeployEmitter.event;
 
+    private readonly onAuthorizationStatusChangedEmitter = new Emitter<IAuthorizationStatusChangeEvent>();
+    readonly onAuthorizationStatusChanged = this.onAuthorizationStatusChangedEmitter.event;
+
     getHostedPluginClient(): HostedPluginClient {
         const messageEmitter = this.onPostMessage;
         const logEmitter = this.onLogMessage;
+        const authStatusEmitter = this.onAuthorizationStatusChangedEmitter;
         return {
             postMessage(pluginHostId, message: Uint8Array): Promise<void> {
                 messageEmitter.fire({ pluginHostId, message });
@@ -40,7 +45,8 @@ export class HostedPluginWatcher {
                 logEmitter.fire(logPart);
                 return Promise.resolve();
             },
-            onDidDeploy: () => this.onDidDeployEmitter.fire(undefined)
+            onDidDeploy: () => this.onDidDeployEmitter.fire(undefined),
+            onAuthorizationStatusChanged: (event: IAuthorizationStatusChangeEvent) => authStatusEmitter.fire(event)
         };
     }
 

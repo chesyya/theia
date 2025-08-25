@@ -46,9 +46,8 @@ import { PluginRemoteCliContribution } from './plugin-remote-cli-contribution';
 import { RemoteCliContribution } from '@theia/core/lib/node/remote/remote-cli-contribution';
 import { PluginRemoteCopyContribution } from './plugin-remote-copy-contribution';
 import { RemoteCopyContribution } from '@theia/core/lib/node/remote/remote-copy-contribution';
-import { AuthorizationRpcServer } from './authorization/authorization-rpc-server';
-import { AuthorizationEnforcementService } from './authorization/authorization-enforcement-service';
-import { authorizationServicePath, IAuthorizationService, PluginAuthorizationManager } from '../../common/authorization';
+import { PluginAuthorizationBackendManager } from './authorization/plugin-authorization-backend-manager';
+import { authorizationServicePath, IAuthorizationService, IAuthorizationClient } from '../../common/authorization/i-authorization-service';
 
 export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind): void {
     bind(PluginApiContribution).toSelf().inSingletonScope();
@@ -112,23 +111,18 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
 
     rebind(LocalizationServerImpl).to(PluginLocalizationServer).inSingletonScope();
 
-    // 核心授权管理器 (状态管理和业务逻辑)
-    bind(PluginAuthorizationManager).toSelf().inSingletonScope();
-    bind(IAuthorizationService).toService(PluginAuthorizationManager);
+    // 统一的后端插件授权服务管理器
+    bind(PluginAuthorizationBackendManager).toSelf().inSingletonScope();
+    bind(IAuthorizationService).toService(PluginAuthorizationBackendManager);
+    bind(BackendApplicationContribution).toService(PluginAuthorizationBackendManager);
 
-    // RPC 服务器
-    bind(AuthorizationRpcServer).toSelf().inSingletonScope();
-    // 授权强制执行服务
-    bind(AuthorizationEnforcementService).toSelf().inSingletonScope();
-    bind(BackendApplicationContribution).toService(AuthorizationEnforcementService);
-
-    // 新授权服务RPC连接处理器
-    bind(ConnectionHandler).toDynamicValue(ctx => {
-        return new RpcConnectionHandler(authorizationServicePath, (client: any) => {
-            const service = ctx.container.get(AuthorizationRpcServer);
-            service.setClient(client);
-            return service;
-        });
-    }).inSingletonScope();
+    bind(ConnectionHandler).toDynamicValue(ctx =>
+        new RpcConnectionHandler<IAuthorizationClient>(authorizationServicePath, client => {
+            const authService = ctx.container.get<PluginAuthorizationBackendManager>(PluginAuthorizationBackendManager);
+            // 注册客户端到服务中，以便能够发送事件通知
+            authService.setClient(client);
+            return authService;
+        })
+    ).inSingletonScope();
 
 }

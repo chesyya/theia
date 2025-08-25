@@ -82,3 +82,56 @@
 @import "./plugin-sidebar.css";
 @import "./webview.css";
 @import "./tree.css";
+
+/* Plugin Authorization Status Styles */
+.authorization-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.authorization-badge.authorized {
+  background-color: var(--theia-successBackground, #d4edda);
+  color: var(--theia-successForeground, #155724);
+  border: 1px solid var(--theia-successBorder, #c3e6cb);
+}
+
+.authorization-badge.unauthorized {
+  background-color: var(--theia-warningBackground, #fff3cd);
+  color: var(--theia-warningForeground, #856404);
+  border: 1px solid var(--theia-warningBorder, #ffeaa7);
+}
+
+.authorization-badge.disabled {
+  background-color: var(--theia-errorBackground, #f8d7da);
+  color: var(--theia-errorForeground, #721c24);
+  border: 1px solid var(--theia-errorBorder, #f5c6cb);
+}
+
+.authorization-badge.unknown {
+  background-color: var(--theia-infoBackground, #d1ecf1);
+  color: var(--theia-infoForeground, #0c5460);
+  border: 1px solid var(--theia-infoBorder, #bee5eb);
+}
+
+/* Plugin Item Status Styles */
+.pluginHeaderContainer.plugin-disabled {
+  opacity: 0.6;
+}
+
+.pluginHeaderContainer.plugin-disabled .pluginName {
+  text-decoration: line-through;
+}
+
+.pluginHeaderContainer.plugin-unauthorized {
+  border-left: 3px solid var(--theia-warningForeground, #ff9800);
+}
+
+.pluginHeaderContainer.plugin-authorized {
+  border-left: 3px solid var(--theia-successForeground, #4caf50);
+}

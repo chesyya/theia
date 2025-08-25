@@ -24,7 +24,7 @@
 import { generateUuid } from '@theia/core/lib/common/uuid';
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import { PluginWorker } from './plugin-worker';
-import { getPluginId, DeployedPlugin, HostedPluginServer } from '../../common/plugin-protocol';
+import { getPluginId, DeployedPlugin, HostedPluginServer, PluginIdentifiers } from '../../common/plugin-protocol';
 import { HostedPluginWatcher } from './hosted-plugin-watcher';
 import { ExtensionKind, MAIN_RPC_CONTEXT, PluginManagerExt, UIKind } from '../../common/plugin-api-rpc';
 import { setUpPluginApi } from '../../main/browser/main-context';
@@ -52,6 +52,8 @@ import { TaskDefinitionRegistry } from '@theia/task/lib/browser/task-definition-
 import { WebviewEnvironment } from '../../main/browser/webview/webview-environment';
 import { WebviewWidget } from '../../main/browser/webview/webview';
 import { WidgetManager } from '@theia/core/lib/browser/widget-manager';
+import { AuthorizationFrontendProxy } from '../../main/browser/authorization/authorization-frontend-proxy';
+import { AuthorizationStatus, IAuthorizationStatusChangeEvent } from '../../common/authorization/i-authorization-service';
 import { TerminalService } from '@theia/terminal/lib/browser/base/terminal-service';
 import URI from '@theia/core/lib/common/uri';
 import { FrontendApplicationConfigProvider } from '@theia/core/lib/browser/frontend-application-config-provider';
@@ -179,6 +181,9 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
     @inject(ApplicationServer)
     protected readonly applicationServer: ApplicationServer;
 
+    @inject(AuthorizationFrontendProxy)
+    protected readonly authorizationProxy: AuthorizationFrontendProxy;
+
     constructor() {
         super(generateUuid());
     }
@@ -195,6 +200,11 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
         }
         languageService.onDidRequestBasicLanguageFeatures(language => this.activateByLanguage(language));
         this.commands.onWillExecuteCommand(event => this.ensureCommandHandlerRegistration(event));
+        
+        // 监听授权状态变更事件，处理插件 activate/deactivate
+        this.authorizationProxy.onDidUpdateAuthorizationStatus(event => {
+            this.handleAuthorizationChanged(event);
+        });
         this.debugSessionManager.onWillStartDebugSession(event => this.ensureDebugActivation(event));
         this.debugSessionManager.onWillResolveDebugConfiguration(event => this.ensureDebugActivation(event, 'onDebugResolve', event.debugType));
         this.debugConfigurationManager.onWillProvideDebugConfiguration(event => this.ensureDebugActivation(event, 'onDebugInitialConfigurations'));
@@ -630,6 +640,77 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
             </head>
             <body>${message}</body>
         </html>`;
+    }
+
+    /**
+     * 处理授权状态变更 - 管理插件的 activate/deactivate 生命周期
+     */
+    protected async handleAuthorizationChanged(event: IAuthorizationStatusChangeEvent): Promise<void> {
+        console.log(`[HOSTED-PLUGIN] 处理授权状态变更: ${event.pluginId} -> ${event.status}`);
+
+        try {
+            const pluginId = event.pluginId;
+
+            if (event.status === AuthorizationStatus.DENIED) {
+                // 撤销授权：停用插件（调用 deactivate）
+                console.log(`[HOSTED-PLUGIN] 🛑 停用插件: ${pluginId}`);
+                await this.stopPlugin(pluginId);
+                console.log(`[HOSTED-PLUGIN] ✅ 插件已停用: ${pluginId}`);
+
+            } else if (event.status === AuthorizationStatus.GRANTED && event.previousStatus === AuthorizationStatus.DENIED) {
+                // 授权恢复：重新激活插件（调用 activate）  
+                console.log(`[HOSTED-PLUGIN] 🚀 重新激活插件: ${pluginId}`);
+                await this.activatePlugin(pluginId);
+                console.log(`[HOSTED-PLUGIN] ✅ 插件已重新激活: ${pluginId}`);
+            }
+
+        } catch (error) {
+            console.error(`[HOSTED-PLUGIN] ❌ 处理授权状态变更失败:`, error);
+        }
+    }
+
+    /**
+     * 停用指定插件（调用其 deactivate 方法）
+     */
+    private async stopPlugin(pluginId: string): Promise<void> {
+        try {
+            // 查找对应的插件贡献
+            const contribution = this.contributions.get(pluginId as PluginIdentifiers.UnversionedId);
+            if (!contribution) {
+                console.warn(`[HOSTED-PLUGIN] ⚠️ 插件 ${pluginId} 不存在或未加载`);
+                return;
+            }
+
+            // 停用插件运行时
+            console.log(`[HOSTED-PLUGIN] 停用插件运行时: ${pluginId}`);
+            
+            // 通过 dispose 来停用插件贡献（这会触发 deactivate）
+            contribution.dispose();
+            
+            console.log(`[HOSTED-PLUGIN] ✅ 插件运行时已停用: ${pluginId}`);
+
+        } catch (error) {
+            console.error(`[HOSTED-PLUGIN] ❌ 停用插件失败 ${pluginId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 激活指定插件（调用其 activate 方法）
+     */
+    override async activatePlugin(pluginId: string): Promise<void> {
+        try {
+            console.log(`[HOSTED-PLUGIN] 激活插件: ${pluginId}`);
+
+            // 调用基类的 activatePlugin 方法
+            await super.activatePlugin(pluginId);
+
+            console.log(`[HOSTED-PLUGIN] ✅ 插件激活完成: ${pluginId}`);
+
+        } catch (error) {
+            console.error(`[HOSTED-PLUGIN] ❌ 激活插件失败 ${pluginId}:`, error);
+            throw error;
+        }
     }
 
 }

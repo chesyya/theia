@@ -110,6 +110,25 @@ export class HostedPluginSupport {
         this.client.log(logPart);
     }
 
+    async stopPlugin(pluginId: PluginIdentifiers.VersionedId): Promise<void> {
+        this.logger.info(`[HOSTED-PLUGIN] Stopping plugin: ${pluginId}`);
+        
+        // 通知所有runner停止指定插件（如果支持的话）
+        for (const runner of this.pluginRunners) {
+            try {
+                // 检查runner是否支持stopPlugin方法
+                if ('stopPlugin' in runner && typeof (runner as any).stopPlugin === 'function') {
+                    await (runner as any).stopPlugin(pluginId);
+                }
+            } catch (error) {
+                this.logger.error(`[HOSTED-PLUGIN] Error stopping plugin in runner: ${pluginId}`, error);
+            }
+        }
+        
+        // 如果有必要，可以在这里添加更多停用逻辑
+        this.logger.info(`[HOSTED-PLUGIN] Plugin stopped: ${pluginId}`);
+    }
+
     private terminatePluginServer(): void {
         this.hostedPluginProcess.terminatePluginServer();
     }

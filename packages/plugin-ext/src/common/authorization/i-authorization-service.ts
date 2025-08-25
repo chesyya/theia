@@ -15,7 +15,6 @@
 // *****************************************************************************
 
 import { Event } from '@theia/core/lib/common/event';
-import { PluginIdentifier, AuthorizationStatus, IAuthorizationStatusChangeEvent } from './types';
 
 /**
  * The core service for managing plugin authorizations.
@@ -67,32 +66,50 @@ export interface IAuthorizationService {
     getAllAuthorizationStatuses(): Promise<Map<PluginIdentifier, AuthorizationStatus>>;
 }
 
-/**
- * RPC interface for authorization service.
- * This mirrors IAuthorizationService but with $ prefixes to indicate RPC methods.
- */
 export interface IAuthorizationRPC {
     $getAuthorizationStatus(pluginId: PluginIdentifier): Promise<AuthorizationStatus>;
     $grantAuthorization(pluginId: PluginIdentifier): Promise<void>;
     $revokeAuthorization(pluginId: PluginIdentifier): Promise<void>;
     $getAllAuthorizationStatuses(): Promise<Map<PluginIdentifier, AuthorizationStatus>>;
     $resetToDefaults(): Promise<void>;
+    $registerClient(client: IAuthorizationClient): Promise<void>;
+}
+
+export interface IAuthorizationClient {
+
+    $onDidUpdateAuthorizationStatus(event: IAuthorizationStatusChangeEvent): void;
+}
+
+export type PluginIdentifier = string;
+
+/**
+ * Represents the authorization status of a plugin.
+ */
+export enum AuthorizationStatus {
+    /**
+     * The user has granted authorization.
+     */
+    GRANTED = 'granted',
+    /**
+     * The user has denied authorization.
+     */
+    DENIED = 'denied',
 }
 
 /**
- * Client interface for receiving authorization events from the backend.
- * This is used by the RPC mechanism to push events to the frontend.
+ * Event fired when a plugin's authorization status changes.
  */
-export interface IAuthorizationClient {
-    /**
-     * Called by the backend when an authorization status changes.
-     * This method is invoked via RPC to notify the frontend about state changes.
-     */
-    $onDidUpdateAuthorizationStatus(event: IAuthorizationStatusChangeEvent): void;
+export interface IAuthorizationStatusChangeEvent {
+    readonly pluginId: PluginIdentifier;
+    readonly status: AuthorizationStatus;
+    readonly previousStatus?: AuthorizationStatus;
 }
 
 /**
  * Service identifiers for dependency injection
  */
 export const IAuthorizationService = Symbol('IAuthorizationService');
-export const authorizationServicePath = '/services/authorization';
+export const authorizationServicePath = '/services/plugin-authorization';
+
+// 创建用于依赖注入的Token
+export const IAuthorizationRPCToken = Symbol('IAuthorizationRPC');

@@ -32,9 +32,7 @@ import { codicon, ConfirmDialog, ContextMenuRenderer, HoverService, TreeWidget }
 import { VSXExtensionNamespaceAccess, VSXUser } from '@theia/ovsx-client/lib/ovsx-types';
 import { WindowService } from '@theia/core/lib/browser/window/window-service';
 import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering';
-import { PluginAuthorizationProvider } from '@theia/plugin-ext/lib/common/authorization/plugin-authorization';
-import { IAuthorizationService } from '@theia/plugin-ext/lib/common/authorization/i-authorization-service';
-import { AuthorizationStatus } from '@theia/plugin-ext/lib/common/authorization/types';
+import { AuthorizationStatus, IAuthorizationService } from '@theia/plugin-ext/lib/common/authorization/i-authorization-service';
 
 export const EXTENSIONS_CONTEXT_MENU: MenuPath = ['extensions_context_menu'];
 
@@ -142,11 +140,8 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     @inject(CommandRegistry)
     readonly commandRegistry: CommandRegistry;
 
-    @inject(PluginAuthorizationProvider)
-    protected readonly authorizationProvider: PluginAuthorizationProvider;
-
     @inject(IAuthorizationService)
-    protected readonly newAuthorizationService: IAuthorizationService;
+    protected readonly authorizationService: IAuthorizationService;
 
     readonly model: any; // VSXExtensionsModel引用
     protected readonly data: Partial<VSXExtensionData> = {};
@@ -158,14 +153,18 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     @postConstruct()
     protected postConstruct(): void {
         this.registryUri = this.environment.getRegistryUri();
-        
+
         // Initialize authorization status
         this.updateAuthorizationStatus();
 
         // 监听授权状态变化
-        this.newAuthorizationService.onDidUpdateAuthorizationStatus(event => {
+        this.authorizationService.onDidUpdateAuthorizationStatus(event => {
             if (event.pluginId === this.id) {
                 this.updateAuthorizationStatus();
+                // 通知model更新视图
+                if (this.model && this.model.triggerUpdate) {
+                    this.model.triggerUpdate(this);
+                }
             }
         });
     }
@@ -209,10 +208,18 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
 
     async updateAuthorizationStatus(): Promise<void> {
         try {
-            const authStatus = await this.newAuthorizationService.getAuthorizationStatus(this.id);
+            const authStatus = await this.authorizationService.getAuthorizationStatus(this.id);
             this._authorized = authStatus === AuthorizationStatus.GRANTED;
-            this._authorizationState = authStatus === AuthorizationStatus.GRANTED ? 'authorized' : 
-                                     authStatus === AuthorizationStatus.DENIED ? 'denied' : 'pending';
+
+            // Map authorization status to display state
+            switch (authStatus) {
+                case AuthorizationStatus.GRANTED:
+                    this._authorizationState = 'authorized';
+                    break;
+                case AuthorizationStatus.DENIED:
+                    this._authorizationState = 'denied';
+                    break;
+            }
         } catch (error) {
             // 如果授权检查失败，默认为已授权（向后兼容）
             console.warn(`Failed to check authorization status for ${this.id}:`, error);
@@ -222,12 +229,12 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     }
 
     async grantAuthorization(): Promise<void> {
-        await this.newAuthorizationService.grantAuthorization(this.id);
+        await this.authorizationService.grantAuthorization(this.id);
         await this.updateAuthorizationStatus();
     }
 
     async revokeAuthorization(): Promise<void> {
-        await this.newAuthorizationService.revokeAuthorization(this.id);
+        await this.authorizationService.revokeAuthorization(this.id);
         await this.updateAuthorizationStatus();
     }
 
@@ -535,7 +542,7 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
         if (installed) {
             const { authorized, authorizationState } = this.props.extension;
             const isDisabled = this.props.extension.model.isDisabled(this.props.extension.id);
-            
+
             return <div className="extension-actions">
                 {/* 主要操作按钮：重新加载、卸载或显示禁用状态 */}
                 {
@@ -547,7 +554,7 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
                         <button className="theia-button action" onClick={this.uninstall}>{nls.localizeByDefault('Uninstall')}</button>
                     )
                 }
-                
+
                 {/* 授权相关按钮 */}
                 {authorizationState === 'denied' && (
                     <button className="theia-button action authorization-btn" onClick={this.grantAuthorization}>授权</button>
@@ -561,28 +568,28 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
                         <button className="theia-button action authorization-btn" onClick={this.revokeAuthorization}>拒绝</button>
                     </>
                 )}
-                
+
                 {/* 设置按钮 */}
                 <div className="codicon codicon-settings-gear action" onClick={this.manage}></div>
             </div>;
         }
         // 如果插件未安装，根据授权状态显示不同按钮
         const { authorized, authorizationState } = this.props.extension;
-        
+
         if (!authorized && authorizationState === 'denied') {
             return <div className="extension-actions">
                 <button className="theia-button action authorization-btn" onClick={this.grantAuthorization}>授权</button>
                 <button className="theia-button action theia-mod-disabled" title="需要先授权才能安装">安装</button>
             </div>;
         }
-        
+
         if (authorizationState === 'pending') {
             return <div className="extension-actions">
                 <button className="theia-button action authorization-btn" onClick={this.grantAuthorization}>授权</button>
                 <button className="theia-button action authorization-btn" onClick={this.revokeAuthorization}>拒绝</button>
             </div>;
         }
-        
+
         return <button className="theia-button prominent action" onClick={this.install}>{nls.localizeByDefault('Install')}</button>;
     }
 
@@ -610,7 +617,7 @@ export namespace VSXExtensionComponent {
 export class VSXExtensionComponent<Props extends VSXExtensionComponent.Props = VSXExtensionComponent.Props> extends AbstractVSXExtensionComponent<Props> {
     override render(): React.ReactNode {
         const { iconUrl, publisher, displayName, description, version, downloadCount, averageRating, tooltip, verified, authorized, authorizationState } = this.props.extension;
-        
+
         // 构建CSS类名，包含授权状态
         let className = 'theia-vsx-extension noselect';
         // 根据授权状态应用不同的样式
@@ -619,7 +626,7 @@ export class VSXExtensionComponent<Props extends VSXExtensionComponent.Props = V
         } else if (authorizationState === 'pending') {
             className += ' pending-authorization';
         }
-        
+
         // 如果插件被禁用，应用禁用样式
         if (this.props.extension.model.isDisabled(this.props.extension.id)) {
             className += ' disabled';

@@ -35,8 +35,8 @@ import { OVSXApiFilterProvider } from '@theia/ovsx-client';
 import { ApplicationServer } from '@theia/core/lib/common/application-protocol';
 import { HostedPluginServer, PluginIdentifiers } from '@theia/plugin-ext';
 import { HostedPluginWatcher } from '@theia/plugin-ext/lib/hosted/browser/hosted-plugin-watcher';
-import { PluginAuthorizationProvider } from '@theia/plugin-ext/lib/common/authorization/plugin-authorization';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
+import { AuthorizationStatus, IAuthorizationService, IAuthorizationStatusChangeEvent } from '@theia/plugin-ext/lib/common/authorization/i-authorization-service';
 
 @injectable()
 export class VSXExtensionsModel {
@@ -101,14 +101,15 @@ export class VSXExtensionsModel {
     @inject(ApplicationServer)
     protected readonly applicationServer: ApplicationServer;
 
-    @inject(PluginAuthorizationProvider)
-    protected readonly authorizationProvider: PluginAuthorizationProvider;
+    @inject(IAuthorizationService)
+    protected readonly iAuthorizationService: IAuthorizationService;
 
     @postConstruct()
     protected init(): void {
         this.initialized = this.doInit().catch(console.error);
-        // 监听授权状态变更
-        this.authorizationProvider.onAuthorizationChanged(event => {
+
+        // 使用新架构的 AuthorizationClient 监听授权状态变更
+        this.iAuthorizationService.onDidUpdateAuthorizationStatus(event => {
             this.handleAuthorizationChange(event);
         });
     }
@@ -197,7 +198,7 @@ export class VSXExtensionsModel {
         this.pluginWatcher.onDidDeploy(() => {
             this.updateInstalled();
         });
-        
+
         try {
             await this.updateInstalled();
         } catch (e) {
@@ -348,10 +349,10 @@ export class VSXExtensionsModel {
 
         this.uninstalled = new Set();
         uninstalled.forEach(id => this.uninstalled.add(PluginIdentifiers.unversionedFromVersioned(id)));
-        
+
         this.disabled = new Set();
         disabled.forEach(id => this.disabled.add(PluginIdentifiers.unversionedFromVersioned(id)));
-        
+
         this.deployed = new Set();
         deployed.forEach(id => this.deployed.add(PluginIdentifiers.unversionedFromVersioned(id)));
 
@@ -359,7 +360,7 @@ export class VSXExtensionsModel {
         return this.doChange(async () => {
             const currInstalled = new Set<string>();
             const refreshing = [];
-            
+
             // 处理已部署的插件
             for (const versionedId of deployed) {
                 const idAndVersion = PluginIdentifiers.idAndVersionFromVersionedId(versionedId);
@@ -370,7 +371,7 @@ export class VSXExtensionsModel {
                     refreshing.push(this.refresh(idAndVersion.id, idAndVersion.version));
                 }
             }
-            
+
             // 处理已禁用的插件（仍然算作已安装，但不是已部署）
             for (const versionedId of disabled) {
                 const idAndVersion = PluginIdentifiers.idAndVersionFromVersionedId(versionedId);
@@ -383,17 +384,17 @@ export class VSXExtensionsModel {
                     }
                 }
             }
-            
+
             for (const id of this._installed) {
                 const extension = this.getExtension(id);
                 if (!extension) { continue; }
                 refreshing.push(this.refresh(id, extension.version));
             }
-            
+
             const installed = new Set([...prevInstalled, ...currInstalled]);
             const installedSorted = Array.from(installed).sort((a, b) => this.compareExtensions(a, b));
             this._installed = new Set(installedSorted.values());
-            
+
             await Promise.all(refreshing);
         });
     }
@@ -527,32 +528,55 @@ export class VSXExtensionsModel {
         return 0;
     }
 
+    /**
+     * 初始化授权状态 - 按新架构实现
+     * 使用 AuthorizationClient.getAll() 批量拉取授权并填充 extension.authorized 字段
+     */
     protected async initAuthorization(): Promise<void> {
         try {
-            await this.updateAuthorizationStatus();
-        } catch (e) {
-            console.error('Failed to initialize authorization status:', e);
+            // 批量拉取所有授权状态
+            const allAuthorizations = await this.iAuthorizationService.getAllAuthorizationStatuses();
+
+            // 填充每个 extension 的 authorized 字段
+            for (const pluginId of Object.keys(allAuthorizations)) {
+                const extension = this.getExtension(pluginId);
+                if (extension) {
+                    await extension.updateAuthorizationStatus();
+                }
+            }
+
+            console.log(`[VSX-MODEL] 初始化 ${Object.keys(allAuthorizations).length} 个插件的授权状态`);
+        } catch (error) {
+            console.error('[VSX-MODEL] 初始化授权状态失败', error);
         }
     }
 
-    protected async updateAuthorizationStatus(): Promise<void> {
-        const extensions = Array.from(this.extensions.values());
-        await Promise.all(extensions.map(extension => extension.updateAuthorizationStatus()));
-    }
+    /**
+     * 处理授权状态变化 - 新架构实现
+     * 按 pluginId 更新 extension.authorized 并触发单条刷新
+     */
+    protected async handleAuthorizationChange(event: IAuthorizationStatusChangeEvent): Promise<void> {
+        console.log(`[VSX-MODEL] 授权状态变化: ${event.pluginId} -> ${event.previousStatus == AuthorizationStatus.GRANTED ? 'authorized' : 'denied'}`);
 
-    protected async handleAuthorizationChange(event: import('@theia/plugin-ext/lib/common/authorization/types').PluginAuthorizationChangeEvent): Promise<void> {
-        const pluginId = event.pluginId;
-        console.log(`[VSX-MODEL] 收到授权状态变化事件: ${pluginId} -> ${event.authorized ? 'authorized' : 'denied'}`);
-        const affectedExtension = this.getExtension(pluginId);
+        const extension = this.getExtension(event.pluginId);
+        if (extension) {
+            // 更新扩展的授权状态
+            await extension.updateAuthorizationStatus();
 
-        if (affectedExtension) {
-            console.log(`[VSX-MODEL] 找到插件扩展，更新授权状态...`);
-            await affectedExtension.updateAuthorizationStatus();
-            console.log(`[VSX-MODEL] 插件 ${pluginId} 授权状态更新完成，触发UI刷新`);
+            // 触发视图刷新
             this.onDidChangeEmitter.fire();
+            console.log(`[VSX-MODEL] 插件 ${event.pluginId} 授权状态更新完成，UI已刷新`);
         } else {
-            console.log(`[VSX-MODEL] 未找到插件扩展: ${pluginId}`);
+            console.log(`[VSX-MODEL] 插件 ${event.pluginId} 不在当前扩展列表中`);
         }
+    }
+
+    /**
+     * 提供给 VSXExtension 的更新触发方法
+     */
+    triggerUpdate(extension: VSXExtension): void {
+        console.log(`[VSX-MODEL] 触发扩展 ${extension.id} 的UI更新`);
+        this.onDidChangeEmitter.fire();
     }
 
 }
