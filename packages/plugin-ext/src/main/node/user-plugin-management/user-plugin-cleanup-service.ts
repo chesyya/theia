@@ -22,6 +22,7 @@ import * as fs from '@theia/core/shared/fs-extra';
 import { UserPluginEnvironmentService } from '../../common/user-plugin-management/user-plugin-environment-service';
 import { PluginDeployer, PluginIdentifiers } from '../../../common/plugin-protocol';
 import { HostedPluginDeployerHandler } from '../../../hosted/node/hosted-plugin-deployer-handler';
+import { BaoskyConfigService } from '../../common/baosky-config-service';
 
 /**
  * 用户删除事件
@@ -60,6 +61,9 @@ export class UserPluginCleanupService implements BackendApplicationContribution 
     @inject(PluginDeployer)
     protected readonly pluginDeployer: PluginDeployer;
 
+    @inject(BaoskyConfigService)
+    protected readonly configService: BaoskyConfigService;
+
     @inject(HostedPluginDeployerHandler)
     protected readonly deployerHandler: HostedPluginDeployerHandler;
 
@@ -71,10 +75,10 @@ export class UserPluginCleanupService implements BackendApplicationContribution 
     }
 
     async onStart(): Promise<void> {
-        // 检查环境变量是否启用用户插件管理功能
-        const enableUserPlugins = process.env.THEIA_USER_PLUGINS_ENABLED === 'true';
+        // 从配置文件检查是否启用用户插件管理功能
+        const enableUserPlugins = await this.configService.isUserPluginsEnabled();
         
-        this.logger.info(`[USER-PLUGIN-CLEANUP] 检查用户插件管理功能状态: THEIA_USER_PLUGINS_ENABLED=${process.env.THEIA_USER_PLUGINS_ENABLED || 'undefined'}`);
+        this.logger.info(`[USER-PLUGIN-CLEANUP] 从配置文件读取用户插件管理功能状态: ${enableUserPlugins}`);
         
         if (!enableUserPlugins) {
             this.logger.info('[USER-PLUGIN-CLEANUP] 用户插件管理功能未启用，跳过用户插件清理服务');

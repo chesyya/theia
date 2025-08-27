@@ -17,6 +17,7 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { ILogger } from '@theia/core/lib/common/logger';
 import { PluginDeployerParticipant, PluginDeployerStartContext } from '../../../common/plugin-protocol';
+import { BaoskyConfigService } from '../../common/baosky-config-service';
 
 /**
  * 用户插件部署参与者
@@ -30,15 +31,18 @@ export class UserPluginDeployerParticipant implements PluginDeployerParticipant 
     @inject(ILogger)
     protected readonly logger: ILogger;
 
+    @inject(BaoskyConfigService)
+    protected readonly configService: BaoskyConfigService;
+
     /**
      * 在插件部署开始时调用
      * 自动添加用户插件目录扫描到部署队列
      */
     async onWillStart(context: PluginDeployerStartContext): Promise<void> {
-        // 检查环境变量是否启用用户插件管理功能
-        const enableUserPlugins = process.env.THEIA_USER_PLUGINS_ENABLED === 'true';
+        // 从配置文件检查是否启用用户插件管理功能
+        const enableUserPlugins = await this.configService.isUserPluginsEnabled();
         
-        this.logger.info(`[USER-PLUGIN-PARTICIPANT] 检查用户插件管理功能状态: THEIA_USER_PLUGINS_ENABLED=${process.env.THEIA_USER_PLUGINS_ENABLED || 'undefined'}`);
+        this.logger.info(`[USER-PLUGIN-PARTICIPANT] 从配置文件读取用户插件管理功能状态: ${enableUserPlugins}`);
         
         if (!enableUserPlugins) {
             this.logger.info('[USER-PLUGIN-PARTICIPANT] 用户插件管理功能未启用，使用原生插件管理模式');

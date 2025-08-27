@@ -17,12 +17,20 @@
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
 import URI from '@theia/core/lib/common/uri';
+import { PluginTheiaEnvironment } from '@theia/plugin-ext/lib/main/common/plugin-theia-environment';
+import { BaoskyConfigService } from '@theia/plugin-ext/lib/main/common/baosky-config-service';
 
 @injectable()
 export class PluginVSCodeEnvironment {
 
     @inject(EnvVariablesServer)
     protected readonly environments: EnvVariablesServer;
+
+    @inject(PluginTheiaEnvironment)
+    protected readonly pluginTheiaEnvironment: PluginTheiaEnvironment;
+
+    @inject(BaoskyConfigService)
+    protected readonly configService: BaoskyConfigService;
 
     protected _userExtensionsDirUri: URI | undefined;
     protected _deployedPluginsUri: URI | undefined;
@@ -37,6 +45,17 @@ export class PluginVSCodeEnvironment {
     }
 
     async getDeploymentDirUri(): Promise<URI> {
+        // 从配置文件检查是否启用用户插件管理功能
+        const enableUserPlugins = await this.configService.isUserPluginsEnabled();
+        
+        if (enableUserPlugins) {
+            // 使用用户插件目录结构
+            const currentUserId = await this.configService.getCurrentUser();
+            const pluginsDir = await this.pluginTheiaEnvironment.getPluginsDirUri();
+            return pluginsDir.resolve('users').resolve(currentUserId);
+        }
+        
+        // 回退到传统的 deployedPlugins 目录
         if (!this._deployedPluginsUri) {
             const configDir = new URI(await this.environments.getConfigDirUri());
             this._deployedPluginsUri = configDir.resolve('deployedPlugins');

@@ -47,6 +47,17 @@ import { RemoteCliContribution } from '@theia/core/lib/node/remote/remote-cli-co
 import { PluginRemoteCopyContribution } from './plugin-remote-copy-contribution';
 import { RemoteCopyContribution } from '@theia/core/lib/node/remote/remote-copy-contribution';
 
+// User Plugin Management Services
+import { 
+    UserPluginCleanupService,
+    UserPluginInstallationService,
+    UserPluginDirectoryResolver,
+    UserPluginDeployerParticipant
+} from './user-plugin-management/index';
+import { UserPluginEnvironmentService } from '../common/user-plugin-management/user-plugin-environment-service';
+import { BaoskyConfigService } from '../common/baosky-config-service';
+import { BaoskyConfigServiceImpl } from './baosky-config-service-impl';
+
 export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind): void {
     bind(PluginApiContribution).toSelf().inSingletonScope();
     bind(BackendApplicationContribution).toService(PluginApiContribution);
@@ -102,5 +113,20 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
     bind(BackendApplicationContribution).toService(WebviewBackendSecurityWarnings);
 
     rebind(LocalizationServerImpl).to(PluginLocalizationServer).inSingletonScope();
+
+    // Baosky Configuration Service
+    bind(BaoskyConfigService).to(BaoskyConfigServiceImpl).inSingletonScope();
+    
+    // User Plugin Management Services
+    bind(UserPluginEnvironmentService).toSelf().inSingletonScope();
+    bind(UserPluginCleanupService).toSelf().inSingletonScope();
+    bind(UserPluginInstallationService).toSelf().inSingletonScope();
+    
+    // User Plugin Directory Resolver
+    bind(PluginDeployerResolver).to(UserPluginDirectoryResolver).inSingletonScope();
+    
+    // User Plugin Deployer Participant
+    bind(UserPluginDeployerParticipant).toSelf().inSingletonScope();
+    bind(PluginDeployerParticipant).toService(UserPluginDeployerParticipant);
 
 }

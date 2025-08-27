@@ -21,6 +21,7 @@ import * as fs from '@theia/core/shared/fs-extra';
 import * as path from 'path';
 import { PluginDeployerResolver, PluginDeployerResolverContext } from '../../../common/plugin-protocol';
 import { UserPluginEnvironmentService } from '../../common/user-plugin-management/user-plugin-environment-service';
+import { BaoskyConfigService } from '../../common/baosky-config-service';
 
 /**
  * 用户插件目录解析器
@@ -43,14 +44,11 @@ export class UserPluginDirectoryResolver implements PluginDeployerResolver {
     @inject(UserPluginEnvironmentService)
     protected readonly userPluginEnvironment: UserPluginEnvironmentService;
 
+    @inject(BaoskyConfigService)
+    protected readonly configService: BaoskyConfigService;
+
     accept(pluginId: string): boolean {
-        // 只有启用用户插件管理功能时才接受用户插件URL
-        const enableUserPlugins = process.env.THEIA_USER_PLUGINS_ENABLED === 'true';
-        
-        if (!enableUserPlugins) {
-            return false;
-        }
-        
+        // 检查是否为用户插件URL格式
         return pluginId.startsWith('user-plugins://') || 
                pluginId.startsWith('shared-plugins://');
     }

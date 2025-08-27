@@ -19,46 +19,10 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Launch Electron Backend",
-      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
-      "windows": {
-        "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd"
-      },
-      "cwd": "${workspaceFolder}/examples/electron",
-      "protocol": "inspector",
-      "args": [
-        ".",
-        "--log-level=debug",
-        "--hostname=localhost",
-        "--no-cluster",
-        "--app-project-path=${workspaceFolder}/examples/electron",
-        "--remote-debugging-port=9222",
-        "--no-app-auto-install",
-        "--plugins=local-dir:../../plugins",
-        "--ovsx-router-config=${workspaceFolder}/examples/ovsx-router-config.json"
-      ],
-      "env": {
-        "NODE_ENV": "development"
-      },
-      "sourceMaps": true,
-      "outFiles": [
-        "${workspaceFolder}/examples/electron/lib/backend/electron-main.js",
-        "${workspaceFolder}/examples/electron/lib/backend/main.js",
-        "${workspaceFolder}/examples/electron/lib/**/*.js",
-        "${workspaceFolder}/examples/api-samples/lib/**/*.js",
-        "${workspaceFolder}/packages/*/lib/**/*.js",
-        "${workspaceFolder}/dev-packages/*/lib/**/*.js"
-      ],
-      "smartStep": true,
-      "internalConsoleOptions": "openOnSessionStart",
-      "outputCapture": "std"
-    },
-    {
-      "type": "node",
-      "request": "launch",
       "name": "Launch Browser Backend",
       "program": "${workspaceFolder}/examples/browser/lib/backend/main.js",
       "cwd": "${workspaceFolder}/examples/browser",
+      "runtimeExecutable": "/root/.nvm/versions/node/v20.18.1/bin/node",
       "args": [
         "--hostname=0.0.0.0",
         "--port=3000",

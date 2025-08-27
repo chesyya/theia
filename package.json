@@ -89,7 +89,7 @@
     "test:theia": "lerna run --scope \"@theia/!(example-)*\" test --stream --concurrency=1",
     "test:playwright": "yarn -s --cwd examples/playwright ui-tests",
     "version": "lerna run version",
-    "watch": "concurrently --kill-others -n tsc,browser,electron -c red,yellow,blue \"tsc -b -w --preserveWatchOutput\" \"yarn -s --cwd examples/browser watch:bundle\" \"yarn -s --cwd examples/electron watch:bundle\"",
+    "watch": "concurrently --kill-others -n tsc,browser -c red,yellow,blue \"tsc -b -w --preserveWatchOutput\" \"yarn -s --cwd examples/browser watch:bundle\"",
     "watch:compile": "concurrently --kill-others -n cleanup,tsc -c magenta,red \"ts-clean dev-packages/* packages/* -w\" \"tsc -b -w --preserveWatchOutput\"",
     "performance:startup": "yarn -s performance:startup:browser && yarn -s performance:startup:electron",
     "performance:startup:browser": "concurrently --success first -k -r \"cd scripts/performance && node browser-performance.js --name 'Browser Frontend Startup' --folder browser --runs 10\" \"yarn -s --cwd examples/browser start\"",
@@ -118,5 +118,8 @@
     "vscode.microsoft-authentication",
     "ms-vscode.references-view",
     "ms-python.vscode-pylance"
-  ]
+  ],
+  "dependencies": {
+    "ini": "^5.0.0"
+  }
 }
