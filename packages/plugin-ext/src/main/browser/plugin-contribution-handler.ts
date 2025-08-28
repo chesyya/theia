@@ -617,7 +617,8 @@ export class PluginContributionHandler {
     }
 
     hasCommand(id: string): boolean {
-        return this.commandHandlers.has(id);
+        const handler = this.commandHandlers.get(id);
+        return handler !== undefined; // 只有当handler真正存在时才返回true
     }
 
     hasCommandHandler(id: string): boolean {
