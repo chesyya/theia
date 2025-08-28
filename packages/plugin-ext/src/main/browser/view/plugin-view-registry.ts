@@ -449,9 +449,30 @@ export class PluginViewRegistry implements FrontendApplicationContribution {
     }
 
     async registerWebviewView(viewId: string, resolver: WebviewViewResolver): Promise<Disposable> {
-        if (this.webviewViewResolvers.has(viewId)) {
-            throw new Error(`View resolver already registered for ${viewId}`);
+        const existingResolver = this.webviewViewResolvers.get(viewId);
+        if (existingResolver) {
+            // 检查是否存在相关的webview widget来判断是重连还是真实冲突
+            const existingWebviewWidget = await this.findExistingWebviewWidget(viewId);
+            
+            if (existingWebviewWidget && !existingWebviewWidget.isDisposed) {
+                // 重连场景：有现存的widget，说明是重连而不是新插件冲突
+                console.log(`[VIEW-REGISTRY] WebviewView ${viewId} 检测到重连场景，重新建立连接`);
+                this.webviewViewResolvers.set(viewId, resolver);
+                this.onNewResolverRegisteredEmitter.fire({ viewType: viewId });
+                
+                const webviewView = this.createWebviewViewFromExistingWidget(existingWebviewWidget);
+                resolver.resolve(webviewView, CancellationToken.None).catch(e => 
+                    console.error(`Failed to resolve existing webview for ${viewId}:`, e)
+                );
+                
+                return Disposable.create(() => this.webviewViewResolvers.delete(viewId));
+            } else {
+                // 真实冲突：没有现存widget或已销毁，说明是不同插件的冲突
+                console.error(`[VIEW-REGISTRY] 真实插件冲突：多个插件尝试注册相同的webview view: ${viewId}`);
+                throw new Error(`View resolver already registered for ${viewId}`);
+            }
         }
+        
         this.webviewViewResolvers.set(viewId, resolver);
         this.onNewResolverRegisteredEmitter.fire({ viewType: viewId });
 
@@ -830,6 +851,19 @@ export class PluginViewRegistry implements FrontendApplicationContribution {
             if (view instanceof PluginViewWidget) {
                 const id = this.toViewId(view.options);
                 if (!this.views.has(id)) {
+                    // 检查是否有对应的webview widget，如果有则可能是重连场景，延迟清理
+                    const hasWebviewWidget = await this.hasWebviewWidgetForView(id);
+                    if (hasWebviewWidget) {
+                        console.log(`[VIEW-REGISTRY] 检测到可能的重连场景，延迟清理view widget: ${id}`);
+                        // 设置延迟清理，给plugin时间重新注册
+                        setTimeout(() => {
+                            if (!this.views.has(id) && !view.isDisposed) {
+                                console.log(`[VIEW-REGISTRY] 延迟清理view widget: ${id}`);
+                                view.dispose();
+                            }
+                        }, 5000); // 5秒延迟
+                        continue;
+                    }
                     view.dispose();
                 }
             }
@@ -839,6 +873,18 @@ export class PluginViewRegistry implements FrontendApplicationContribution {
             if (viewContainer instanceof ViewContainerWidget) {
                 const id = this.toViewContainerId(viewContainer.options);
                 if (!this.viewContainers.has(id)) {
+                    // 检查是否有相关的view widgets，如果有则延迟清理
+                    const hasRelatedViews = this.hasRelatedViewWidgets(id);
+                    if (hasRelatedViews) {
+                        console.log(`[VIEW-REGISTRY] 检测到可能的重连场景，延迟清理view container: ${id}`);
+                        setTimeout(() => {
+                            if (!this.viewContainers.has(id) && !viewContainer.isDisposed) {
+                                console.log(`[VIEW-REGISTRY] 延迟清理view container: ${id}`);
+                                viewContainer.dispose();
+                            }
+                        }, 5000); // 5秒延迟
+                        continue;
+                    }
                     viewContainer.dispose();
                 }
             }
@@ -943,8 +989,22 @@ export class PluginViewRegistry implements FrontendApplicationContribution {
             const webviewView = await this.createNewWebviewView(viewId);
             webviewId = webviewView.webview.identifier.id;
         }
-        const webviewWidget = this.widgetManager.getWidget(WebviewWidget.FACTORY_ID, <WebviewWidgetIdentifier>{ id: webviewId, viewId });
-        return webviewWidget;
+        
+        // 尝试获取现有的 webview widget
+        try {
+            const webviewWidget = this.widgetManager.getWidget(WebviewWidget.FACTORY_ID, <WebviewWidgetIdentifier>{ id: webviewId, viewId });
+            if (webviewWidget && !webviewWidget.isDisposed) {
+                console.log(`[VIEW-REGISTRY] 重用现有的webview widget: ${webviewId}`);
+                return webviewWidget;
+            }
+        } catch (error) {
+            console.log(`[VIEW-REGISTRY] 无法获取现有webview widget ${webviewId}:`, error);
+        }
+        
+        // 如果获取失败，创建新的
+        console.log(`[VIEW-REGISTRY] 创建新的webview widget for viewId: ${viewId}`);
+        const webviewView = await this.createNewWebviewView(viewId);
+        return webviewView.webview;
     }
 
     protected storeViewDataStateOnDispose(viewId: string, widget: Widget & StatefulWidget): void {
@@ -969,6 +1029,98 @@ export class PluginViewRegistry implements FrontendApplicationContribution {
         } else {
             this.viewContextKeys.focusedView.reset();
         }
+    }
+
+    /**
+     * 查找指定viewId的现有webview widget
+     */
+    protected async findExistingWebviewWidget(viewId: string): Promise<WebviewWidget | undefined> {
+        const widgets = this.widgetManager.getWidgets(WebviewWidget.FACTORY_ID);
+        for (const widget of widgets) {
+            if (widget instanceof WebviewWidget && widget.identifier?.viewId === viewId) {
+                return widget;
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * 从现有的webview widget创建WebviewView接口
+     */
+    protected createWebviewViewFromExistingWidget(webview: WebviewWidget): WebviewView {
+        let _description: string | undefined;
+        let _resolved = false;
+        let _pendingResolution: Promise<void> | undefined;
+        const viewId = webview.identifier?.viewId || '';
+
+        const webviewView: WebviewView = {
+            webview,
+
+            get onDidChangeVisibility(): Event<boolean> { return webview.onDidChangeVisibility; },
+            get onDidDispose(): Event<void> { return webview.onDidDispose; },
+
+            get title(): string | undefined { return webview.title.label; },
+            set title(value: string | undefined) { webview.title.label = value || ''; },
+
+            get description(): string | undefined { return _description; },
+            set description(value: string | undefined) { _description = value; },
+
+            get badge(): number | undefined { return webview.badge; },
+            set badge(badge: number | undefined) { webview.badge = badge; },
+
+            get badgeTooltip(): string | undefined { return webview.badgeTooltip; },
+            set badgeTooltip(badgeTooltip: string | undefined) { webview.badgeTooltip = badgeTooltip; },
+            onDidChangeBadge: webview.onDidChangeBadge,
+            onDidChangeBadgeTooltip: webview.onDidChangeBadgeTooltip,
+
+            dispose: () => {
+                _resolved = false;
+                webview.dispose();
+            },
+            resolve: async () => {
+                if (_resolved) {
+                    return;
+                }
+                if (_pendingResolution) {
+                    return _pendingResolution;
+                }
+                _pendingResolution = this.resolveWebviewView(viewId, webviewView, CancellationToken.None).then(() => {
+                    _resolved = true;
+                    _pendingResolution = undefined;
+                });
+                return _pendingResolution;
+            },
+            show: webview.show
+        };
+
+        return webviewView;
+    }
+
+    /**
+     * 检查是否存在指定view的webview widget
+     */
+    protected async hasWebviewWidgetForView(viewId: string): Promise<boolean> {
+        const widgets = this.widgetManager.getWidgets(WebviewWidget.FACTORY_ID);
+        return widgets.some(widget => 
+            widget instanceof WebviewWidget && 
+            widget.identifier?.viewId === viewId && 
+            !widget.isDisposed
+        );
+    }
+
+    /**
+     * 检查是否有相关的view widgets
+     */
+    protected hasRelatedViewWidgets(containerId: string): boolean {
+        const views = this.widgetManager.getWidgets(PLUGIN_VIEW_FACTORY_ID);
+        return views.some(view => {
+            if (!(view instanceof PluginViewWidget) || view.isDisposed) {
+                return false;
+            }
+            const viewId = this.toViewId(view.options);
+            const viewData = this.views.get(viewId);
+            return viewData && viewData[0] === containerId;
+        });
     }
 }
 

@@ -61,7 +61,21 @@ export class WebviewViewsMainImpl implements WebviewViewsMain, Disposable {
     async $registerWebviewViewProvider(viewType: string, options: { retainContextWhenHidden?: boolean, serializeBuffersForPostMessage: boolean }): Promise<void> {
 
         if (this.webviewViewProviders.has(viewType)) {
-            throw new Error(`View provider for ${viewType} already registered`);
+            console.log(`[WEBVIEW-VIEWS] Provider for ${viewType} already exists, checking for reconnection scenario...`);
+            // 检查是否有现存的webview widget来判断是重连还是真实冲突
+            const hasExistingWidget = await this.hasExistingWebviewWidget(viewType);
+            if (hasExistingWidget) {
+                // 重连场景：清理旧的provider，允许重新注册
+                console.log(`[WEBVIEW-VIEWS] Detected reconnection for ${viewType}, cleaning up old provider`);
+                const oldProvider = this.webviewViewProviders.get(viewType);
+                if (oldProvider) {
+                    oldProvider.dispose();
+                    this.webviewViewProviders.delete(viewType);
+                }
+            } else {
+                // 真实冲突：不同插件尝试注册相同的provider
+                throw new Error(`View provider for ${viewType} already registered`);
+            }
         }
 
         const registration = await this.pluginViewRegistry.registerWebviewView(viewType, {
@@ -149,6 +163,16 @@ export class WebviewViewsMainImpl implements WebviewViewsMain, Disposable {
             throw new Error(`No webview view registered for handle '${handle}'`);
         }
         return webviewView;
+    }
+
+    /**
+     * 检查是否存在指定viewType的现有webview widget
+     */
+    protected async hasExistingWebviewWidget(viewType: string): Promise<boolean> {
+        const widgets = this.widgetManager.getWidgets('webview');
+        return widgets.some(widget => 
+            widget.identifier?.viewId === viewType && !widget.isDisposed
+        );
     }
 
 }
