@@ -18,6 +18,7 @@ import { injectable, inject } from '@theia/core/shared/inversify';
 import { ILogger } from '@theia/core/lib/common/logger';
 import * as fs from '@theia/core/shared/fs-extra';
 import { BaoskyConfig, BaoskyConfigService as IBaoskyConfigService } from '../common/baosky-config-service';
+import { ServerModel } from './user-plugin-management/server';
 
 /**
  * 宝思科配置服务实现
@@ -33,6 +34,9 @@ export class BaoskyConfigServiceImpl implements IBaoskyConfigService {
 
     @inject(ILogger)
     protected readonly logger: ILogger;
+
+    @inject(ServerModel)
+    protected readonly serverModel: ServerModel;
 
     private configCache: BaoskyConfig | undefined;
     private configCacheTime: number = 0;
@@ -63,9 +67,7 @@ export class BaoskyConfigServiceImpl implements IBaoskyConfigService {
             
             // 返回默认配置
             const defaultConfig: BaoskyConfig = {
-                userPluginsEnabled: false,
-                currentUser: 'default',
-                adminUsers: ['admin', 'root']
+                userPluginsEnabled: false
             };
             
             this.configCache = defaultConfig;
@@ -84,19 +86,34 @@ export class BaoskyConfigServiceImpl implements IBaoskyConfigService {
     }
 
     /**
-     * 获取当前用户ID
+     * 获取当前用户ID（从ServerModel获取）
      */
     async getCurrentUser(): Promise<string> {
-        const config = await this.getConfig();
-        return config.currentUser || 'default';
+        // 直接从 ServerModel 获取当前用户信息
+        const currentUser = this.serverModel.getCurrentUser();
+        if (currentUser) {
+            return currentUser;
+        }
+        
+        // 如果ServerModel没有用户信息，返回默认值
+        this.logger.warn(`[BAOSKY-CONFIG] ServerModel中没有用户信息，使用默认用户`);
+        return 'default';
     }
 
     /**
-     * 检查指定用户是否为管理员
+     * 检查指定用户是否为管理员（从ServerModel获取）
      */
     async isAdminUser(userId: string): Promise<boolean> {
-        const config = await this.getConfig();
-        return config.adminUsers?.includes(userId) ?? false;
+        // 如果查询当前用户，从 ServerModel 获取
+        const currentUser = this.serverModel.getCurrentUser();
+        if (userId === currentUser) {
+            return this.serverModel.isAdmin();
+        }
+        
+        // 对于其他用户，目前无法判断，返回false
+        // 注意：这里将来可能需要其他模块提供用户权限信息
+        this.logger.debug(`[BAOSKY-CONFIG] 无法判断用户 ${userId} 的管理员权限，返回false`);
+        return false;
     }
 
     /**
@@ -112,9 +129,7 @@ export class BaoskyConfigServiceImpl implements IBaoskyConfigService {
 
         // 解析配置项
         const config: BaoskyConfig = {
-            userPluginsEnabled: this.parseBooleanValue(parsedConfig.plugins?.userPluginsEnabled, false),
-            currentUser: parsedConfig.user?.currentUser || 'default',
-            adminUsers: this.parseArrayValue(parsedConfig.user?.adminUsers, ['admin', 'root'])
+            userPluginsEnabled: this.parseBooleanValue(parsedConfig.plugins?.userPluginsEnabled, false)
         };
 
         this.logger.info(`[BAOSKY-CONFIG] 从配置文件读取: ${BaoskyConfigServiceImpl.CONFIG_FILE_PATH}`);
@@ -136,18 +151,6 @@ export class BaoskyConfigServiceImpl implements IBaoskyConfigService {
         return defaultValue;
     }
 
-    /**
-     * 解析数组配置（逗号分隔）
-     */
-    private parseArrayValue(value: any, defaultValue: string[]): string[] {
-        if (Array.isArray(value)) {
-            return value;
-        }
-        if (typeof value === 'string') {
-            return value.split(',').map(item => item.trim()).filter(item => item.length > 0);
-        }
-        return defaultValue;
-    }
 
     /**
      * 简单的 INI 文件解析

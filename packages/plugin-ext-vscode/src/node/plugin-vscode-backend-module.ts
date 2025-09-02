@@ -27,11 +27,8 @@ import { PluginHostEnvironmentVariable } from '@theia/plugin-ext/lib/common';
 import { PluginVSCodeEnvironment } from '../common/plugin-vscode-environment';
 import { PluginVSCodeDeployerParticipant } from './plugin-vscode-deployer-participant';
 import { LocalVSIXFilePluginDeployerResolver } from './local-vsix-file-plugin-deployer-resolver';
-import { BaoskyConfigService } from '@theia/plugin-ext/lib/main/common/baosky-config-service';
-import { BaoskyConfigServiceImpl } from '@theia/plugin-ext/lib/main/node/baosky-config-service-impl';
 
 export default new ContainerModule(bind => {
-    bind(BaoskyConfigService).to(BaoskyConfigServiceImpl).inSingletonScope();
     bind(PluginVSCodeEnvironment).toSelf().inSingletonScope();
 
     bind(PluginVSCodeDeployerParticipant).toSelf().inSingletonScope();

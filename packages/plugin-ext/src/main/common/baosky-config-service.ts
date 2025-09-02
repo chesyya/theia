@@ -22,12 +22,6 @@
 export interface BaoskyConfig {
     /** 是否启用用户插件管理功能 */
     userPluginsEnabled: boolean;
-    
-    /** 当前用户ID */
-    currentUser?: string;
-    
-    /** 管理员用户列表 */
-    adminUsers?: string[];
 }
 
 /**
@@ -53,12 +47,12 @@ export interface BaoskyConfigService {
     isUserPluginsEnabled(): Promise<boolean>;
     
     /**
-     * 获取当前用户ID
+     * 获取当前用户ID（从ServerModel获取）
      */
     getCurrentUser(): Promise<string>;
     
     /**
-     * 检查指定用户是否为管理员
+     * 检查指定用户是否为管理员（从ServerModel获取）
      */
     isAdminUser(userId: string): Promise<boolean>;
     

@@ -2494,6 +2494,13 @@
   resolved "https://registry.yarnpkg.com/@types/prop-types/-/prop-types-15.7.12.tgz#12bb1e2be27293c1406acb6af1c3f3a1481d98c6"
   integrity sha512-5zvhXYtRNRluoE/jAp4GVsSduVUzNWKkOZrCDBWYtE7biZywwdC2AcEzg+cSMLFRfVgeAFqpfNabiPjxFddV1Q==
 
+"@types/proper-lockfile@^4.1.4":
+  version "4.1.4"
+  resolved "https://registry.npmmirror.com/@types/proper-lockfile/-/proper-lockfile-4.1.4.tgz#cd9fab92bdb04730c1ada542c356f03620f84008"
+  integrity sha512-uo2ABllncSqg9F1D4nugVl9v93RmjxF6LJzQLMLDdPaXCUIDPeOJ21Gbqi43xNKzBi/WQ0Q0dICqufzQbMjipQ==
+  dependencies:
+    "@types/retry" "*"
+
 "@types/proxy-from-env@^1.0.1":
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/@types/proxy-from-env/-/proxy-from-env-1.0.4.tgz#0a0545768f2d6c16b81a84ffefb53b423807907c"
@@ -2544,6 +2551,11 @@
   integrity sha512-H/+L+UkTV33uf49PH5pCAUBVPNj2nDBXTN+qS1dOwyyg24l3CcicicCA7ca+HMvJBZcFgl5r8e+RR6elsb4Lyw==
   dependencies:
     "@types/node" "*"
+
+"@types/retry@*":
+  version "0.12.5"
+  resolved "https://registry.npmmirror.com/@types/retry/-/retry-0.12.5.tgz#f090ff4bd8d2e5b940ff270ab39fd5ca1834a07e"
+  integrity sha512-3xSjTp3v03X/lSQLkczaN9UIEwJMoMCA1+Nb5HfbJEQWogdeQIyVtTvxPXDQjZ5zws8rFQfVfRdz03ARihPJgw==
 
 "@types/route-parser@^0.1.1":
   version "0.1.7"
@@ -7372,6 +7384,11 @@ ini@^1.3.2, ini@^1.3.8, ini@~1.3.0:
   resolved "https://registry.yarnpkg.com/ini/-/ini-1.3.8.tgz#a29da425b48806f34767a4efce397269af28432c"
   integrity sha512-JV/yugV2uzW5iMRSiZAyDtQd+nxtUnjeLt0acNdw98kKLrvuRVyB80tsREOE7yvGVgalhZ6RNXCmEHkUKBKxew==
 
+ini@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.npmmirror.com/ini/-/ini-5.0.0.tgz#a7a4615339843d9a8ccc2d85c9d81cf93ffbc638"
+  integrity sha512-+N0ngpO3e7cRUWOJAS7qw0IZIVc6XPrW4MlFBdD066F2L4k1L6ker3hLqSq7iXxU5tgS4WGkIUElWn5vogAEnw==
+
 init-package-json@5.0.0:
   version "5.0.0"
   resolved "https://registry.yarnpkg.com/init-package-json/-/init-package-json-5.0.0.tgz#030cf0ea9c84cfc1b0dc2e898b45d171393e4b40"
@@ -10613,6 +10630,15 @@ prop-types@^15.5.6, prop-types@^15.6.1, prop-types@^15.8.1:
     loose-envify "^1.4.0"
     object-assign "^4.1.1"
     react-is "^16.13.1"
+
+proper-lockfile@^4.1.2:
+  version "4.1.2"
+  resolved "https://registry.npmmirror.com/proper-lockfile/-/proper-lockfile-4.1.2.tgz#c8b9de2af6b2f1601067f98e01ac66baa223141f"
+  integrity sha512-TjNPblN4BwAWMXU8s9AEz4JmQxnD1NNL7bNOY/AKUzyamc379FWASUhc/K1pL2noVb+XmZKLL68cjzLsiOAMaA==
+  dependencies:
+    graceful-fs "^4.2.4"
+    retry "^0.12.0"
+    signal-exit "^3.0.2"
 
 properties@^1.2.1:
   version "1.2.1"
