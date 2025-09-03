@@ -52,7 +52,11 @@ import {
     UserPluginCleanupService,
     UserPluginInstallationService,
     UserPluginDirectoryResolver,
-    UserPluginDeployerParticipant
+    UserPluginDeployerParticipant,
+    UserSessionService,
+    UserSessionPluginManager,
+    SessionAwarePluginService,
+    WebSocketSessionHandler
 } from './user-plugin-management/index';
 import { UserPluginEnvironmentService } from '../common/user-plugin-management/user-plugin-environment-service';
 import { BaoskyConfigService } from '../common/baosky-config-service';
@@ -129,6 +133,15 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
     // User Plugin Deployer Participant
     bind(UserPluginDeployerParticipant).toSelf().inSingletonScope();
     bind(PluginDeployerParticipant).toService(UserPluginDeployerParticipant);
+
+    // 新增：会话管理相关服务
+    bind(UserSessionService).toSelf().inSingletonScope();
+    bind(UserSessionPluginManager).toSelf().inSingletonScope();
+    bind(SessionAwarePluginService).toSelf().inSingletonScope();
+
+    // WebSocket会话处理器
+    bind(WebSocketSessionHandler).toSelf().inSingletonScope();
+    bind(WsRequestValidatorContribution).toService(WebSocketSessionHandler);
 
     bind(ServerModel).toSelf().inSingletonScope();
     bind(BackendApplicationContribution).toService(ServerModel);

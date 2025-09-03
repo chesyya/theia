@@ -32,3 +32,23 @@ export {
 } from './user-plugin-installation-service';
 export { UserPluginDirectoryResolver } from './user-plugin-directory-resolver';
 export { UserPluginDeployerParticipant } from './user-plugin-deployer-participant';
+
+// 新增会话管理相关服务
+export { 
+    UserSessionService, 
+    UserSession, 
+    UserSessionEvent 
+} from './user-session-service';
+export { 
+    UserSessionPluginManager, 
+    SessionPluginState 
+} from './user-session-plugin-manager';
+export { 
+    SessionAwarePluginService,
+    PluginQueryOptions,
+    PluginExecutionContext,
+    PluginExecutionResult
+} from './session-aware-plugin-service';
+
+// WebSocket会话处理器
+export { WebSocketSessionHandler } from './websocket-session-handler';

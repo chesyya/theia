@@ -19,9 +19,10 @@ import { ILogger } from '@theia/core/lib/common/logger';
 import { FileUri } from '@theia/core/lib/node';
 import * as fs from '@theia/core/shared/fs-extra';
 import * as path from 'path';
-import { PluginDeployerResolver, PluginDeployerResolverContext } from '../../../common/plugin-protocol';
+import { PluginDeployerResolver, PluginDeployerResolverContext, PluginDeployerEntry } from '../../../common/plugin-protocol';
 import { UserPluginEnvironmentService } from '../../common/user-plugin-management/user-plugin-environment-service';
 import { BaoskyConfigService } from '../../common/baosky-config-service';
+import { PluginDeployerResolverContextImpl } from '../plugin-deployer-resolver-context-impl';
 
 /**
  * 用户插件目录解析器
@@ -96,29 +97,16 @@ export class UserPluginDirectoryResolver implements PluginDeployerResolver {
     }
 
     /**
-     * 解析所有用户插件目录
+     * 解析所有用户插件目录（已废弃）
+     * 现在用户插件改为按需加载，不再在启动时扫描所有用户目录
      */
     private async resolveAllUserPlugins(pluginResolverContext: PluginDeployerResolverContext): Promise<void> {
-        // 首先扫描共享目录
+        this.logger.warn('[USER-PLUGIN-RESOLVER] resolveAllUserPlugins 已废弃，请使用指定用户ID的扫描');
+        
+        // 如果仍然调用此方法，只扫描共享目录
         await this.resolveSharedPlugins(pluginResolverContext);
-
-        // 然后扫描所有用户目录
-        const userPluginsRootDir = await this.userPluginEnvironment.getUserPluginsRootDirUri();
-        const userPluginsRootPath = FileUri.fsPath(userPluginsRootDir);
-
-        if (await fs.pathExists(userPluginsRootPath)) {
-            const userDirs = await fs.readdir(userPluginsRootPath);
-            
-            for (const userDir of userDirs) {
-                const userDirPath = path.join(userPluginsRootPath, userDir);
-                const stat = await fs.stat(userDirPath);
-                
-                if (stat.isDirectory()) {
-                    this.logger.debug(`[USER-PLUGIN-RESOLVER] 扫描用户目录: ${userDirPath} (用户: ${userDir})`);
-                    await this.scanPluginDirectory(pluginResolverContext, userDirPath, `user:${userDir}`);
-                }
-            }
-        }
+        
+        this.logger.info('[USER-PLUGIN-RESOLVER] 已跳过用户目录扫描，用户插件将按需加载');
     }
 
     /**
@@ -171,6 +159,46 @@ export class UserPluginDirectoryResolver implements PluginDeployerResolver {
     private extractUserIdFromPluginId(pluginId: string): string | undefined {
         const match = pluginId.match(/^user-plugins:\/\/(.+)$/);
         return match?.[1];
+    }
+
+    /**
+     * 按需解析特定用户的插件（用于会话级加载）
+     */
+    async resolveUserPluginsOnDemand(userId: string): Promise<PluginDeployerEntry[]> {
+        this.logger.info(`[USER-PLUGIN-RESOLVER] 按需解析用户插件: ${userId}`);
+        
+        try {
+            const context = new PluginDeployerResolverContextImpl(this, `user-plugins://${userId}`);
+            await this.resolveUserPlugins(context, userId);
+            
+            const plugins = context.getPlugins();
+            this.logger.info(`[USER-PLUGIN-RESOLVER] 为用户 ${userId} 解析到 ${plugins.length} 个插件`);
+            
+            return plugins;
+        } catch (error) {
+            this.logger.error(`[USER-PLUGIN-RESOLVER] 按需解析用户插件失败: ${userId}`, error);
+            return [];
+        }
+    }
+
+    /**
+     * 按需解析共享插件（用于会话级加载）
+     */
+    async resolveSharedPluginsOnDemand(): Promise<PluginDeployerEntry[]> {
+        this.logger.info('[USER-PLUGIN-RESOLVER] 按需解析共享插件');
+        
+        try {
+            const context = new PluginDeployerResolverContextImpl(this, 'shared-plugins://');
+            await this.resolveSharedPlugins(context);
+            
+            const plugins = context.getPlugins();
+            this.logger.info(`[USER-PLUGIN-RESOLVER] 解析到 ${plugins.length} 个共享插件`);
+            
+            return plugins;
+        } catch (error) {
+            this.logger.error('[USER-PLUGIN-RESOLVER] 按需解析共享插件失败', error);
+            return [];
+        }
     }
 
 }

@@ -36,7 +36,7 @@ export class UserPluginDeployerParticipant implements PluginDeployerParticipant 
 
     /**
      * 在插件部署开始时调用
-     * 自动添加用户插件目录扫描到部署队列
+     * 只添加共享插件目录扫描，用户插件改为按需加载
      */
     async onWillStart(context: PluginDeployerStartContext): Promise<void> {
         // 从配置文件检查是否启用用户插件管理功能
@@ -49,35 +49,30 @@ export class UserPluginDeployerParticipant implements PluginDeployerParticipant 
             return;
         }
 
-        this.logger.info('[USER-PLUGIN-PARTICIPANT] 用户插件管理功能已启用，开始注册用户插件目录扫描');
+        this.logger.info('[USER-PLUGIN-PARTICIPANT] 用户插件管理功能已启用，开始注册共享插件目录扫描');
 
         try {
-            // 添加用户插件目录扫描任务
-            // 这会触发 UserPluginDirectoryResolver 来扫描所有用户插件目录
-            this.addUserPluginScanTasks(context);
+            // 只添加共享插件目录扫描任务，用户插件将按需加载
+            this.addSharedPluginScanTask(context);
 
-            this.logger.info(`[USER-PLUGIN-PARTICIPANT] 已添加 ${this.getAddedTasksCount(context)} 个用户插件扫描任务`);
+            const addedTasksCount = this.getAddedTasksCount(context);
+            this.logger.info(`[USER-PLUGIN-PARTICIPANT] 已添加 ${addedTasksCount} 个共享插件扫描任务，用户插件将按需加载`);
         } catch (error) {
-            this.logger.error('[USER-PLUGIN-PARTICIPANT] 注册用户插件目录扫描失败:', error);
+            this.logger.error('[USER-PLUGIN-PARTICIPANT] 注册共享插件目录扫描失败:', error);
         }
     }
 
     /**
-     * 添加用户插件扫描任务到部署上下文
+     * 添加共享插件扫描任务到部署上下文
      */
-    private addUserPluginScanTasks(context: PluginDeployerStartContext): void {
+    private addSharedPluginScanTask(context: PluginDeployerStartContext): void {
         const initialUserEntriesCount = context.userEntries.length;
 
-        // 添加共享插件目录扫描
+        // 只添加共享插件目录扫描
         context.userEntries.push('shared-plugins://');
 
-        // 添加用户插件目录扫描
-        // 这会扫描所有用户的插件目录
-        context.userEntries.push('user-plugins://');
-
-        this.logger.info('[USER-PLUGIN-PARTICIPANT] 已添加插件扫描任务:', {
+        this.logger.info('[USER-PLUGIN-PARTICIPANT] 已添加共享插件扫描任务:', {
             sharedPlugins: 'shared-plugins://',
-            userPlugins: 'user-plugins://',
             totalUserEntries: context.userEntries.length,
             addedEntries: context.userEntries.length - initialUserEntriesCount
         });
@@ -89,9 +84,9 @@ export class UserPluginDeployerParticipant implements PluginDeployerParticipant 
      * 获取添加的任务数量
      */
     private getAddedTasksCount(context: PluginDeployerStartContext): number {
-        // 简单计算：我们添加了2个任务（shared-plugins:// 和 user-plugins://）
+        // 现在只添加1个任务（shared-plugins://）
         return context.userEntries.filter(entry => 
-            entry === 'shared-plugins://' || entry === 'user-plugins://'
+            entry === 'shared-plugins://'
         ).length;
     }
 
