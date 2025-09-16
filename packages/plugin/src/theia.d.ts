@@ -112,6 +112,32 @@ export module '@theia/plugin' {
     }
 
     /**
+     * Extended command handler interface for plugins providing visibility and enabled state control.
+     */
+    export interface CommandHandler {
+        /**
+         * Execute this handler.
+         */
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        execute(...args: any[]): any;
+        /**
+         * Test whether this handler is enabled (active).
+         */
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        isEnabled?(...args: any[]): boolean;
+        /**
+         * Test whether menu items for this handler should be visible.
+         */
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        isVisible?(...args: any[]): boolean;
+        /**
+         * Test whether menu items for this handler should be toggled.
+         */
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        isToggled?(...args: any[]): boolean;
+    }
+
+    /**
      * Represents a reference to a command. Provides a title which
      * will be used to represent a command in the UI and, optionally,
      * an array of arguments which will be passed to the command handler
@@ -2488,6 +2514,14 @@ export module '@theia/plugin' {
          * Throw if a command is already registered for the given command identifier.
          */
         export function registerCommand(command: CommandDescription | string, handler?: (...args: any[]) => any, thisArg?: any): Disposable;
+        /**
+         * Register the given command and extended handler if present.
+         * 
+         * The extended handler supports visibility and enabled state control.
+         *
+         * Throw if a command is already registered for the given command identifier.
+         */
+        export function registerCommand(command: CommandDescription | string, handler?: CommandHandler, thisArg?: any): Disposable;
 
         /**
          * Register the given handler for the given command identifier.

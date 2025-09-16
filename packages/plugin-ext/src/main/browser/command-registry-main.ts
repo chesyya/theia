@@ -18,7 +18,7 @@ import { interfaces } from '@theia/core/shared/inversify';
 import { CommandRegistry } from '@theia/core/lib/common/command';
 import * as theia from '@theia/plugin';
 import { Disposable, DisposableCollection } from '@theia/core/lib/common/disposable';
-import { CommandRegistryMain, CommandRegistryExt, MAIN_RPC_CONTEXT } from '../../common/plugin-api-rpc';
+import { CommandRegistryMain, CommandRegistryExt, MAIN_RPC_CONTEXT, ExtendedHandlerCapabilities } from '../../common/plugin-api-rpc';
 import { RPCProtocol } from '../../common/rpc-protocol';
 import { KeybindingRegistry } from '@theia/core/lib/browser';
 import { PluginContributionHandler } from './plugin-contribution-handler';
@@ -31,6 +31,7 @@ export class CommandRegistryMainImpl implements CommandRegistryMain, Disposable 
     private readonly proxy: CommandRegistryExt;
     private readonly commands = new Map<string, Disposable>();
     private readonly handlers = new Map<string, Disposable>();
+    private readonly extendedHandlerCapabilities = new Map<string, ExtendedHandlerCapabilities>();
     private readonly delegate: CommandRegistry;
     private readonly keyBinding: KeybindingRegistry;
     private readonly contributions: PluginContributionHandler;
@@ -83,12 +84,42 @@ export class CommandRegistryMainImpl implements CommandRegistryMain, Disposable 
         ));
         this.toDispose.push(Disposable.create(() => this.$unregisterHandler(id)));
     }
+
+    $registerExtendedHandler(id: string, capabilities: ExtendedHandlerCapabilities): void {
+        this.extendedHandlerCapabilities.set(id, capabilities);
+        
+        // Create an extended command handler with isEnabled, isVisible, and isToggled support
+        const commandHandler = {
+            execute: (...args: any[]) => this.proxy.$executeCommand(id, ...args.map(arg => this.argumentProcessors.reduce((currentValue, processor) => processor.processArgument(currentValue), arg))),
+            isEnabled: capabilities.hasIsEnabled ? ((...args: any[]) => {
+                // Convert Promise to boolean synchronously - this is a design limitation
+                // The proxy call will be awaited in the background
+                let result = true;
+                this.proxy.$checkEnabled(id, ...args).then(enabled => result = enabled).catch(() => result = false);
+                return result;
+            }) : undefined,
+            isVisible: capabilities.hasIsVisible ? ((...args: any[]) => {
+                let result = true;
+                this.proxy.$checkVisible(id, ...args).then(visible => result = visible).catch(() => result = false);
+                return result;
+            }) : undefined,
+            isToggled: capabilities.hasIsToggled ? ((...args: any[]) => {
+                let result = false;
+                this.proxy.$checkToggled(id, ...args).then(toggled => result = toggled).catch(() => result = false);
+                return result;
+            }) : undefined
+        };
+
+        this.handlers.set(id, this.contributions.registerCommandHandler(id, commandHandler.execute, commandHandler));
+        this.toDispose.push(Disposable.create(() => this.$unregisterHandler(id)));
+    }
     $unregisterHandler(id: string): void {
         const handler = this.handlers.get(id);
         if (handler) {
             handler.dispose();
             this.handlers.delete(id);
         }
+        this.extendedHandlerCapabilities.delete(id);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

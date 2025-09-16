@@ -284,11 +284,18 @@ export interface AbstractPluginManagerExt<P extends Record<string, any>> {
 
 export interface PluginManagerExt extends AbstractPluginManagerExt<PluginManagerInitializeParams> { }
 
+export interface ExtendedHandlerCapabilities {
+    hasIsEnabled: boolean;
+    hasIsVisible: boolean;
+    hasIsToggled: boolean;
+}
+
 export interface CommandRegistryMain {
     $registerCommand(command: theia.CommandDescription): void;
     $unregisterCommand(id: string): void;
 
     $registerHandler(id: string): void;
+    $registerExtendedHandler(id: string, capabilities: ExtendedHandlerCapabilities): void;
     $unregisterHandler(id: string): void;
 
     $executeCommand<T>(id: string, ...args: any[]): PromiseLike<T | undefined>;
@@ -300,6 +307,9 @@ export interface CommandRegistryMain {
 
 export interface CommandRegistryExt {
     $executeCommand<T>(id: string, ...ars: any[]): PromiseLike<T | undefined>;
+    $checkEnabled(id: string, ...args: any[]): Promise<boolean>;
+    $checkVisible(id: string, ...args: any[]): Promise<boolean>;
+    $checkToggled(id: string, ...args: any[]): Promise<boolean>;
     registerArgumentProcessor(processor: ArgumentProcessor): void;
 }
 

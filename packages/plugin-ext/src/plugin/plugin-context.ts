@@ -373,7 +373,7 @@ export function createAPIFactory(
         }
         const commands: typeof theia.commands = {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            registerCommand(command: theia.CommandDescription | string, handler?: <T>(...args: any[]) => T | Thenable<T | undefined>, thisArg?: any): Disposable {
+            registerCommand(command: theia.CommandDescription | string, handler?: any, thisArg?: any): Disposable {
                 // use of the ID when registering commands
                 if (typeof command === 'string') {
                     if (handler && commandIsDeclaredInPackage(command, plugin.rawModel)) {

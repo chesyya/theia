@@ -30,11 +30,15 @@ import { ArgumentProcessor } from '../common/commands';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Handler = <T>(...args: any[]) => T | PromiseLike<T | undefined>;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ExtendedHandler = theia.CommandHandler;
+
 export class CommandRegistryImpl implements CommandRegistryExt {
 
     private proxy: CommandRegistryMain;
     private readonly commands = new Set<string>();
     private readonly handlers = new Map<string, Handler>();
+    private readonly extendedHandlers = new Map<string, ExtendedHandler>();
     private readonly argumentProcessors: ArgumentProcessor[];
     private readonly commandsConverter: CommandsConverter;
 
@@ -49,7 +53,7 @@ export class CommandRegistryImpl implements CommandRegistryExt {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    registerCommand(command: theia.CommandDescription, handler?: Handler, thisArg?: any): Disposable {
+    registerCommand(command: theia.CommandDescription, handler?: Handler | ExtendedHandler, thisArg?: any): Disposable {
         if (this.commands.has(command.id)) {
             throw new Error(`Command ${command.id} already exist`);
         }
@@ -58,7 +62,11 @@ export class CommandRegistryImpl implements CommandRegistryExt {
 
         const toDispose: Disposable[] = [];
         if (handler) {
-            toDispose.push(this.registerHandler(command.id, handler, thisArg));
+            if (this.isExtendedHandler(handler)) {
+                toDispose.push(this.registerExtendedHandler(command.id, handler, thisArg));
+            } else {
+                toDispose.push(this.registerHandler(command.id, handler, thisArg));
+            }
         }
         toDispose.push(Disposable.create(() => {
             this.commands.delete(command.id);
@@ -139,6 +147,63 @@ export class CommandRegistryImpl implements CommandRegistryExt {
 
     registerArgumentProcessor(processor: ArgumentProcessor): void {
         this.argumentProcessors.push(processor);
+    }
+
+    private isExtendedHandler(handler: Handler | ExtendedHandler): handler is ExtendedHandler {
+        return typeof handler === 'object' && 'execute' in handler;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private registerExtendedHandler(commandId: string, handler: ExtendedHandler, thisArg?: any): Disposable {
+        if (this.handlers.has(commandId)) {
+            throw new Error(`Command "${commandId}" already has handler`);
+        }
+        
+        // Store the extended handler for capability checks
+        this.extendedHandlers.set(commandId, handler);
+        
+        // Register the extended handler with support for isEnabled, isVisible, and isToggled
+        this.proxy.$registerExtendedHandler(commandId, {
+            hasIsEnabled: typeof handler.isEnabled === 'function',
+            hasIsVisible: typeof handler.isVisible === 'function',  
+            hasIsToggled: typeof handler.isToggled === 'function'
+        });
+        
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this.handlers.set(commandId, (...args: any[]) => handler.execute.apply(thisArg, args));
+        
+        return Disposable.create(() => {
+            this.handlers.delete(commandId);
+            this.extendedHandlers.delete(commandId);
+            this.proxy.$unregisterHandler(commandId);
+        });
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async $checkEnabled(id: string, ...args: any[]): Promise<boolean> {
+        const handler = this.extendedHandlers.get(id);
+        if (handler && handler.isEnabled) {
+            return handler.isEnabled(...args);
+        }
+        return true;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async $checkVisible(id: string, ...args: any[]): Promise<boolean> {
+        const handler = this.extendedHandlers.get(id);
+        if (handler && handler.isVisible) {
+            return handler.isVisible(...args);
+        }
+        return true;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async $checkToggled(id: string, ...args: any[]): Promise<boolean> {
+        const handler = this.extendedHandlers.get(id);
+        if (handler && handler.isToggled) {
+            return handler.isToggled(...args);
+        }
+        return false;
     }
 }
 

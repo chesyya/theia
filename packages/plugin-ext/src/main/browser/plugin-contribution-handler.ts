@@ -526,15 +526,39 @@ export class PluginContributionHandler {
         return toDispose;
     }
 
-    registerCommandHandler(id: string, execute: CommandHandler['execute']): Disposable {
+    registerCommandHandler(id: string, execute: CommandHandler['execute'], handler?: CommandHandler): Disposable {
         if (this.hasCommandHandler(id)) {
             console.warn(`command handler '${id}' already registered`);
             return Disposable.NULL;
         }
 
-        this.commandHandlers.set(id, execute);
-        this.onDidRegisterCommandHandlerEmitter.fire(id);
-        return Disposable.create(() => this.commandHandlers.set(id, undefined));
+        if (handler) {
+            // Register extended command handler with isEnabled, isVisible, and isToggled support
+            const extendedHandler: CommandHandler = {
+                execute,
+                isEnabled: handler.isEnabled,
+                isVisible: handler.isVisible,
+                isToggled: handler.isToggled
+            };
+            
+            const toDispose = new DisposableCollection();
+            if (this.commands.getCommand(id)) {
+                // overriding built-in command, i.e. `type` by the VSCodeVim extension
+                toDispose.push(this.commands.registerHandler(id, extendedHandler));
+            } else {
+                toDispose.push(this.commands.registerCommand({ id }, extendedHandler));
+            }
+            
+            this.commandHandlers.set(id, execute);
+            this.onDidRegisterCommandHandlerEmitter.fire(id);
+            toDispose.push(Disposable.create(() => this.commandHandlers.set(id, undefined)));
+            return toDispose;
+        } else {
+            // Regular command handler registration
+            this.commandHandlers.set(id, execute);
+            this.onDidRegisterCommandHandlerEmitter.fire(id);
+            return Disposable.create(() => this.commandHandlers.set(id, undefined));
+        }
     }
 
     hasCommand(id: string): boolean {

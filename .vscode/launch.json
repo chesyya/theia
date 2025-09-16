@@ -59,6 +59,7 @@
       "name": "Launch Browser Backend",
       "program": "${workspaceFolder}/examples/browser/lib/backend/main.js",
       "cwd": "${workspaceFolder}/examples/browser",
+      "runtimeExecutable": "/root/.nvm/versions/node/v20.18.1/bin/node",
       "args": [
         "--hostname=0.0.0.0",
         "--port=3000",
