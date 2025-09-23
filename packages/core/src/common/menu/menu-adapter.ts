@@ -27,6 +27,11 @@ export interface MenuCommandExecutor {
     isEnabled(...args: MenuCommandArguments): boolean;
     isToggled(...args: MenuCommandArguments): boolean;
     executeCommand(...args: MenuCommandArguments): Promise<unknown>;
+
+    // Async versions for better plugin support
+    isVisibleAsync?(...args: MenuCommandArguments): Promise<boolean>;
+    isEnabledAsync?(...args: MenuCommandArguments): Promise<boolean>;
+    isToggledAsync?(...args: MenuCommandArguments): Promise<boolean>;
 };
 
 export const MenuCommandAdapter = Symbol('MenuCommandAdapter');
@@ -62,11 +67,50 @@ export class MenuCommandExecutorImpl implements MenuCommandExecutor {
         return this.delegate(menuPath, command, commandArgs, 'isToggled');
     }
 
+    // Async versions that utilize the command registry's async capabilities
+    async isVisibleAsync(menuPath: MenuPath, command: string, ...commandArgs: unknown[]): Promise<boolean> {
+        return this.delegateAsync(menuPath, command, commandArgs, 'isVisibleAsync', 'isVisible');
+    }
+
+    async isEnabledAsync(menuPath: MenuPath, command: string, ...commandArgs: unknown[]): Promise<boolean> {
+        return this.delegateAsync(menuPath, command, commandArgs, 'isEnabledAsync', 'isEnabled');
+    }
+
+    async isToggledAsync(menuPath: MenuPath, command: string, ...commandArgs: unknown[]): Promise<boolean> {
+        return this.delegateAsync(menuPath, command, commandArgs, 'isToggledAsync', 'isToggled');
+    }
+
     protected delegate<T extends keyof MenuCommandExecutor>(menuPath: MenuPath, command: string, commandArgs: unknown[], method: T): ReturnType<MenuCommandExecutor[T]> {
         const adapter = this.adapterRegistry.getAdapterFor(menuPath, command, commandArgs);
         return (adapter
             ? adapter[method](menuPath, command, ...commandArgs)
             : this.commandRegistry[method](command, ...commandArgs)) as ReturnType<MenuCommandExecutor[T]>;
+    }
+
+    protected async delegateAsync(
+        menuPath: MenuPath,
+        command: string,
+        commandArgs: unknown[],
+        asyncMethod: 'isVisibleAsync' | 'isEnabledAsync' | 'isToggledAsync',
+        syncMethod: 'isVisible' | 'isEnabled' | 'isToggled'
+    ): Promise<boolean> {
+        const adapter = this.adapterRegistry.getAdapterFor(menuPath, command, commandArgs);
+
+        if (adapter && adapter[asyncMethod]) {
+            // Use adapter's async method if available
+            return adapter[asyncMethod]!(menuPath, command, ...commandArgs);
+        } else if (adapter) {
+            // Use adapter's sync method
+            return adapter[syncMethod](menuPath, command, ...commandArgs);
+        } else {
+            // Use command registry's async method if available, otherwise fall back to sync
+            const commandRegistryAsyncMethod = asyncMethod.replace('Async', '') + 'Async' as keyof CommandRegistry;
+            if (typeof this.commandRegistry[commandRegistryAsyncMethod] === 'function') {
+                return (this.commandRegistry[commandRegistryAsyncMethod] as any)(command, ...commandArgs);
+            } else {
+                return this.commandRegistry[syncMethod](command, ...commandArgs);
+            }
+        }
     }
 }
 

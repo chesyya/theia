@@ -87,29 +87,29 @@ export class CommandRegistryMainImpl implements CommandRegistryMain, Disposable 
 
     $registerExtendedHandler(id: string, capabilities: ExtendedHandlerCapabilities): void {
         this.extendedHandlerCapabilities.set(id, capabilities);
-        
-        // Create an extended command handler with isEnabled, isVisible, and isToggled support
+
+        // Create a command handler that uses core's new async support
         const commandHandler = {
             execute: (...args: any[]) => this.proxy.$executeCommand(id, ...args.map(arg => this.argumentProcessors.reduce((currentValue, processor) => processor.processArgument(currentValue), arg))),
-            isEnabled: capabilities.hasIsEnabled ? ((...args: any[]) => {
-                // Convert Promise to boolean synchronously - this is a design limitation
-                // The proxy call will be awaited in the background
-                let result = true;
-                this.proxy.$checkEnabled(id, ...args).then(enabled => result = enabled).catch(() => result = false);
-                return result;
-            }) : undefined,
-            isVisible: capabilities.hasIsVisible ? ((...args: any[]) => {
-                let result = true;
-                this.proxy.$checkVisible(id, ...args).then(visible => result = visible).catch(() => result = false);
-                return result;
-            }) : undefined,
-            isToggled: capabilities.hasIsToggled ? ((...args: any[]) => {
-                let result = false;
-                this.proxy.$checkToggled(id, ...args).then(toggled => result = toggled).catch(() => result = false);
-                return result;
-            }) : undefined
+
+            // For sync compatibility (fallback values)
+            isEnabled: capabilities.hasIsEnabled ? () => true : undefined,
+            isVisible: capabilities.hasIsVisible ? () => true : undefined,
+            isToggled: capabilities.hasIsToggled ? () => false : undefined,
+
+            // Async versions that properly handle plugin calls (now using core's async interface)
+            isEnabledAsync: capabilities.hasIsEnabled ? ((...args: any[]) =>
+                this.proxy.$checkEnabled(id, ...args).catch(() => false)
+            ) : undefined,
+            isVisibleAsync: capabilities.hasIsVisible ? ((...args: any[]) =>
+                this.proxy.$checkVisible(id, ...args).catch(() => false)
+            ) : undefined,
+            isToggledAsync: capabilities.hasIsToggled ? ((...args: any[]) =>
+                this.proxy.$checkToggled(id, ...args).catch(() => false)
+            ) : undefined
         };
 
+        // Register with the core registry (now supports async natively)
         this.handlers.set(id, this.contributions.registerCommandHandler(id, commandHandler.execute, commandHandler));
         this.toDispose.push(Disposable.create(() => this.$unregisterHandler(id)));
     }

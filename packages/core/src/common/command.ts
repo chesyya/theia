@@ -137,6 +137,25 @@ export interface CommandHandler {
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     isToggled?(...args: any[]): boolean;
+
+    /**
+     * Async version of isEnabled. Takes priority over isEnabled if implemented.
+     * Useful for plugin commands that need to make async calls.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    isEnabledAsync?(...args: any[]): Promise<boolean>;
+    /**
+     * Async version of isVisible. Takes priority over isVisible if implemented.
+     * Useful for plugin commands that need to make async calls based on context.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    isVisibleAsync?(...args: any[]): Promise<boolean>;
+    /**
+     * Async version of isToggled. Takes priority over isToggled if implemented.
+     * Useful for plugin commands that need to make async calls.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    isToggledAsync?(...args: any[]): Promise<boolean>;
 }
 
 export const CommandContribution = Symbol('CommandContribution');
@@ -321,11 +340,35 @@ export class CommandRegistry implements CommandService {
     }
 
     /**
+     * Test whether there is a visible handler for the given command (async version).
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async isVisibleAsync(command: string, ...args: any[]): Promise<boolean> {
+        return typeof await this.getVisibleHandlerAsync(command, ...args) !== 'undefined';
+    }
+
+    /**
+     * Test whether there is an active handler for the given command (async version).
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async isEnabledAsync(command: string, ...args: any[]): Promise<boolean> {
+        return typeof await this.getActiveHandlerAsync(command, ...args) !== 'undefined';
+    }
+
+    /**
      * Test whether there is a toggled handler for the given command.
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     isToggled(command: string, ...args: any[]): boolean {
         return typeof this.getToggledHandler(command, ...args) !== 'undefined';
+    }
+
+    /**
+     * Test whether there is a toggled handler for the given command (async version).
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async isToggledAsync(command: string, ...args: any[]): Promise<boolean> {
+        return typeof await this.getToggledHandlerAsync(command, ...args) !== 'undefined';
     }
 
     /**
@@ -371,6 +414,32 @@ export class CommandRegistry implements CommandService {
     }
 
     /**
+     * Get a visible handler for the given command or `undefined` (async version).
+     * This method prioritizes handlers with async visibility checks.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async getVisibleHandlerAsync(commandId: string, ...args: any[]): Promise<CommandHandler | undefined> {
+        const handlers = this._handlers[commandId];
+        if (handlers) {
+            for (const handler of handlers) {
+                try {
+                    // Prioritize async visibility check if available
+                    if (handler.isVisibleAsync) {
+                        if (await handler.isVisibleAsync(...args)) {
+                            return handler;
+                        }
+                    } else if (!handler.isVisible || handler.isVisible(...args)) {
+                        return handler;
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+        }
+        return undefined;
+    }
+
+    /**
      * Get an active handler for the given command or `undefined`.
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -391,6 +460,32 @@ export class CommandRegistry implements CommandService {
     }
 
     /**
+     * Get an active handler for the given command or `undefined` (async version).
+     * This method prioritizes handlers with async enablement checks.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async getActiveHandlerAsync(commandId: string, ...args: any[]): Promise<CommandHandler | undefined> {
+        const handlers = this._handlers[commandId];
+        if (handlers) {
+            for (const handler of handlers) {
+                try {
+                    // Prioritize async enablement check if available
+                    if (handler.isEnabledAsync) {
+                        if (await handler.isEnabledAsync(...args)) {
+                            return handler;
+                        }
+                    } else if (!handler.isEnabled || handler.isEnabled(...args)) {
+                        return handler;
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+        }
+        return undefined;
+    }
+
+    /**
      * Get a toggled handler for the given command or `undefined`.
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -400,6 +495,32 @@ export class CommandRegistry implements CommandService {
             for (const handler of handlers) {
                 try {
                     if (handler.isToggled && handler.isToggled(...args)) {
+                        return handler;
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Get a toggled handler for the given command or `undefined` (async version).
+     * This method prioritizes handlers with async toggle checks.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async getToggledHandlerAsync(commandId: string, ...args: any[]): Promise<CommandHandler | undefined> {
+        const handlers = this._handlers[commandId];
+        if (handlers) {
+            for (const handler of handlers) {
+                try {
+                    // Prioritize async toggle check if available
+                    if (handler.isToggledAsync) {
+                        if (await handler.isToggledAsync(...args)) {
+                            return handler;
+                        }
+                    } else if (handler.isToggled && handler.isToggled(...args)) {
                         return handler;
                     }
                 } catch (error) {

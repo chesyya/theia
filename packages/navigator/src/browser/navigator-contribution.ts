@@ -607,6 +607,55 @@ export class FileNavigatorContribution extends AbstractViewContribution<FileNavi
     };
 
     /**
+     * Register commands with async visibility support to the `More Actions...` navigator toolbar item.
+     * This version supports plugin commands that need async visibility checks based on context.
+     *
+     * Example usage for a plugin command that shows/hides based on file type:
+     * navigator.registerMoreToolbarItemAsync({
+     *   command: 'myPlugin.fileSpecificCommand',
+     *   text: 'My Action',
+     *   priority: 1
+     * });
+     */
+    public registerMoreToolbarItemAsync = (item: Mutable<RenderedToolbarItem> & { command: string }) => {
+        const commandId = item.command;
+        const id = 'navigator.tabbar.toolbar.async.' + commandId;
+        const command = this.commandRegistry.getCommand(commandId);
+
+        // Create an async-capable handler using core's new async support
+        const asyncHandler = {
+            execute: (w, ...args) => w instanceof FileNavigatorWidget
+                && this.commandRegistry.executeCommand(commandId, ...args),
+            isEnabled: (w, ...args) => w instanceof FileNavigatorWidget
+                && this.commandRegistry.isEnabled(commandId, ...args),
+            // Sync fallback - return true to avoid hiding the item during sync checks
+            isVisible: (w, ...args) => w instanceof FileNavigatorWidget,
+            isToggled: (w, ...args) => w instanceof FileNavigatorWidget
+                && this.commandRegistry.isToggled(commandId, ...args),
+
+            // Async versions that use core CommandRegistry's new async capabilities
+            isVisibleAsync: async (w, ...args: any[]) => {
+                if (!(w instanceof FileNavigatorWidget)) {
+                    return false;
+                }
+                // Use the command registry's async method (available since we modified core)
+                return this.commandRegistry.isVisibleAsync(commandId, ...args);
+            },
+            isEnabledAsync: async (w, ...args: any[]) => {
+                if (!(w instanceof FileNavigatorWidget)) {
+                    return false;
+                }
+                // Use the command registry's async method
+                return this.commandRegistry.isEnabledAsync(commandId, ...args);
+            }
+        };
+
+        this.commandRegistry.registerCommand({ id, iconClass: command && command.iconClass }, asyncHandler);
+        item.command = id;
+        this.tabbarToolbarRegistry.registerItem(item);
+    };
+
+    /**
      * Reveals and selects node in the file navigator to which given widget is related.
      * Does nothing if given widget undefined or doesn't have related resource.
      *
