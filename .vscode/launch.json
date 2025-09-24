@@ -57,6 +57,7 @@
       "type": "node",
       "request": "launch",
       "name": "Launch Browser Backend",
+      "runtimeExecutable": "/root/.nvm/versions/node/v20.18.1/bin/node",
       "program": "${workspaceFolder}/examples/browser/lib/backend/main.js",
       "cwd": "${workspaceFolder}/examples/browser",
       "args": [

@@ -503,16 +503,24 @@ export class PluginContributionHandler {
             isVisible(): boolean { return true; }
         };
 
+        // 设置enablement监听
         if (enablement) {
-            const contextKeys = this.contextKeyService.parseKeys(enablement);
-            if (contextKeys && contextKeys.size > 0) {
+            const enablementKeys = this.contextKeyService.parseKeys(enablement);
+            if (enablementKeys && enablementKeys.size > 0) {
                 commandHandler.onDidChangeEnabled = (listener: () => void) => this.contextKeyService.onDidChange(e => {
-                    if (e.affects(contextKeys)) {
+                    if (e.affects(enablementKeys)) {
                         listener();
                     }
                 });
             }
         }
+
+        // 为所有注册的命令都设置onDidChangeVisible监听器
+        // 这样无论是否有enablement，都能响应菜单when条件的变化
+        commandHandler.onDidChangeVisible = (listener: () => void) => this.contextKeyService.onDidChange(e => {
+            // 监听所有ContextKey变化，让菜单系统自己判断是否需要更新
+            listener();
+        });
 
         const toDispose = new DisposableCollection();
         if (this.commands.getCommand(command.id)) {
@@ -525,6 +533,7 @@ export class PluginContributionHandler {
         toDispose.push(Disposable.create(() => this.commandHandlers.delete(command.id)));
         return toDispose;
     }
+
 
     registerCommandHandler(id: string, execute: CommandHandler['execute']): Disposable {
         if (this.hasCommandHandler(id)) {
