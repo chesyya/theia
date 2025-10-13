@@ -19,7 +19,8 @@
 import { dynamicRequire, removeFromCache } from '@theia/core/lib/node/dynamic-require';
 import { ContainerModule, inject, injectable, postConstruct, unmanaged } from '@theia/core/shared/inversify';
 import { AbstractPluginManagerExtImpl, PluginHost, PluginManagerExtImpl } from '../../plugin/plugin-manager';
-import { MAIN_RPC_CONTEXT, Plugin, PluginAPIFactory, PluginManager,
+import {
+    MAIN_RPC_CONTEXT, Plugin, PluginAPIFactory, PluginManager,
     LocalizationExt
 } from '../../common/plugin-api-rpc';
 import { PluginMetadata, PluginModel } from '../../common/plugin-protocol';
@@ -41,6 +42,7 @@ import { connectProxyResolver } from './plugin-host-proxy';
 import { LocalizationExtImpl } from '../../plugin/localization-ext';
 import { RPCProtocol, ProxyIdentifier } from '../../common/rpc-protocol';
 import { PluginApiCache } from '../../plugin/node/plugin-container-module';
+import { FileSystemInterceptor } from './file-system-interceptor';
 
 /**
  * The full set of all possible `Ext` interfaces that a plugin manager can support.
@@ -170,6 +172,13 @@ export abstract class AbstractPluginHostRPC<PM extends AbstractPluginManagerExtI
                 // https://github.com/nodejs/node/issues/8443
                 removeFromCache(mod => mod.id.startsWith(plugin.pluginFolder));
                 if (plugin.pluginPath) {
+                    // Intercept file system access for the plugin
+                    console.log('FileSystemInterceptor module ID:', require.resolve('./file-system-interceptor'));
+                    console.log('process.pid =', process.pid);
+
+
+                    FileSystemInterceptor.interceptFsModule(plugin);
+
                     return dynamicRequire(plugin.pluginPath);
                 }
             },
@@ -273,7 +282,7 @@ export abstract class AbstractPluginHostRPC<PM extends AbstractPluginManagerExtI
      * @param extApi the extension API to initialize, if appropriate
      * @throws if any error occurs in initializing the extension API
      */
-     protected abstract initExtApi(extApi: ExtPluginApi): void;
+    protected abstract initExtApi(extApi: ExtPluginApi): void;
 }
 
 /**

@@ -39,6 +39,7 @@ import {
 } from '@theia/filesystem/lib/common/files';
 import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { MarkdownString } from '../../common/plugin-api-rpc-model';
+import { FileSystemPermissionService } from './file-system-permission-service';
 
 type IDisposable = Disposable;
 
@@ -47,11 +48,13 @@ export class FileSystemMainImpl implements FileSystemMain, Disposable {
     private readonly _proxy: FileSystemExt;
     private readonly _fileProvider = new Map<number, RemoteFileSystemProvider>();
     private readonly _fileService: FileService;
+    private readonly _permissionService: FileSystemPermissionService;
     private readonly _disposables = new DisposableCollection();
 
     constructor(rpc: RPCProtocol, container: interfaces.Container) {
         this._proxy = rpc.getProxy(MAIN_RPC_CONTEXT.FILE_SYSTEM_EXT);
         this._fileService = container.get(FileService);
+        this._permissionService = container.get(FileSystemPermissionService);
 
         for (const { scheme, capabilities } of this._fileService.listCapabilities()) {
             this._proxy.$acceptProviderInfos(scheme, capabilities);
@@ -89,8 +92,14 @@ export class FileSystemMainImpl implements FileSystemMain, Disposable {
 
     // --- consumer fs, vscode.workspace.fs
 
-    $stat(uri: UriComponents): Promise<Stat> {
-        return this._fileService.resolve(new CoreURI(URI.revive(uri)), { resolveMetadata: true }).then(stat => ({
+    async $stat(uri: UriComponents): Promise<Stat> {
+        const resolvedUri = new CoreURI(URI.revive(uri));
+        // Note: Plugin context is undefined here as RPC calls don't currently track plugin identity.
+        // To enable plugin-specific permissions for VS Code API calls, the RPC protocol would need
+        // to be extended to pass plugin context with each request.
+        await this._permissionService.checkPermission('stat', resolvedUri, undefined);
+
+        return this._fileService.resolve(resolvedUri, { resolveMetadata: true }).then(stat => ({
             ctime: stat.ctime,
             mtime: stat.mtime,
             size: stat.size,
@@ -98,8 +107,11 @@ export class FileSystemMainImpl implements FileSystemMain, Disposable {
         })).catch(FileSystemMainImpl._handleError);
     }
 
-    $readdir(uri: UriComponents): Promise<[string, FileType][]> {
-        return this._fileService.resolve(new CoreURI(URI.revive(uri)), { resolveMetadata: false }).then(stat => {
+    async $readdir(uri: UriComponents): Promise<[string, FileType][]> {
+        const resolvedUri = new CoreURI(URI.revive(uri));
+        await this._permissionService.checkPermission('readdir', resolvedUri, undefined);
+
+        return this._fileService.resolve(resolvedUri, { resolveMetadata: false }).then(stat => {
             if (!stat.isDirectory) {
                 const err = new Error(stat.name);
                 err.name = FileSystemProviderErrorCode.FileNotADirectory;
@@ -109,36 +121,58 @@ export class FileSystemMainImpl implements FileSystemMain, Disposable {
         }).catch(FileSystemMainImpl._handleError);
     }
 
-    $readFile(uri: UriComponents): Promise<BinaryBuffer> {
-        return this._fileService.readFile(new CoreURI(URI.revive(uri))).then(file => file.value).catch(FileSystemMainImpl._handleError);
+    async $readFile(uri: UriComponents): Promise<BinaryBuffer> {
+        const resolvedUri = new CoreURI(URI.revive(uri));
+        await this._permissionService.checkPermission('read', resolvedUri, undefined);
+
+        return this._fileService.readFile(resolvedUri).then(file => file.value).catch(FileSystemMainImpl._handleError);
     }
 
-    $writeFile(uri: UriComponents, content: BinaryBuffer): Promise<void> {
-        return this._fileService.writeFile(new CoreURI(URI.revive(uri)), content)
+    async $writeFile(uri: UriComponents, content: BinaryBuffer): Promise<void> {
+        const resolvedUri = new CoreURI(URI.revive(uri));
+        await this._permissionService.checkPermission('write', resolvedUri, undefined);
+
+        return this._fileService.writeFile(resolvedUri, content)
             .then(() => undefined).catch(FileSystemMainImpl._handleError);
     }
 
-    $rename(source: UriComponents, target: UriComponents, opts: FileOverwriteOptions): Promise<void> {
-        return this._fileService.move(new CoreURI(URI.revive(source)), new CoreURI(URI.revive(target)), {
+    async $rename(source: UriComponents, target: UriComponents, opts: FileOverwriteOptions): Promise<void> {
+        const resolvedSource = new CoreURI(URI.revive(source));
+        const resolvedTarget = new CoreURI(URI.revive(target));
+        await this._permissionService.checkPermission('rename', resolvedSource, undefined);
+        await this._permissionService.checkPermission('write', resolvedTarget, undefined);
+
+        return this._fileService.move(resolvedSource, resolvedTarget, {
             ...opts,
             fromUserGesture: false
         }).then(() => undefined).catch(FileSystemMainImpl._handleError);
     }
 
-    $copy(source: UriComponents, target: UriComponents, opts: FileOverwriteOptions): Promise<void> {
-        return this._fileService.copy(new CoreURI(URI.revive(source)), new CoreURI(URI.revive(target)), {
+    async $copy(source: UriComponents, target: UriComponents, opts: FileOverwriteOptions): Promise<void> {
+        const resolvedSource = new CoreURI(URI.revive(source));
+        const resolvedTarget = new CoreURI(URI.revive(target));
+        await this._permissionService.checkPermission('read', resolvedSource, undefined);
+        await this._permissionService.checkPermission('write', resolvedTarget, undefined);
+
+        return this._fileService.copy(resolvedSource, resolvedTarget, {
             ...opts,
             fromUserGesture: false
         }).then(() => undefined).catch(FileSystemMainImpl._handleError);
     }
 
-    $mkdir(uri: UriComponents): Promise<void> {
-        return this._fileService.createFolder(new CoreURI(URI.revive(uri)), { fromUserGesture: false })
+    async $mkdir(uri: UriComponents): Promise<void> {
+        const resolvedUri = new CoreURI(URI.revive(uri));
+        await this._permissionService.checkPermission('mkdir', resolvedUri, undefined);
+
+        return this._fileService.createFolder(resolvedUri, { fromUserGesture: false })
             .then(() => undefined).catch(FileSystemMainImpl._handleError);
     }
 
-    $delete(uri: UriComponents, opts: FileDeleteOptions): Promise<void> {
-        return this._fileService.delete(new CoreURI(URI.revive(uri)), opts).catch(FileSystemMainImpl._handleError);
+    async $delete(uri: UriComponents, opts: FileDeleteOptions): Promise<void> {
+        const resolvedUri = new CoreURI(URI.revive(uri));
+        await this._permissionService.checkPermission('delete', resolvedUri, undefined);
+
+        return this._fileService.delete(resolvedUri, opts).catch(FileSystemMainImpl._handleError);
     }
 
     private static _handleError(err: any): never {

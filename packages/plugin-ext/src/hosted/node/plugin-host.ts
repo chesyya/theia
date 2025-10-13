@@ -79,6 +79,18 @@ let terminating = false;
 const container = new Container();
 container.load(pluginHostModule);
 
+// ✅ 强制初始化 FileSystemInterceptor 的权限服务
+// 这必须在加载任何插件之前完成
+try {
+    // 导入权限服务类型
+    const { FileSystemPermissionServiceNode } = require('./file-system-permission-service-node');
+    const permissionService = container.get(FileSystemPermissionServiceNode);
+    console.log('[plugin-host] FileSystemInterceptor permission service initialized in child process, pid:', process.pid);
+    console.log('[plugin-host] Permission service instance:', !!permissionService);
+} catch (error) {
+    console.error('[plugin-host] Failed to initialize FileSystemInterceptor:', error);
+}
+
 const rpc: RPCProtocol = container.get(RPCProtocol);
 const pluginHostRPC = container.get(PluginHostRPC);
 

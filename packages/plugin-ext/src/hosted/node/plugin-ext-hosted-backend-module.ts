@@ -39,10 +39,24 @@ import { PluginLanguagePackService } from './plugin-language-pack-service';
 import { RpcConnectionHandler } from '@theia/core/lib/common/messaging/proxy-factory';
 import { ConnectionHandler } from '@theia/core/lib/common/messaging/handler';
 import { isConnectionScopedBackendPlugin } from '../common/hosted-plugin';
+import { FileSystemPermissionServiceNode } from './file-system-permission-service-node';
+import { FileSystemInterceptor } from './file-system-interceptor';
 
 const commonHostedConnectionModule = ConnectionContainerModule.create(({ bind, bindBackendService }) => {
+    // Bind file system permission service for Node.js backend
+    bind(FileSystemPermissionServiceNode).toSelf().inSingletonScope();
+
     bind(HostedPluginProcess).toSelf().inSingletonScope();
-    bind(HostedPluginSupport).toSelf().inSingletonScope();
+    bind(HostedPluginSupport).toSelf().inSingletonScope().onActivation((ctx, hostedPluginSupport) => {
+        // Initialize FileSystemInterceptor with permission service
+        const permissionService = ctx.container.get(FileSystemPermissionServiceNode);
+        console.log('FileSystemInterceptor module ID:', require.resolve('./file-system-interceptor'));
+        console.log('process.pid =', process.pid);
+
+
+        FileSystemInterceptor.setPermissionService(permissionService);
+        return hostedPluginSupport;
+    });
 
     bindContributionProvider(bind, Symbol.for(ExtPluginApiProvider));
     bindContributionProvider(bind, PluginHostEnvironmentVariable);

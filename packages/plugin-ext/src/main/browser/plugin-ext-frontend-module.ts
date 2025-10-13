@@ -91,8 +91,12 @@ import { CellOutputWebviewImpl, createCellOutputWebviewContainer } from './noteb
 import { ArgumentProcessorContribution } from './command-registry-main';
 import { WebviewSecondaryWindowSupport } from './webview/webview-secondary-window-support';
 import { CustomEditorUndoRedoHandler } from './custom-editors/custom-editor-undo-redo-handler';
+import { FileSystemPermissionService } from './file-system-permission-service';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
+
+    // Register file system permission service
+    bind(FileSystemPermissionService).toSelf().inSingletonScope();
 
     bind(LanguagesMainImpl).toSelf().inTransientScope();
     bind(LanguagesMainFactory).toFactory(context => (rpc: RPCProtocol) => {
