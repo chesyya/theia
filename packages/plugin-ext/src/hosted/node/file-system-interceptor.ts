@@ -63,7 +63,9 @@ export class FileSystemInterceptor {
         // Override Module.prototype.require
         const originalRequire = Module.prototype.require;
         Module.prototype.require = function (this: NodeModule, id: string) {
-            // Intercept fs and fs/promises modules
+            // ✅ 拦截所有文件系统相关模块
+
+            // 1. 原生 fs 模块
             if (id === 'fs' || id === 'node:fs') {
                 console.log(`[FS Interceptor] Plugin ${plugin.model.id} is requiring 'fs' module`);
                 return FileSystemInterceptor.fsProxy!;
@@ -72,6 +74,29 @@ export class FileSystemInterceptor {
                 console.log(`[FS Interceptor] Plugin ${plugin.model.id} is requiring 'fs/promises' module`);
                 return FileSystemInterceptor.fsPromisesProxy!;
             }
+
+            // 2. fs-extra - 拦截并返回基于我们代理的 fs 的包装版本
+            if (id === 'fs-extra') {
+                console.log(`[FS Interceptor] Plugin ${plugin.model.id} is requiring 'fs-extra' module`);
+                const fsExtra = originalRequire.apply(this, ['fs-extra']);
+                // fs-extra 内部使用 fs，由于我们已经代理了 fs，所以 fs-extra 会自动使用我们的代理
+                return fsExtra;
+            }
+
+            // 3. graceful-fs - 同样拦截
+            if (id === 'graceful-fs') {
+                console.log(`[FS Interceptor] Plugin ${plugin.model.id} is requiring 'graceful-fs' module`);
+                // 直接返回我们的 fs 代理，因为 graceful-fs 只是 fs 的增强版
+                return FileSystemInterceptor.fsProxy!;
+            }
+
+            // 4. child_process - 需要特别注意，可以执行任意命令
+            if (id === 'child_process' || id === 'node:child_process') {
+                console.warn(`[FS Interceptor] ⚠️  Plugin ${plugin.model.id} is requiring 'child_process' - potential security risk!`);
+                // TODO: 实现 child_process 代理，拦截文件系统相关命令
+                // 暂时允许，但记录警告
+            }
+
             // For all other modules, use the original require
             return originalRequire.apply(this, arguments as any);
         } as typeof Module.prototype.require;
