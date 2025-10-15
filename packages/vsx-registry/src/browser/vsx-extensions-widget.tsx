@@ -15,7 +15,7 @@
 // *****************************************************************************
 
 import { injectable, interfaces, postConstruct, inject } from '@theia/core/shared/inversify';
-import { Message, TreeModel, TreeNode } from '@theia/core/lib/browser';
+import { Message, TreeModel, TreeNode, SelectableTreeNode } from '@theia/core/lib/browser';
 import { SourceTreeWidget } from '@theia/core/lib/browser/source-tree';
 import { VSXExtensionsSource, VSXExtensionsSourceOptions } from './vsx-extensions-source';
 import { nls } from '@theia/core/lib/common/nls';
@@ -78,6 +78,60 @@ export class VSXExtensionsWidget extends SourceTreeWidget implements BadgeWidget
         this.toDispose.push(this.source.onDidChange(async () => {
             this.badge = await this.resolveCount();
         }));
+    }
+
+    /**
+     * Focus and reveal a plugin in the extensions list.
+     * Automatically opens the side panel and expands this widget's container if needed.
+     * @param pluginId The id of the plugin to focus
+     * @returns true if the plugin was successfully focused, false otherwise
+     */
+    async focusAndReveal(pluginId: string): Promise<boolean> {
+        // Find the node corresponding to the plugin
+        const root = this.model.root;
+        if (!root) {
+            return false;
+        }
+
+        const findNode = (node: TreeNode): TreeNode | undefined => {
+            if ('id' in node && (node as any).id === pluginId) {
+                return node;
+            }
+            if (TreeNode.is(node) && 'children' in node) {
+                const children = (node as any).children as TreeNode[];
+                for (const child of children) {
+                    const found = findNode(child);
+                    if (found) {
+                        return found;
+                    }
+                }
+            }
+            return undefined;
+        };
+
+        const targetNode = findNode(root);
+        if (!targetNode || !TreeNode.isVisible(targetNode)) {
+            return false;
+        }
+
+        // Select the node if it's selectable
+        if (SelectableTreeNode.is(targetNode)) {
+            this.model.selectNode(targetNode);
+        }
+
+        // Scroll the node into view
+        const nodeElement = this.node.querySelector(`[data-node-id="${pluginId}"]`);
+        if (nodeElement) {
+            nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Add a temporary highlight class
+            nodeElement.classList.add('theia-vsx-extension-highlight');
+            setTimeout(() => {
+                nodeElement.classList.remove('theia-vsx-extension-highlight');
+            }, 2000);
+        }
+
+        return true;
     }
 
     get onDidChangeBadge(): Event<void> {

@@ -19,7 +19,8 @@ import * as sinon from 'sinon';
 import * as fs from 'fs';
 import { FileSystemInterceptor } from './file-system-interceptor';
 import { FileSystemPermissionServiceNode } from './file-system-permission-service-node';
-import { Plugin, PluginModel, PluginPackage } from '../../common/plugin-api-rpc';
+import { Plugin } from '../../common/plugin-api-rpc';
+import { PluginModel, PluginPackage } from '../../common/plugin-protocol';
 
 describe('FileSystemInterceptor', () => {
 
@@ -91,7 +92,7 @@ describe('FileSystemInterceptor', () => {
         });
 
         it('should log when fs-extra is required', () => {
-            const consoleLogStub = sinon.stub(console, 'log');
+            sinon.stub(console, 'log');
             FileSystemInterceptor.interceptFsModule(mockPlugin);
 
             try {
@@ -323,7 +324,6 @@ describe('FileSystemInterceptor', () => {
 
     describe('reset functionality', () => {
         it('should restore original require after reset', () => {
-            const originalRequire = require;
             FileSystemInterceptor.interceptFsModule(mockPlugin);
             FileSystemInterceptor.reset();
 

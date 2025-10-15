@@ -284,6 +284,7 @@ import { NotebookDocumentsExtImpl } from './notebook/notebook-documents';
 import { NotebookEditorsExtImpl } from './notebook/notebook-editors';
 import { TestingExtImpl } from './tests';
 import { UriExtImpl } from './uri-ext';
+import { PluginRegistryExtImpl } from './plugin-registry-ext';
 import { isObject } from '@theia/core';
 
 export function createAPIObject<T extends Object>(rawObject: T): T {
@@ -350,6 +351,7 @@ export function createAPIFactory(
     const testingExt = rpc.set(MAIN_RPC_CONTEXT.TESTING_EXT, new TestingExtImpl(rpc, commandRegistry));
     const uriExt = rpc.set(MAIN_RPC_CONTEXT.URI_EXT, new UriExtImpl(rpc));
     rpc.set(MAIN_RPC_CONTEXT.DEBUG_EXT, debugExt);
+    const pluginRegistryExt = rpc.set(MAIN_RPC_CONTEXT.PLUGIN_REGISTRY_EXT, new PluginRegistryExtImpl(rpc));
 
     return function (plugin: InternalPlugin): typeof theia {
         const authentication: typeof theia.authentication = {
@@ -1107,6 +1109,9 @@ export function createAPIFactory(
         };
         /* End of Tests API */
 
+        // Get the current plugin's ID
+        const currentPluginId = plugin.model.id;
+
         const plugins: typeof theia.plugins = {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             get all(): theia.Plugin<any>[] {
@@ -1122,6 +1127,14 @@ export function createAPIFactory(
             },
             get onDidChange(): theia.Event<void> {
                 return pluginManager.onDidChange;
+            },
+            me: {
+                checkUpdates(): Promise<{ currentVersion: string; latestVersion: string; hasUpdate: boolean }> {
+                    return pluginRegistryExt.checkUpdates(currentPluginId);
+                },
+                openReadme(): Promise<void> {
+                    return pluginRegistryExt.openReadme(currentPluginId);
+                }
             }
         };
 

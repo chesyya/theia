@@ -38,6 +38,24 @@ export module '@theia/plugin' {
     export type PluginType = 'frontend' | 'backend';
 
     /**
+     * Version information for a plugin.
+     */
+    export interface VersionInfo {
+        /**
+         * The currently installed version of the plugin.
+         */
+        currentVersion: string;
+        /**
+         * The latest available version of the plugin.
+         */
+        latestVersion: string;
+        /**
+         * Whether an update is available for the plugin.
+         */
+        hasUpdate: boolean;
+    }
+
+    /**
      * Namespace for dealing with installed plug-ins. Plug-ins are represented
      * by an [plug-in](#Plugin)-interface which enables reflection on them.
      *
@@ -92,6 +110,11 @@ export module '@theia/plugin' {
          * installed, uninstalled, enabled or disabled.
          */
         export let onDidChange: Event<void>;
+
+        export const me: {
+            checkUpdates: () => Promise<VersionInfo>,
+            openReadme: () => Promise<void>
+        }
     }
 
     /**

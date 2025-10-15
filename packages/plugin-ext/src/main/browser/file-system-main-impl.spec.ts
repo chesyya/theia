@@ -93,7 +93,7 @@ describe('FileSystemMainImpl', () => {
             const uri = URI.file('/workspace/test.txt');
             mockFileService.delete.resolves();
 
-            await fileSystemMain.$delete(uri, {});
+            await fileSystemMain.$delete(uri, { recursive: false, useTrash: false });
 
             expect(checkPermissionSpy.calledOnce).to.be.true;
             expect(checkPermissionSpy.firstCall.args[0]).to.equal('delete');
@@ -165,7 +165,7 @@ describe('FileSystemMainImpl', () => {
             const target = URI.file('/workspace/new.txt');
             mockFileService.move.resolves({} as any);
 
-            await fileSystemMain.$rename(source, target, {});
+            await fileSystemMain.$rename(source, target, { overwrite: false });
 
             expect(checkPermissionSpy.calledTwice).to.be.true;
             expect(checkPermissionSpy.firstCall.args[0]).to.equal('rename');
@@ -179,7 +179,7 @@ describe('FileSystemMainImpl', () => {
             const target = URI.file('/workspace/target.txt');
             mockFileService.copy.resolves({} as any);
 
-            await fileSystemMain.$copy(source, target, {});
+            await fileSystemMain.$copy(source, target, { overwrite: false });
 
             expect(checkPermissionSpy.calledTwice).to.be.true;
             expect(checkPermissionSpy.firstCall.args[0]).to.equal('read');
@@ -215,7 +215,7 @@ describe('FileSystemMainImpl', () => {
             const uri = URI.file('/etc/passwd');
 
             try {
-                await fileSystemMain.$delete(uri, {});
+                await fileSystemMain.$delete(uri, { recursive: false, useTrash: false });
                 expect.fail('Should have thrown permission error');
             } catch (error: any) {
                 expect(error.message).to.include('Permission denied');

@@ -32,7 +32,7 @@ describe('FileSystemPermissionService', () => {
             }
         }
 
-        protected isPluginAllowedOperation(operation: string, context?: FileSystemPermissionContext): boolean {
+        protected override isPluginAllowedOperation(operation: string, context?: FileSystemPermissionContext): boolean {
             if (!context?.pluginId) {
                 return true;
             }
@@ -43,7 +43,7 @@ describe('FileSystemPermissionService', () => {
             return allowed.includes(operation);
         }
 
-        protected getPluginAllowedPaths(pluginId?: string): string[] | null {
+        protected override getPluginAllowedPaths(pluginId?: string): string[] | null {
             if (!pluginId) {
                 return null;
             }
