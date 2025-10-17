@@ -188,9 +188,13 @@ export class CommandRegistryMainImpl implements CommandRegistryMain, Disposable 
             if (oldKeybinding === keybinding) {
                 return ''; // if old and new keybindings match, quietly reject update
             }
-            if (this.keyBinding.containsKeybindingInScope(binding)) {
+
+            // Check for collisions only with framework keybindings (DEFAULT scope = 0)
+            // Plugin keybindings (USER/WORKSPACE scope) are allowed to conflict with each other
+            if (this.keyBinding.containsKeybindingInScope(binding, 0)) {
                 return nls.localize('theia/keymaps/keybindingCollidesValidation', 'keybinding currently collides');
             }
+
             return '';
         } catch (error) {
             return error;
