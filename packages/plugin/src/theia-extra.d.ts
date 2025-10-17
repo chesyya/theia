@@ -307,6 +307,13 @@ export module '@theia/plugin' {
          * @param commandId The ID of the command for which we are looking for keybindings.
          */
         export function getKeyBinding(commandId: string): Thenable<CommandKeyBinding[] | undefined>;
+
+        /**
+         * Open the keybinding edit dialog for a specific command.
+         * This allows users to modify the keybinding for the given command.
+         * @param commandId The ID of the command for which to edit the keybinding.
+         */
+        export function editKeybinding(commandId: string): Thenable<void>;
     }
 
     /**

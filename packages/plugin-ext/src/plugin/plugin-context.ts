@@ -417,6 +417,9 @@ export function createAPIFactory(
             getKeyBinding(commandId: string): PromiseLike<theia.CommandKeyBinding[] | undefined> {
                 return commandRegistry.getKeyBinding(commandId);
             },
+            editKeybinding(commandId: string): PromiseLike<void> {
+                return commandRegistry.editKeybinding(commandId);
+            },
             getCommands(filterInternal: boolean = false): PromiseLike<string[]> {
                 return commandRegistry.getCommands(filterInternal);
             },

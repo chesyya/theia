@@ -20,10 +20,12 @@ import * as theia from '@theia/plugin';
 import { Disposable, DisposableCollection } from '@theia/core/lib/common/disposable';
 import { CommandRegistryMain, CommandRegistryExt, MAIN_RPC_CONTEXT } from '../../common/plugin-api-rpc';
 import { RPCProtocol } from '../../common/rpc-protocol';
-import { KeybindingRegistry } from '@theia/core/lib/browser';
+import { KeybindingRegistry, SingleTextInputDialog, KeySequence } from '@theia/core/lib/browser';
 import { PluginContributionHandler } from './plugin-contribution-handler';
 import { ArgumentProcessor } from '../../common/commands';
 import { ContributionProvider } from '@theia/core';
+import { KeymapsService } from '@theia/keymaps/lib/browser/keymaps-service';
+import { nls } from '@theia/core/lib/common/nls';
 
 export const ArgumentProcessorContribution = Symbol('ArgumentProcessorContribution');
 
@@ -34,6 +36,7 @@ export class CommandRegistryMainImpl implements CommandRegistryMain, Disposable 
     private readonly delegate: CommandRegistry;
     private readonly keyBinding: KeybindingRegistry;
     private readonly contributions: PluginContributionHandler;
+    private readonly keymapsService: KeymapsService;
 
     private readonly argumentProcessors: ArgumentProcessor[] = [];
 
@@ -44,6 +47,7 @@ export class CommandRegistryMainImpl implements CommandRegistryMain, Disposable 
         this.delegate = container.get(CommandRegistry);
         this.keyBinding = container.get(KeybindingRegistry);
         this.contributions = container.get(PluginContributionHandler);
+        this.keymapsService = container.get(KeymapsService);
 
         container.getNamed<ContributionProvider<ArgumentProcessor>>(ContributionProvider, ArgumentProcessorContribution).getContributions().forEach(processor => {
             this.registerArgumentProcessor(processor);
@@ -125,6 +129,72 @@ export class CommandRegistryMainImpl implements CommandRegistryMain, Disposable 
 
     $getCommands(): PromiseLike<string[]> {
         return Promise.resolve(this.delegate.commandIds);
+    }
+
+    async $editKeybinding(commandId: string): Promise<void> {
+        try {
+            // Get command
+            const command = this.delegate.getCommand(commandId);
+            if (!command) {
+                throw new Error(`Command '${commandId}' not found`);
+            }
+
+            // Get current keybindings
+            const keybindings = this.keyBinding.getKeybindingsForCommand(commandId);
+            const oldKeybinding = keybindings.length > 0 ? keybindings[0] : undefined;
+
+            // Get command label for dialog title
+            const commandLabel = command.label
+                ? (command.category ? `${command.category}: ${command.label}` : command.label)
+                : command.id;
+
+            // Create and open dialog
+            const dialog = new SingleTextInputDialog({
+                title: nls.localize('theia/keymaps/editKeybindingTitle', 'Edit Keybinding for {0}', commandLabel),
+                maxWidth: 400,
+                initialValue: oldKeybinding?.keybinding,
+                validate: newKeybinding => this.validateKeybinding(commandId, oldKeybinding?.keybinding, newKeybinding),
+            });
+
+            const newKeybinding = await dialog.open();
+
+            // Save keybinding if changed
+            if (newKeybinding && newKeybinding !== oldKeybinding?.keybinding) {
+                await this.keymapsService.setKeybinding({
+                    ...oldKeybinding,
+                    command: commandId,
+                    keybinding: newKeybinding
+                }, oldKeybinding);
+            }
+        } catch (e) {
+            throw new Error(`Failed to edit keybinding for command '${commandId}': ${e}`);
+        }
+    }
+
+    /**
+     * Validate the provided keybinding value.
+     * @param command the command id.
+     * @param oldKeybinding the old keybinding value.
+     * @param keybinding the new keybinding value.
+     * @returns error message or empty string if valid.
+     */
+    protected validateKeybinding(command: string, oldKeybinding: string | undefined, keybinding: string): string {
+        if (!keybinding) {
+            return nls.localize('theia/keymaps/requiredKeybindingValidation', 'keybinding value is required');
+        }
+        try {
+            const binding = { command, keybinding };
+            KeySequence.parse(keybinding);
+            if (oldKeybinding === keybinding) {
+                return ''; // if old and new keybindings match, quietly reject update
+            }
+            if (this.keyBinding.containsKeybindingInScope(binding)) {
+                return nls.localize('theia/keymaps/keybindingCollidesValidation', 'keybinding currently collides');
+            }
+            return '';
+        } catch (error) {
+            return error;
+        }
     }
 
 }

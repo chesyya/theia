@@ -294,6 +294,7 @@ export interface CommandRegistryMain {
     $executeCommand<T>(id: string, ...args: any[]): PromiseLike<T | undefined>;
     $getCommands(): PromiseLike<string[]>;
     $getKeyBinding(commandId: string): PromiseLike<theia.CommandKeyBinding[] | undefined>;
+    $editKeybinding(commandId: string): PromiseLike<void>;
 
     registerArgumentProcessor(processor: ArgumentProcessor): void;
 }

@@ -119,6 +119,10 @@ export class CommandRegistryImpl implements CommandRegistryExt {
         return this.proxy.$getKeyBinding(commandId);
     }
 
+    editKeybinding(commandId: string): PromiseLike<void> {
+        return this.proxy.$editKeybinding(commandId);
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private async executeLocalCommand<T>(id: string, ...args: any[]): Promise<T | undefined> {
         const handler = this.handlers.get(id);
