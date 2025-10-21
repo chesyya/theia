@@ -164,7 +164,15 @@ describe('CommandRegistryMainImpl', () => {
 
     describe('$getCommands', () => {
         it('should return all command ids', async () => {
-            commandRegistry.commandIds = ['command1', 'command2', 'command3'];
+            // Create a new mock with writable commandIds
+            const mockCommandRegistry = {
+                getCommand: sinon.stub(),
+                get commandIds() { return ['command1', 'command2', 'command3']; },
+                executeCommand: sinon.stub()
+            } as any;
+
+            container.rebind(CommandRegistry).toConstantValue(mockCommandRegistry);
+            commandRegistryMain = new CommandRegistryMainImpl(rpcProtocol, container);
 
             const result = await commandRegistryMain.$getCommands();
             expect(result).to.deep.equal(['command1', 'command2', 'command3']);

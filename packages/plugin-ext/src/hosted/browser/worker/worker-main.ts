@@ -191,7 +191,8 @@ const handler = {
             defaultApi = apiFactory(emptyPlugin);
         }
 
-        return defaultApi;
+        // Return the property from defaultApi, not the whole defaultApi object
+        return (defaultApi as any)[name];
     }
 };
 ctx['theia'] = new Proxy(Object.create(null), handler);

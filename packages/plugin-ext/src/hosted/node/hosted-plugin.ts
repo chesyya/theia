@@ -66,7 +66,10 @@ export class HostedPluginSupport {
     }
 
     runPlugin(plugin: PluginModel): void {
-        if (!plugin.entryPoint.frontend) {
+        console.error(`[HostedPluginSupport] runPlugin called for: ${plugin.name}, entryPoint: ${JSON.stringify(plugin.entryPoint)}`);
+        // Run backend server if plugin has backend or headless entry point
+        if (plugin.entryPoint.backend || plugin.entryPoint.headless) {
+            console.error(`[HostedPluginSupport] Starting plugin server for backend: ${plugin.name}`);
             this.runPluginServer();
         }
     }

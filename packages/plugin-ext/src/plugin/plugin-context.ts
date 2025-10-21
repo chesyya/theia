@@ -1618,7 +1618,16 @@ export class Plugin<T> implements theia.Plugin<T> {
         this.id = plugin.model.id;
         this.pluginPath = plugin.pluginFolder;
         this.packageJSON = plugin.rawModel;
-        this.pluginType = plugin.model.entryPoint.frontend ? 'frontend' : 'backend';
+
+        // Determine plugin type based on current execution environment
+        // If we're in a frontend host (UI kind), treat as frontend
+        // Otherwise, if we have a backend entry point, treat as backend
+        const isInFrontendHost = pluginManager.getPluginKind() === ExtensionKind.UI;
+        if (isInFrontendHost && plugin.model.entryPoint.frontend) {
+            this.pluginType = 'frontend';
+        } else {
+            this.pluginType = 'backend';
+        }
 
         if (this.pluginType === 'frontend') {
             const { origin } = new Endpoint();

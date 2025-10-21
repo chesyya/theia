@@ -111,10 +111,18 @@ export class HostedPluginServerImpl implements HostedPluginServer {
     }
 
     async getDeployedPluginIds(): Promise<PluginIdentifiers.VersionedId[]> {
+        console.error('[PluginService] getDeployedPluginIds() called');
         const backendPlugins = (await this.deployerHandler.getDeployedBackendPlugins())
             .filter(this.backendPluginHostableFilter);
+        console.error(`[PluginService] Found ${backendPlugins.length} backend plugins`);
         if (backendPlugins.length > 0) {
+            console.error('[PluginService] Starting plugin server...');
             this.hostedPlugin.runPluginServer(this.getServerName());
+            // Also run each backend plugin individually
+            for (const backendPlugin of backendPlugins) {
+                console.error(`[PluginService] Running plugin: ${backendPlugin.metadata.model.name}`);
+                this.hostedPlugin.runPlugin(backendPlugin.metadata.model);
+            }
         }
         const plugins = new Set<PluginIdentifiers.VersionedId>();
         const addIds = async (identifiers: PluginIdentifiers.VersionedId[]): Promise<void> => {
@@ -127,6 +135,7 @@ export class HostedPluginServerImpl implements HostedPluginServer {
         addIds(await this.deployerHandler.getDeployedFrontendPluginIds());
         addIds(await this.deployerHandler.getDeployedBackendPluginIds());
         addIds(await this.hostedPlugin.getExtraDeployedPluginIds());
+        console.error(`[PluginService] Total deployed plugin IDs: ${Array.from(plugins).length}`);
         return Array.from(plugins);
     }
 

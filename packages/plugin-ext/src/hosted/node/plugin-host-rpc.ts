@@ -184,6 +184,8 @@ export abstract class AbstractPluginHostRPC<PM extends AbstractPluginManagerExtI
 
                         const rawModel = await loadManifest(pluginModel.packagePath);
                         rawModel.packagePath = pluginModel.packagePath;
+
+                        // Support plugins with both frontend and backend entry points
                         if (pluginModel.entryPoint!.frontend) {
                             foreign.push({
                                 pluginPath: pluginModel.entryPoint.frontend!,
@@ -194,7 +196,14 @@ export abstract class AbstractPluginHostRPC<PM extends AbstractPluginManagerExtI
                                 rawModel,
                                 isUnderDevelopment: !!plg.isUnderDevelopment
                             });
-                        } else {
+                        }
+
+                        // Load backend if it exists (even if frontend also exists)
+                        if (pluginModel.entryPoint!.backend || pluginModel.entryPoint!.headless) {
+                            console.log(self.banner, `[DEBUG] Loading backend for plugin: ${pluginModel.name}`);
+                            console.log(self.banner, `[DEBUG] Backend entryPoint:`, pluginModel.entryPoint.backend);
+                            console.log(self.banner, `[DEBUG] Frontend entryPoint:`, pluginModel.entryPoint.frontend);
+
                             // Headless and backend plugins are, for now, very similar
                             let backendInitPath = pluginLifecycle.backendInitPath;
                             // if no init path, try to init as regular Theia plugin
@@ -203,6 +212,9 @@ export abstract class AbstractPluginHostRPC<PM extends AbstractPluginManagerExtI
                             }
 
                             const pluginPath = self.getBackendPluginPath(pluginModel);
+                            console.log(self.banner, `[DEBUG] Backend plugin path:`, pluginPath);
+                            console.log(self.banner, `[DEBUG] Backend init path:`, backendInitPath);
+
                             const plugin: Plugin = {
                                 pluginPath,
                                 pluginFolder: pluginModel.packagePath,
@@ -214,11 +226,13 @@ export abstract class AbstractPluginHostRPC<PM extends AbstractPluginManagerExtI
                             };
 
                             if (backendInitPath) {
+                                console.log(self.banner, `[DEBUG] Calling initContext for backend plugin`);
                                 self.initContext(backendInitPath, plugin);
                             } else {
                                 const { name, version } = plugin.rawModel;
                                 console.debug(self.banner, 'initializing(' + name + '@' + version + ' without any default API)');
                             }
+                            console.log(self.banner, `[DEBUG] Pushing backend plugin to result array`);
                             result.push(plugin);
                         }
                     } catch (e) {

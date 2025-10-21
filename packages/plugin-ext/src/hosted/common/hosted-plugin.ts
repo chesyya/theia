@@ -304,10 +304,35 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
 
             if (contributions.state === PluginContributions.State.LOADED) {
                 contributions.state = PluginContributions.State.STARTING;
-                const host = plugin.model.entryPoint.frontend ? 'frontend' : plugin.host;
-                const dynamicContributions = hostContributions.get(host) || [];
-                dynamicContributions.push(contributions);
-                hostContributions.set(host, dynamicContributions);
+
+                // Support plugins with both frontend and backend entry points
+                const hasFrontend = !!plugin.model.entryPoint.frontend;
+                const hasBackend = !!plugin.model.entryPoint.backend || !!plugin.model.entryPoint.headless;
+
+                // Add to frontend host if has frontend entry point
+                if (hasFrontend) {
+                    const frontendContributions = hostContributions.get('frontend') || [];
+                    frontendContributions.push(contributions);
+                    hostContributions.set('frontend', frontendContributions);
+                    console.log(`[${this.clientId}][${pluginId}]: Added to 'frontend' host`);
+                }
+
+                // Add to backend host if has backend entry point (and no frontend, or both)
+                if (hasBackend) {
+                    const backendContributions = hostContributions.get(plugin.host) || [];
+                    backendContributions.push(contributions);
+                    hostContributions.set(plugin.host, backendContributions);
+                    console.log(`[${this.clientId}][${pluginId}]: Added to '${plugin.host}' host`);
+                }
+
+                // Fallback: if no entry points, use the plugin's host
+                if (!hasFrontend && !hasBackend) {
+                    const defaultContributions = hostContributions.get(plugin.host) || [];
+                    defaultContributions.push(contributions);
+                    hostContributions.set(plugin.host, defaultContributions);
+                    console.log(`[${this.clientId}][${pluginId}]: Added to '${plugin.host}' host (no entry points)`);
+                }
+
                 toDisconnect.push(Disposable.create(() => {
                     contributions!.state = PluginContributions.State.LOADED;
                     console.debug(`[${this.clientId}][${pluginId}]: Disconnected.`);
