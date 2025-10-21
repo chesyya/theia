@@ -2288,6 +2288,16 @@ export interface TestingMain {
     $notifyTestRunEnded(controllerId: string, runId: string): void;
 }
 
+export interface HelpDocPage {
+    title: string;
+    fileUrl: string;  // URL to the markdown file
+}
+
+export interface HelpDocumentationMain {
+    $registerDocumentation(urlPath: string, pages: { [pageId: string]: HelpDocPage }): Promise<void>;
+    $unregisterDocumentation(urlPath: string): Promise<void>;
+}
+
 export const PLUGIN_RPC_CONTEXT = {
     AUTHENTICATION_MAIN: <ProxyIdentifier<AuthenticationMain>>createProxyIdentifier<AuthenticationMain>('AuthenticationMain'),
     COMMAND_REGISTRY_MAIN: <ProxyIdentifier<CommandRegistryMain>>createProxyIdentifier<CommandRegistryMain>('CommandRegistryMain'),
@@ -2332,7 +2342,8 @@ export const PLUGIN_RPC_CONTEXT = {
     TELEMETRY_MAIN: <ProxyIdentifier<TelemetryMain>>createProxyIdentifier<TelemetryMain>('TelemetryMain'),
     LOCALIZATION_MAIN: <ProxyIdentifier<LocalizationMain>>createProxyIdentifier<LocalizationMain>('LocalizationMain'),
     TESTING_MAIN: createProxyIdentifier<TestingMain>('TestingMain'),
-    URI_MAIN: createProxyIdentifier<UriMain>('UriMain')
+    URI_MAIN: createProxyIdentifier<UriMain>('UriMain'),
+    HELP_DOCUMENTATION_MAIN: createProxyIdentifier<HelpDocumentationMain>('HelpDocumentationMain')
 };
 
 export const MAIN_RPC_CONTEXT = {

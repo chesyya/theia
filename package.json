@@ -118,5 +118,9 @@
     "vscode.microsoft-authentication",
     "ms-vscode.references-view",
     "ms-python.vscode-pylance"
-  ]
+  ],
+  "dependencies": {
+    "@types/marked": "^6.0.0",
+    "marked": "^16.4.1"
+  }
 }

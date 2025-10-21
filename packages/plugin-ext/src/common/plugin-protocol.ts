@@ -619,6 +619,7 @@ export interface PluginContribution {
     notebooks?: NotebookContribution[];
     notebookRenderer?: NotebookRendererContribution[];
     notebookPreload?: notebookPreloadContribution[];
+    helpDocumentation?: HelpDocumentationContribution;
 }
 export interface NotebookContribution {
     type: string;
@@ -638,6 +639,19 @@ export interface NotebookRendererContribution {
 export interface notebookPreloadContribution {
     type: string;
     entrypoint: string;
+}
+
+export interface HelpDocumentationContribution {
+    urlPath: string;
+    main: {
+        title: string;
+        file: string;
+    };
+    pages?: Array<{
+        id: string;
+        title: string;
+        file: string;
+    }>;
 }
 
 export interface AuthenticationProviderInformation {

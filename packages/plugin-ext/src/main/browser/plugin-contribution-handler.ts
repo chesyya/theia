@@ -54,6 +54,7 @@ import { PluginTerminalRegistry } from './plugin-terminal-registry';
 import { ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 import { LanguageService } from '@theia/core/lib/browser/language-service';
 import { ThemeIcon } from '@theia/monaco-editor-core/esm/vs/base/common/themables';
+import { HelpDocumentationMainImpl } from './help-documentation-main';
 
 @injectable()
 export class PluginContributionHandler {
@@ -143,6 +144,9 @@ export class PluginContributionHandler {
 
     @inject(ContextKeyService)
     protected readonly contextKeyService: ContextKeyService;
+
+    @inject(HelpDocumentationMainImpl)
+    protected readonly helpDocumentation: HelpDocumentationMainImpl;
 
     protected readonly commandHandlers = new Map<string, CommandHandler['execute'] | undefined>();
 
@@ -455,6 +459,12 @@ export class PluginContributionHandler {
             }
         }
 
+        if (contributions.helpDocumentation) {
+            pushContribution('helpDocumentation',
+                () => this.handleHelpDocumentation(plugin, contributions.helpDocumentation!)
+            );
+        }
+
         return toDispose;
     }
 
@@ -694,5 +704,40 @@ export class PluginContributionHandler {
                 break;
         }
         return { indentAction, appendText: action.appendText, removeText: action.removeText };
+    }
+
+    protected handleHelpDocumentation(plugin: DeployedPlugin, helpDoc: any): Disposable {
+        const urlPath = helpDoc.urlPath;
+        const pluginUrl = PluginPackage.toPluginUrl(plugin.metadata.model, '');
+
+        console.log(`[PluginContributionHandler] Registering help documentation for ${plugin.metadata.model.id} at /plugins/${urlPath}`);
+        console.log(`[PluginContributionHandler] Plugin URL: ${pluginUrl}`);
+
+        // Build pages map with file URLs
+        const pages: { [pageId: string]: { title: string; fileUrl: string } } = {};
+
+        // Add main page
+        pages['main'] = {
+            title: helpDoc.main.title,
+            fileUrl: pluginUrl + helpDoc.main.file
+        };
+
+        // Add sub pages
+        if (helpDoc.pages) {
+            for (const page of helpDoc.pages) {
+                pages[page.id] = {
+                    title: page.title,
+                    fileUrl: pluginUrl + page.file
+                };
+            }
+        }
+
+        // Register documentation via RPC
+        this.helpDocumentation.$registerDocumentation(urlPath, pages);
+
+        return Disposable.create(() => {
+            // Unregister when plugin is unloaded
+            this.helpDocumentation.$unregisterDocumentation(urlPath);
+        });
     }
 }
