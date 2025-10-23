@@ -148,14 +148,24 @@ export class MenuModelRegistry {
         const menuId = menuPath[index];
         const groupPath = index === 0 ? [] : menuPath.slice(0, index);
         const parent = this.findGroup(groupPath, options);
-        let groupNode = this.findSubMenu(parent, menuId, options);
-        let disposable = Disposable.NULL;
-        if (!groupNode) {
-            groupNode = new CompositeMenuNode(menuId, label, options, parent);
-            disposable = this.changeEventOnDispose(parent.addNode(groupNode));
-        } else {
+
+        // Check if node exists WITHOUT auto-creating it
+        const existingNode = parent.children.find(e => e.id === menuId);
+        let groupNode: MutableCompoundMenuNode;
+        let disposable: Disposable;
+
+        if (CompoundMenuNode.isMutable(existingNode)) {
+            // Node already exists, just update its options
+            groupNode = existingNode;
             groupNode.updateOptions({ ...options, label });
+            disposable = Disposable.NULL;
+        } else {
+            // Create new node
+            groupNode = new CompositeMenuNode(menuId, label, options, parent);
+            const nodeDisposable = parent.addNode(groupNode);
+            disposable = this.changeEventOnDispose(nodeDisposable);
         }
+
         this.fireChangeEvent();
         return disposable;
     }
