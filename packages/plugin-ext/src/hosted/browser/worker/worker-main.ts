@@ -36,6 +36,26 @@ import { DebugExtImpl } from '../../../plugin/debug/debug-ext';
 import { LocalizationExtImpl } from '../../../plugin/localization-ext';
 import pluginHostModule from './worker-plugin-module';
 
+// Fix for @phosphor/coreutils environment detection issue:
+// When webpack config includes crypto-browserify fallback, @phosphor/coreutils
+// incorrectly detects the Worker environment as Node.js because webpack's
+// require() function exists. This causes it to try using crypto-browserify
+// instead of the native Web Crypto API (self.crypto), leading to initialization
+// failures when crypto-browserify tries to access Node.js globals like 'process'.
+//
+// By ensuring 'window' is defined in the Worker context, @phosphor/coreutils
+// will correctly use self.crypto.getRandomValues() for UUID generation.
+// See: node_modules/@phosphor/coreutils/lib/random.js line 34-35
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+if (typeof (self as any).window === 'undefined') {
+    // In Web Worker, expose crypto via window to help @phosphor/coreutils
+    // detect the browser environment correctly
+    (self as any).window = {
+        crypto: self.crypto || (self as any).crypto,
+        msCrypto: (self as any).msCrypto
+    };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ctx = self as any;
 
