@@ -483,7 +483,17 @@ export class TheiaPluginScanner extends AbstractPluginScanner {
                 } else {
                     return { iconUrl: this.toPluginUrl(plugin, original) };
                 }
+            } else if ('default' in original) {
+                // Handle InteractiveIconUrl
+                return {
+                    iconUrl: {
+                        default: this.transformIconUrlValue(plugin, original.default),
+                        hover: original.hover ? this.transformIconUrlValue(plugin, original.hover) : undefined,
+                        active: original.active ? this.transformIconUrlValue(plugin, original.active) : undefined
+                    }
+                };
             } else {
+                // Handle ThemeIconUrl
                 return {
                     iconUrl: {
                         light: this.toPluginUrl(plugin, original.light),
@@ -491,6 +501,17 @@ export class TheiaPluginScanner extends AbstractPluginScanner {
                     }
                 };
             }
+        }
+    }
+
+    protected transformIconUrlValue(plugin: PluginPackage, value: string | { light: string; dark: string }): string | { light: string; dark: string } {
+        if (typeof value === 'string') {
+            return this.toPluginUrl(plugin, value);
+        } else {
+            return {
+                light: this.toPluginUrl(plugin, value.light),
+                dark: this.toPluginUrl(plugin, value.dark)
+            };
         }
     }
 

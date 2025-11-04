@@ -474,7 +474,7 @@ export interface TerminalServiceMain {
 }
 
 export interface TerminalOptions extends theia.TerminalOptions {
-    iconUrl?: string | { light: string; dark: string } | ThemeIcon;
+    iconUrl?: IconUrl | ThemeIcon;
 }
 
 export interface AutoFocus {
@@ -659,7 +659,7 @@ export interface TransferQuickPickItem {
     handle: number;
     kind: 'item' | 'separator',
     label: string;
-    iconUrl?: string | { light: string; dark: string } | ThemeIcon;
+    iconUrl?: IconUrl | ThemeIcon;
     description?: string;
     detail?: string;
     picked?: boolean;
@@ -683,7 +683,7 @@ export interface TransferQuickPickOptions<T extends TransferQuickPickItem> {
 
 export interface TransferQuickInputButton {
     handle?: number;
-    readonly iconUrl?: string | { light: string; dark: string } | ThemeIcon;
+    readonly iconUrl?: IconUrl | ThemeIcon;
     readonly tooltip?: string | undefined;
 }
 

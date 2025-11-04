@@ -1255,26 +1255,37 @@ export function fromColorPresentation(colorPresentation: theia.ColorPresentation
     };
 }
 
-export function convertIconPath(iconPath: types.URI | { light: types.URI; dark: types.URI } | theia.ThemeIcon | undefined):
-    UriComponents | { light: UriComponents; dark: UriComponents } | ThemeIcon | undefined {
+export function convertIconPath(iconPath: theia.IconPath | undefined):
+    UriComponents | { light: UriComponents; dark: UriComponents } | ThemeIcon |
+    { default: any; hover?: any; active?: any } | undefined {
     if (!iconPath) {
         return undefined;
     }
     if (iconPath instanceof types.URI) {
         return iconPath.toJSON();
-    } else if ('dark' in iconPath) {
-        return {
-            dark: iconPath.dark.toJSON(),
-            light: iconPath.light?.toJSON()
-        };
     } else if (ThemeIcon.is(iconPath)) {
         return {
             id: iconPath.id,
             color: iconPath.color ? { id: iconPath.color.id } : undefined
         };
-    } else {
-        return undefined;
+    } else if (typeof iconPath === 'object') {
+        // Check for InteractiveIconPath
+        if ('default' in iconPath) {
+            return {
+                default: convertIconPath(iconPath.default),
+                hover: iconPath.hover ? convertIconPath(iconPath.hover) : undefined,
+                active: iconPath.active ? convertIconPath(iconPath.active) : undefined
+            };
+        }
+        // Check for ThemeIconPath
+        if ('light' in iconPath && 'dark' in iconPath) {
+            return {
+                dark: iconPath.dark.toJSON(),
+                light: iconPath.light.toJSON()
+            };
+        }
     }
+    return undefined;
 }
 
 export function convertQuickInputButton(plugin: Plugin, button: theia.QuickInputButton, index: number): rpc.TransferQuickInputButton {

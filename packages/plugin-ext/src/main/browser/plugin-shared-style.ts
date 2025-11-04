@@ -116,32 +116,111 @@ export class PluginSharedStyle {
         const iconUrl = key.url;
         const size = key.size ?? DEFAULT_ICON_SIZE;
         const type = key.type ?? 'icon';
-        const darkIconUrl = PluginSharedStyle.toExternalIconUrl(`${typeof iconUrl === 'object' ? iconUrl.dark : iconUrl}`);
-        const lightIconUrl = PluginSharedStyle.toExternalIconUrl(`${typeof iconUrl === 'object' ? iconUrl.light : iconUrl}`);
 
         const toDispose = new DisposableCollection();
         let iconClass = 'plugin-icon-' + this.iconSequence++;
-        if (type === 'icon') {
-            toDispose.push(this.insertRule('.' + iconClass + '::before', theme => `
+
+        // Check if this is an interactive icon with default/hover/active states
+        if (typeof iconUrl === 'object' && 'default' in iconUrl) {
+            // Handle interactive icon path
+            const { default: defaultIcon, hover: hoverIcon, active: activeIcon } = iconUrl;
+
+            // Add default state CSS rule
+            const defaultUrls = this.extractIconUrls(defaultIcon);
+            if (type === 'icon') {
+                toDispose.push(this.insertRule('.' + iconClass + '::before', theme => `
                     content: "";
                     background-position: 2px;
                     display: block;
                     width: ${size}px;
                     height: ${size}px;
-                    background: center no-repeat url("${theme.type === 'light' ? lightIconUrl : darkIconUrl}");
+                    background: center no-repeat url("${theme.type === 'light' ? defaultUrls.light : defaultUrls.dark}");
                     background-size: ${size}px;
                 `));
-        } else {
-            toDispose.push(this.insertRule('.' + iconClass + '::before', theme => `
+            } else {
+                toDispose.push(this.insertRule('.' + iconClass + '::before', theme => `
                     content: "";
-                    background-image: url("${theme.type === 'light' ? lightIconUrl : darkIconUrl}");
+                    background-image: url("${theme.type === 'light' ? defaultUrls.light : defaultUrls.dark}");
                     background-size: ${DEFAULT_ICON_SIZE}px;
                     background-position: left center;
                     background-repeat: no-repeat;
                 `));
-            iconClass += ' ' + PLUGIN_FILE_ICON_CLASS;
+            }
+
+            // Add hover state CSS rule if provided
+            if (hoverIcon) {
+                const hoverUrls = this.extractIconUrls(hoverIcon);
+                if (type === 'icon') {
+                    toDispose.push(this.insertRule('.' + iconClass + ':hover::before', theme => `
+                        background: center no-repeat url("${theme.type === 'light' ? hoverUrls.light : hoverUrls.dark}");
+                        background-size: ${size}px;
+                    `));
+                } else {
+                    toDispose.push(this.insertRule('.' + iconClass + ':hover::before', theme => `
+                        background-image: url("${theme.type === 'light' ? hoverUrls.light : hoverUrls.dark}");
+                    `));
+                }
+            }
+
+            // Add active state CSS rule if provided
+            if (activeIcon) {
+                const activeUrls = this.extractIconUrls(activeIcon);
+                if (type === 'icon') {
+                    toDispose.push(this.insertRule('.' + iconClass + '.theia-mod-active::before', theme => `
+                        background: center no-repeat url("${theme.type === 'light' ? activeUrls.light : activeUrls.dark}");
+                        background-size: ${size}px;
+                    `));
+                } else {
+                    toDispose.push(this.insertRule('.' + iconClass + '.theia-mod-active::before', theme => `
+                        background-image: url("${theme.type === 'light' ? activeUrls.light : activeUrls.dark}");
+                    `));
+                }
+            }
+
+            if (type === 'file') {
+                iconClass += ' ' + PLUGIN_FILE_ICON_CLASS;
+            }
+        } else {
+            // Handle simple or theme-aware icon (backward compatibility)
+            const iconUrls = this.extractIconUrls(iconUrl);
+
+            if (type === 'icon') {
+                toDispose.push(this.insertRule('.' + iconClass + '::before', theme => `
+                    content: "";
+                    background-position: 2px;
+                    display: block;
+                    width: ${size}px;
+                    height: ${size}px;
+                    background: center no-repeat url("${theme.type === 'light' ? iconUrls.light : iconUrls.dark}");
+                    background-size: ${size}px;
+                `));
+            } else {
+                toDispose.push(this.insertRule('.' + iconClass + '::before', theme => `
+                    content: "";
+                    background-image: url("${theme.type === 'light' ? iconUrls.light : iconUrls.dark}");
+                    background-size: ${DEFAULT_ICON_SIZE}px;
+                    background-position: left center;
+                    background-repeat: no-repeat;
+                `));
+                iconClass += ' ' + PLUGIN_FILE_ICON_CLASS;
+            }
         }
+
         return { iconClass, dispose: () => toDispose.dispose() };
+    }
+
+    /**
+     * Extract light and dark icon URLs from various icon formats
+     */
+    protected extractIconUrls(iconUrl: string | { light: string; dark: string }): { light: string; dark: string } {
+        if (typeof iconUrl === 'object' && 'light' in iconUrl) {
+            return {
+                light: PluginSharedStyle.toExternalIconUrl(iconUrl.light),
+                dark: PluginSharedStyle.toExternalIconUrl(iconUrl.dark)
+            };
+        }
+        const url = PluginSharedStyle.toExternalIconUrl(`${iconUrl}`);
+        return { light: url, dark: url };
     }
 
     static toExternalIconUrl(iconUrl: string): string {

@@ -453,24 +453,68 @@ export class WebviewWidget extends BaseWidget implements StatefulWidget, Extract
     protected iconUrl: IconUrl | undefined;
     protected readonly toDisposeOnIcon = new DisposableCollection();
     setIconUrl(iconUrl: IconUrl | undefined): void {
-        if ((this.iconUrl && iconUrl && JSONExt.deepEqual(this.iconUrl, iconUrl)) || (this.iconUrl === iconUrl)) {
+        if ((this.iconUrl && iconUrl && JSONExt.deepEqual(this.iconUrl as any, iconUrl as any)) || (this.iconUrl === iconUrl)) {
             return;
         }
         this.toDisposeOnIcon.dispose();
         this.toDispose.push(this.toDisposeOnIcon);
         this.iconUrl = iconUrl;
         if (iconUrl) {
-            const darkIconUrl = typeof iconUrl === 'object' ? iconUrl.dark : iconUrl;
-            const lightIconUrl = typeof iconUrl === 'object' ? iconUrl.light : iconUrl;
             const iconClass = `webview-${this.identifier.id}-file-icon`;
-            this.toDisposeOnIcon.push(this.sharedStyle.insertRule(
-                `.theia-webview-icon.${iconClass}::before`,
-                theme => `background-image: url(${this.toEndpoint(theme.type === 'light' ? lightIconUrl : darkIconUrl)});`
-            ));
-            this.title.iconClass = `theia-webview-icon ${iconClass}`;
+
+            // Check if this is an interactive icon with default/hover/active states
+            if (typeof iconUrl === 'object' && 'default' in iconUrl) {
+                // Handle interactive icon path
+                const { default: defaultIcon, hover: hoverIcon, active: activeIcon } = iconUrl;
+
+                // Add default state CSS rule
+                const defaultUrls = this.getIconUrls(defaultIcon);
+                this.toDisposeOnIcon.push(this.sharedStyle.insertRule(
+                    `.theia-webview-icon.${iconClass}::before`,
+                    theme => `background-image: url(${this.toEndpoint(theme.type === 'light' ? defaultUrls.light : defaultUrls.dark)});`
+                ));
+
+                // Add hover state CSS rule if provided
+                if (hoverIcon) {
+                    const hoverUrls = this.getIconUrls(hoverIcon);
+                    this.toDisposeOnIcon.push(this.sharedStyle.insertRule(
+                        `.p-TabBar-tab:hover .theia-webview-icon.${iconClass}::before`,
+                        theme => `background-image: url(${this.toEndpoint(theme.type === 'light' ? hoverUrls.light : hoverUrls.dark)});`
+                    ));
+                }
+
+                // Add active state CSS rule if provided
+                if (activeIcon) {
+                    const activeUrls = this.getIconUrls(activeIcon);
+                    this.toDisposeOnIcon.push(this.sharedStyle.insertRule(
+                        `.p-TabBar-tab.theia-mod-active .theia-webview-icon.${iconClass}::before`,
+                        theme => `background-image: url(${this.toEndpoint(theme.type === 'light' ? activeUrls.light : activeUrls.dark)});`
+                    ));
+                }
+
+                this.title.iconClass = `theia-webview-icon ${iconClass}`;
+            } else {
+                // Handle simple or theme-aware icon (backward compatibility)
+                const iconUrls = this.getIconUrls(iconUrl);
+                this.toDisposeOnIcon.push(this.sharedStyle.insertRule(
+                    `.theia-webview-icon.${iconClass}::before`,
+                    theme => `background-image: url(${this.toEndpoint(theme.type === 'light' ? iconUrls.light : iconUrls.dark)});`
+                ));
+                this.title.iconClass = `theia-webview-icon ${iconClass}`;
+            }
         } else {
             this.title.iconClass = '';
         }
+    }
+
+    /**
+     * Extract light and dark icon URLs from various icon formats
+     */
+    protected getIconUrls(iconUrl: string | { light: string; dark: string }): { light: string; dark: string } {
+        if (typeof iconUrl === 'object' && 'light' in iconUrl) {
+            return { light: iconUrl.light, dark: iconUrl.dark };
+        }
+        return { light: iconUrl, dark: iconUrl };
     }
 
     protected toEndpoint(pathname: string): string {

@@ -28,6 +28,7 @@ import {
     TransferQuickInputButton,
     TransferQuickPickOptions
 } from '../../common/plugin-api-rpc';
+import { IconUrl } from '../../common/plugin-protocol';
 import {
     InputOptions,
     QuickInput,
@@ -105,20 +106,25 @@ export class QuickOpenMainImpl implements QuickOpenMain, Disposable {
         return item?.kind === 'item';
     }
 
-    private toIconClasses(path: { light: string; dark: string } | ThemeIcon | string | undefined): string[] {
+    private toIconClasses(path: IconUrl | ThemeIcon | undefined): string[] {
         const iconClasses: string[] = [];
         if (ThemeIcon.isThemeIcon(path)) {
             const codicon = codiconArray(path.id);
             iconClasses.push(...codicon);
         } else if (path) {
-            const iconReference = this.sharedStyle.toIconClass(path);
+            // For InteractiveIconUrl, use only the default state for quick pick items
+            let iconPath = path;
+            if (typeof path === 'object' && 'default' in path) {
+                iconPath = path.default;
+            }
+            const iconReference = this.sharedStyle.toIconClass(iconPath);
             this.toDispose.push(iconReference);
             iconClasses.push(iconReference.object.iconClass);
         }
         return iconClasses;
     }
 
-    private toIconClass(path: { light: string; dark: string } | ThemeIcon | string | undefined): string {
+    private toIconClass(path: IconUrl | ThemeIcon | undefined): string {
         return this.toIconClasses(path).join(' ');
     }
 

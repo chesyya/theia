@@ -2741,10 +2741,9 @@ export module '@theia/plugin' {
     }
 
     /**
-     * Represents an icon in the UI. This is either an uri, separate uris for the light- and dark-themes,
-     * or a {@link ThemeIcon theme icon}.
+     * Represents theme-aware icon paths for light and dark themes.
      */
-    export type IconPath = Uri | {
+    export interface ThemeIconPath {
         /**
          * The icon path for the light theme.
          */
@@ -2753,7 +2752,37 @@ export module '@theia/plugin' {
          * The icon path for the dark theme.
          */
         dark: Uri;
-    } | ThemeIcon;
+    }
+
+    /**
+     * Represents interactive icon paths for different interaction states.
+     * Supports default, hover, and active states with theme awareness.
+     */
+    export interface InteractiveIconPath {
+        /**
+         * Icon for the default (normal) state.
+         */
+        default: Uri | ThemeIconPath;
+        /**
+         * Icon for the hover state (when mouse hovers over the element).
+         * If not provided, the default icon will be used.
+         */
+        hover?: Uri | ThemeIconPath;
+        /**
+         * Icon for the active state (when element is clicked or activated).
+         * If not provided, the default icon will be used.
+         */
+        active?: Uri | ThemeIconPath;
+    }
+
+    /**
+     * Represents an icon in the UI. This can be:
+     * - A simple URI for a single icon
+     * - Separate URIs for light and dark themes ({@link ThemeIconPath})
+     * - A theme icon ({@link ThemeIcon})
+     * - Interactive icons with different states ({@link InteractiveIconPath})
+     */
+    export type IconPath = Uri | ThemeIconPath | ThemeIcon | InteractiveIconPath;
 
     /**
      * Represents the state of a window.
@@ -4681,8 +4710,9 @@ export module '@theia/plugin' {
 
         /**
          * Icon for the panel shown in UI.
+         * Supports simple URI, theme-aware icons, and interactive icons with hover/active states.
          */
-        iconPath?: Uri | { light: Uri; dark: Uri };
+        iconPath?: IconPath;
 
         /**
          * Webview belonging to the panel.

@@ -869,7 +869,30 @@ export interface PluginCommand {
     enablement?: string;
 }
 
-export type IconUrl = string | { light: string; dark: string; };
+/**
+ * Theme-aware icon URLs for light and dark themes.
+ */
+export interface ThemeIconUrl {
+    light: string;
+    dark: string;
+}
+
+/**
+ * Interactive icon URLs for different interaction states.
+ */
+export interface InteractiveIconUrl {
+    /** Icon URL for the default (normal) state */
+    default: string | ThemeIconUrl;
+    /** Icon URL for the hover state */
+    hover?: string | ThemeIconUrl;
+    /** Icon URL for the active state */
+    active?: string | ThemeIconUrl;
+}
+
+/**
+ * Icon URL that can be a simple string, theme-aware, or interactive with multiple states.
+ */
+export type IconUrl = string | ThemeIconUrl | InteractiveIconUrl;
 
 /**
  * Menu contribution
