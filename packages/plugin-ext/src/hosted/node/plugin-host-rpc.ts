@@ -20,7 +20,7 @@ import { dynamicRequire, removeFromCache } from '@theia/core/lib/node/dynamic-re
 import { ContainerModule, inject, injectable, postConstruct, unmanaged } from '@theia/core/shared/inversify';
 import { AbstractPluginManagerExtImpl, PluginHost, PluginManagerExtImpl } from '../../plugin/plugin-manager';
 import {
-    MAIN_RPC_CONTEXT, Plugin, PluginAPIFactory, PluginManager,
+    MAIN_RPC_CONTEXT, PLUGIN_RPC_CONTEXT, Plugin, PluginAPIFactory, PluginManager,
     LocalizationExt
 } from '../../common/plugin-api-rpc';
 import { PluginMetadata, PluginModel } from '../../common/plugin-protocol';
@@ -43,6 +43,7 @@ import { LocalizationExtImpl } from '../../plugin/localization-ext';
 import { RPCProtocol, ProxyIdentifier } from '../../common/rpc-protocol';
 import { PluginApiCache } from '../../plugin/node/plugin-container-module';
 import { FileSystemInterceptor } from './file-system-interceptor';
+import { ModuleInterceptor } from './module-interceptor';
 
 /**
  * The full set of all possible `Ext` interfaces that a plugin manager can support.
@@ -117,6 +118,27 @@ export abstract class AbstractPluginHostRPC<PM extends AbstractPluginManagerExtI
         this.apiFactory = this.createAPIFactory(extInterfaces);
 
         this.loadContainerModule(new ContainerModule(bind => bind(PluginManager).toConstantValue(this.pluginManager)));
+
+        // 🔥 Set up module interception with permission service from frontend
+        this.setupModuleInterception();
+    }
+
+    /**
+     * Set up module interception with permission service (RPC proxy to frontend)
+     */
+    protected setupModuleInterception(): void {
+        try {
+            // Get MODULE_PERMISSION_MAIN proxy from RPC
+            const modulePermissionService = this.rpc.getProxy(PLUGIN_RPC_CONTEXT.MODULE_PERMISSION_MAIN);
+            if (modulePermissionService) {
+                console.log('[Plugin Host] Setting up module interception with permission service');
+                ModuleInterceptor.setPermissionService(modulePermissionService);
+            } else {
+                console.warn('[Plugin Host] Module permission service proxy not available');
+            }
+        } catch (error) {
+            console.error('[Plugin Host] Failed to setup module interception:', error);
+        }
     }
 
     async terminate(): Promise<void> {
@@ -176,8 +198,11 @@ export abstract class AbstractPluginHostRPC<PM extends AbstractPluginManagerExtI
                     console.log('FileSystemInterceptor module ID:', require.resolve('./file-system-interceptor'));
                     console.log('process.pid =', process.pid);
 
-
                     FileSystemInterceptor.interceptFsModule(plugin);
+
+                    // 🔥 Intercept all sensitive module access for the plugin
+                    console.log('[Plugin Host] Starting module interception for plugin:', plugin.model.id);
+                    ModuleInterceptor.startInterception(plugin);
 
                     return dynamicRequire(plugin.pluginPath);
                 }

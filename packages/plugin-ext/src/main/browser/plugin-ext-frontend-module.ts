@@ -92,11 +92,15 @@ import { ArgumentProcessorContribution } from './command-registry-main';
 import { WebviewSecondaryWindowSupport } from './webview/webview-secondary-window-support';
 import { CustomEditorUndoRedoHandler } from './custom-editors/custom-editor-undo-redo-handler';
 import { FileSystemPermissionService } from './file-system-permission-service';
+import { ModulePermissionService } from './module-permission-service';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
 
     // Register file system permission service
     bind(FileSystemPermissionService).toSelf().inSingletonScope();
+
+    // Register module permission service
+    bind(ModulePermissionService).toSelf().inSingletonScope();
 
     bind(LanguagesMainImpl).toSelf().inTransientScope();
     bind(LanguagesMainFactory).toFactory(context => (rpc: RPCProtocol) => {

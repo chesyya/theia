@@ -65,6 +65,7 @@ import { NotebookKernelsMainImpl } from './notebooks/notebook-kernels-main';
 import { NotebooksAndEditorsMain } from './notebooks/notebook-documents-and-editors-main';
 import { TestingMainImpl } from './test-main';
 import { UriMainImpl } from './uri-main';
+import { ModulePermissionService } from './module-permission-service';
 
 export function setUpPluginApi(rpc: RPCProtocol, container: interfaces.Container): void {
     const authenticationMain = new AuthenticationMainImpl(rpc, container);
@@ -207,4 +208,8 @@ export function setUpPluginApi(rpc: RPCProtocol, container: interfaces.Container
 
     const uriMain = new UriMainImpl(rpc, container);
     rpc.set(PLUGIN_RPC_CONTEXT.URI_MAIN, uriMain);
+
+    // Module permission service for intercepting sensitive module usage
+    const modulePermissionService = container.get(ModulePermissionService);
+    rpc.set(PLUGIN_RPC_CONTEXT.MODULE_PERMISSION_MAIN, modulePermissionService);
 }

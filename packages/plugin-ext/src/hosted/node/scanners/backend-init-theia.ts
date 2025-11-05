@@ -17,6 +17,7 @@
 import * as theia from '@theia/plugin';
 import { BackendInitializationFn } from '../../../common/plugin-protocol';
 import { PluginAPIFactory, Plugin, emptyPlugin } from '../../../common/plugin-api-rpc';
+import { ModuleInterceptor } from '../module-interceptor';
 
 const pluginsApiImpl = new Map<string, typeof theia>();
 const plugins = new Array<Plugin>();
@@ -47,22 +48,46 @@ function overrideInternalLoad(): void {
     // if we try to resolve theia module, return the filename entry to use cache.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     module._load = function (request: string, parent: any, isMain: {}): any {
-        if (request !== '@theia/plugin') {
-            return internalLoad.apply(this, arguments);
+        // 🔍 调试：显示所有模块加载
+        if (request === 'child_process' || request === 'fs' || request === 'http') {
+            console.log(`[backend-init-theia] 🔍 module._load called for: ${request}`);
+            console.log(`[backend-init-theia] 🔍 parent.filename: ${parent?.filename}`);
         }
 
-        const plugin = findPlugin(parent.filename);
+        // 1️⃣ 首先处理 @theia/plugin (Theia 原有逻辑)
+        if (request === '@theia/plugin') {
+            const plugin = findPlugin(parent.filename);
+            if (plugin) {
+                const apiImpl = pluginsApiImpl.get(plugin.model.id);
+                return apiImpl;
+            }
+
+            if (!defaultApi) {
+                console.warn(`Could not identify plugin for 'Theia' require call from ${parent.filename}`);
+                defaultApi = pluginApiFactory(emptyPlugin);
+            }
+
+            return defaultApi;
+        }
+
+        // 2️⃣ 然后处理敏感模块拦截（新增逻辑）
+        const plugin = findPlugin(parent?.filename);
+        if (request === 'child_process' || request === 'fs' || request === 'http') {
+            console.log(`[backend-init-theia] 🔍 plugin found: ${plugin ? plugin.model.id : 'null'}`);
+        }
         if (plugin) {
-            const apiImpl = pluginsApiImpl.get(plugin.model.id);
-            return apiImpl;
+            const interceptedModule = ModuleInterceptor.interceptModuleLoad(request, plugin, internalLoad, this, parent, isMain);
+            if (request === 'child_process' || request === 'fs' || request === 'http') {
+                console.log(`[backend-init-theia] 🔍 interceptedModule: ${interceptedModule ? 'YES' : 'NO'}`);
+            }
+            if (interceptedModule !== null) {
+                // 返回被拦截并代理的模块
+                return interceptedModule;
+            }
         }
 
-        if (!defaultApi) {
-            console.warn(`Could not identify plugin for 'Theia' require call from ${parent.filename}`);
-            defaultApi = pluginApiFactory(emptyPlugin);
-        }
-
-        return defaultApi;
+        // 3️⃣ 其他模块正常加载
+        return internalLoad.apply(this, arguments);
     };
 }
 

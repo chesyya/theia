@@ -127,6 +127,7 @@ import { AccessibilityInformation } from '@theia/core/lib/common/accessibility';
 import { TreeDelta } from '@theia/test/lib/common/tree-delta';
 import { TestItemDTO, TestOutputDTO, TestRunDTO, TestRunProfileDTO, TestRunRequestDTO, TestStateChangeDTO } from './test-types';
 import { ArgumentProcessor } from './commands';
+import { ModulePermissionChecker } from './module-permission-service';
 
 export interface PreferenceData {
     [scope: number]: any;
@@ -2253,6 +2254,12 @@ export interface UriMain {
     $unregisterUriHandler(extensionId: string): void;
 }
 
+/**
+ * Module permission service main interface (frontend -> backend RPC)
+ * Inherits all methods from ModulePermissionChecker
+ */
+export type ModulePermissionMain = ModulePermissionChecker;
+
 export interface TestControllerUpdate {
     label: string;
     canRefresh: boolean;
@@ -2331,7 +2338,8 @@ export const PLUGIN_RPC_CONTEXT = {
     TELEMETRY_MAIN: <ProxyIdentifier<TelemetryMain>>createProxyIdentifier<TelemetryMain>('TelemetryMain'),
     LOCALIZATION_MAIN: <ProxyIdentifier<LocalizationMain>>createProxyIdentifier<LocalizationMain>('LocalizationMain'),
     TESTING_MAIN: createProxyIdentifier<TestingMain>('TestingMain'),
-    URI_MAIN: createProxyIdentifier<UriMain>('UriMain')
+    URI_MAIN: createProxyIdentifier<UriMain>('UriMain'),
+    MODULE_PERMISSION_MAIN: createProxyIdentifier<ModulePermissionMain>('ModulePermissionMain')
 };
 
 export const MAIN_RPC_CONTEXT = {
