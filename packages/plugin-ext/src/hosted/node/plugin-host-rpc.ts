@@ -42,8 +42,7 @@ import { connectProxyResolver } from './plugin-host-proxy';
 import { LocalizationExtImpl } from '../../plugin/localization-ext';
 import { RPCProtocol, ProxyIdentifier } from '../../common/rpc-protocol';
 import { PluginApiCache } from '../../plugin/node/plugin-container-module';
-import { FileSystemInterceptor } from './file-system-interceptor';
-import { ModuleInterceptor } from './module-interceptor';
+import { UnifiedModuleInterceptor } from './unified-module-interceptor';
 
 /**
  * The full set of all possible `Ext` interfaces that a plugin manager can support.
@@ -119,20 +118,29 @@ export abstract class AbstractPluginHostRPC<PM extends AbstractPluginManagerExtI
 
         this.loadContainerModule(new ContainerModule(bind => bind(PluginManager).toConstantValue(this.pluginManager)));
 
-        // 🔥 Set up module interception with permission service from frontend
+        // Set up module interception with permission service from frontend
         this.setupModuleInterception();
     }
 
     /**
-     * Set up module interception with permission service (RPC proxy to frontend)
+     * Set up unified module interception with permission service (RPC proxy to frontend)
      */
     protected setupModuleInterception(): void {
         try {
             // Get MODULE_PERMISSION_MAIN proxy from RPC
             const modulePermissionService = this.rpc.getProxy(PLUGIN_RPC_CONTEXT.MODULE_PERMISSION_MAIN);
+            console.log('[Plugin Host] Got permission service proxy:', !!modulePermissionService);
+            console.log('[Plugin Host] Proxy type:', typeof modulePermissionService);
+            console.log('[Plugin Host] Proxy methods:', modulePermissionService ? Object.keys(modulePermissionService) : 'N/A');
+            console.log('[Plugin Host] $checkModulePermission type:', modulePermissionService ? typeof modulePermissionService.$checkModulePermission : 'N/A');
+
             if (modulePermissionService) {
-                console.log('[Plugin Host] Setting up module interception with permission service');
-                ModuleInterceptor.setPermissionService(modulePermissionService);
+                console.log('[Plugin Host] Setting up UNIFIED module interception');
+
+                // Set up global interception once (only takes effect on first call)
+                if (!UnifiedModuleInterceptor.isInitialized()) {
+                    UnifiedModuleInterceptor.setupGlobalHook(modulePermissionService);
+                }
             } else {
                 console.warn('[Plugin Host] Module permission service proxy not available');
             }
@@ -194,15 +202,9 @@ export abstract class AbstractPluginHostRPC<PM extends AbstractPluginManagerExtI
                 // https://github.com/nodejs/node/issues/8443
                 removeFromCache(mod => mod.id.startsWith(plugin.pluginFolder));
                 if (plugin.pluginPath) {
-                    // Intercept file system access for the plugin
-                    console.log('FileSystemInterceptor module ID:', require.resolve('./file-system-interceptor'));
-                    console.log('process.pid =', process.pid);
-
-                    FileSystemInterceptor.interceptFsModule(plugin);
-
-                    // 🔥 Intercept all sensitive module access for the plugin
-                    console.log('[Plugin Host] Starting module interception for plugin:', plugin.model.id);
-                    ModuleInterceptor.startInterception(plugin);
+                    // Register plugin to unified interceptor
+                    console.log('[Plugin Host] Registering plugin for unified interception:', plugin.model.id);
+                    UnifiedModuleInterceptor.registerPlugin(plugin);
 
                     return dynamicRequire(plugin.pluginPath);
                 }

@@ -41,10 +41,10 @@ export default new ContainerModule((bind, unbind, isBound, rebind, unbindAsync, 
     const channel = new IPCChannel();
     bind(RPCProtocol).toConstantValue(new RPCProtocolImpl(channel));
 
-    // ✅ 在子进程也绑定 permissionService
+    // Bind permissionService in child process as well
     bind(FileSystemPermissionServiceNode).toSelf().inSingletonScope();
 
-    // ✅ 使用 onActivation 确保在实例化后立即设置权限服务
+    // Use onActivation to ensure permission service is set immediately after instantiation
     onActivation(FileSystemPermissionServiceNode, (context, permissionService) => {
         console.log('[plugin-host-module] Setting FileSystemInterceptor permissionService in child process, pid:', process.pid);
         FileSystemInterceptor.setPermissionService(permissionService);

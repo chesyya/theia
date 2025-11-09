@@ -17,6 +17,7 @@
 import '../../../src/main/style/status-bar.css';
 import '../../../src/main/browser/style/index.css';
 import '../../../src/main/browser/style/comments.css';
+import '../../../src/main/browser/style/permission-dialog.css';
 
 import { ContainerModule } from '@theia/core/shared/inversify';
 import {
@@ -93,6 +94,7 @@ import { WebviewSecondaryWindowSupport } from './webview/webview-secondary-windo
 import { CustomEditorUndoRedoHandler } from './custom-editors/custom-editor-undo-redo-handler';
 import { FileSystemPermissionService } from './file-system-permission-service';
 import { ModulePermissionService } from './module-permission-service';
+import { PermissionRequestServiceImpl } from './permission-request-service-impl';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
 
@@ -101,6 +103,9 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
 
     // Register module permission service
     bind(ModulePermissionService).toSelf().inSingletonScope();
+
+    // Register generic permission request service
+    bind(PermissionRequestServiceImpl).toSelf().inSingletonScope();
 
     bind(LanguagesMainImpl).toSelf().inTransientScope();
     bind(LanguagesMainFactory).toFactory(context => (rpc: RPCProtocol) => {

@@ -186,8 +186,8 @@ export class ModuleInterceptor {
             throw new Error('Module permission service not initialized');
         }
 
-        // 🔥 异步权限检查（会触发前端弹窗）
-        const permissionPromise = this.permissionService.checkModulePermission(operation);
+        // Async permission check (will trigger frontend dialog)
+        const permissionPromise = this.permissionService.$checkModulePermission(operation);
 
         // 判断原始函数是异步还是同步
         const lastArg = args[args.length - 1];
@@ -202,8 +202,8 @@ export class ModuleInterceptor {
                     // 执行原始函数
                     originalFunction.apply(thisArg, args);
                 })
-                .catch(error => {
-                    console.error(`[Module Interceptor] ❌ Permission denied for ${plugin.model.id} - ${moduleId}.${functionName}`);
+                .catch((error: Error) => {
+                    console.error(`[Module Interceptor] Permission denied for ${plugin.model.id} - ${moduleId}.${functionName}`);
                     // 调用 callback 并传递错误
                     const permissionError = new Error(
                         `Permission denied: Plugin ${plugin.model.id} is not allowed to use ${moduleId}.${functionName}`
@@ -228,8 +228,8 @@ export class ModuleInterceptor {
 
             // 同步函数，返回结果
             return result;
-        }).catch(error => {
-            console.error(`[Module Interceptor] ❌ Permission denied for ${plugin.model.id} - ${moduleId}.${functionName}`, error);
+        }).catch((error: Error) => {
+            console.error(`[Module Interceptor] Permission denied for ${plugin.model.id} - ${moduleId}.${functionName}`, error);
             throw new Error(
                 `Permission denied: Plugin ${plugin.model.id} is not allowed to use ${moduleId}.${functionName}`
             );

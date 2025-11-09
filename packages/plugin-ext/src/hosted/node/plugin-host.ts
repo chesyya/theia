@@ -79,8 +79,8 @@ let terminating = false;
 const container = new Container();
 container.load(pluginHostModule);
 
-// ✅ 强制初始化 FileSystemInterceptor 的权限服务
-// 这必须在加载任何插件之前完成
+// Force initialize FileSystemInterceptor permission service
+// This must be completed before loading any plugins
 try {
     // 导入权限服务类型
     const { FileSystemPermissionServiceNode } = require('./file-system-permission-service-node');

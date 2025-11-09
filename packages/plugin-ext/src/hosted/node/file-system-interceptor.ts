@@ -23,6 +23,16 @@ import URI from '@theia/core/lib/common/uri';
 import { FileSystemPermissionChecker, FileSystemOperation, FileSystemPermissionContext } from '../../common/file-system-permission-service';
 
 /**
+ * @deprecated Use UnifiedModuleInterceptor instead.
+ *
+ * This interceptor has been superseded by UnifiedModuleInterceptor which provides:
+ * - Unified permission management for all modules (fs, child_process, http, etc.)
+ * - Better coverage (all module loading methods)
+ * - Simplified architecture (single interception point)
+ *
+ * See: unified-module-interceptor.ts
+ * Migration guide: file-system-interceptor.DEPRECATED.md
+ *
  * Interceptor for Node.js file system module to control plugin file system access.
  * This intercepts direct fs module usage by plugins running in the backend.
  */

@@ -19,7 +19,7 @@ import * as sinon from 'sinon';
 import * as fs from 'fs';
 import { FileSystemInterceptor } from './file-system-interceptor';
 import { FileSystemPermissionServiceNode } from './file-system-permission-service-node';
-import { Plugin, PluginModel, PluginPackage } from '../../common/plugin-api-rpc';
+import { Plugin } from '../../common/plugin-api-rpc';
 
 describe('FileSystemInterceptor', () => {
 
@@ -31,7 +31,7 @@ describe('FileSystemInterceptor', () => {
         FileSystemInterceptor.setPermissionService(permissionService);
 
         // Create mock plugin
-        const mockModel: PluginModel = {
+        const mockModel = {
             id: 'test.plugin',
             name: 'Test Plugin',
             publisher: 'test',
@@ -45,9 +45,9 @@ describe('FileSystemInterceptor', () => {
             entryPoint: {
                 backend: 'test.js'
             }
-        } as PluginModel;
+        } as any;
 
-        const mockPackage: PluginPackage = {
+        const mockPackage = {
             name: 'test-plugin',
             publisher: 'test',
             version: '1.0.0',
@@ -57,7 +57,7 @@ describe('FileSystemInterceptor', () => {
                 vscode: '^1.0.0'
             },
             packagePath: '/path/to/plugin'
-        } as PluginPackage;
+        } as any;
 
         mockPlugin = {
             pluginPath: '/path/to/plugin/test.js',
@@ -91,7 +91,7 @@ describe('FileSystemInterceptor', () => {
         });
 
         it('should log when fs-extra is required', () => {
-            const consoleLogStub = sinon.stub(console, 'log');
+            sinon.stub(console, 'log');
             FileSystemInterceptor.interceptFsModule(mockPlugin);
 
             try {
@@ -323,7 +323,6 @@ describe('FileSystemInterceptor', () => {
 
     describe('reset functionality', () => {
         it('should restore original require after reset', () => {
-            const originalRequire = require;
             FileSystemInterceptor.interceptFsModule(mockPlugin);
             FileSystemInterceptor.reset();
 

@@ -1,0 +1,101 @@
+/* Permission Request Dialog Styles */
+
+.theia-permission-request-dialog {
+    padding: 15px;
+    max-width: 600px;
+}
+
+.permission-severity-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 12px;
+    margin-bottom: 12px;
+}
+
+.permission-severity-badge.severity-info {
+    background-color: #3794ff;
+    color: white;
+}
+
+.permission-severity-badge.severity-warning {
+    background-color: #ffcc00;
+    color: #000;
+}
+
+.permission-severity-badge.severity-high {
+    background-color: #ff9800;
+    color: white;
+}
+
+.permission-severity-badge.severity-critical {
+    background-color: #f44336;
+    color: white;
+}
+
+.permission-plugin-info {
+    background-color: var(--theia-editor-background);
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    border-left: 3px solid var(--theia-activityBar-foreground);
+}
+
+.permission-plugin-info strong {
+    color: var(--theia-foreground);
+}
+
+.permission-plugin-info small {
+    color: var(--theia-descriptionForeground);
+    font-family: monospace;
+}
+
+.permission-message-content {
+    padding: 12px 0;
+    line-height: 1.6;
+    color: var(--theia-foreground);
+}
+
+.permission-operation-info {
+    background-color: var(--theia-editorWidget-background);
+    padding: 8px;
+    border-radius: 4px;
+    margin: 12px 0;
+    font-size: 12px;
+}
+
+.permission-operation-info strong {
+    color: var(--theia-foreground);
+}
+
+.permission-operation-info small {
+    color: var(--theia-descriptionForeground);
+    font-family: monospace;
+}
+
+.permission-remember-section {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--theia-panel-border);
+}
+
+.permission-remember-section label {
+    cursor: pointer;
+    user-select: none;
+}
+
+.permission-remember-scope {
+    display: flex;
+    align-items: center;
+}
+
+.permission-remember-scope select {
+    flex: 1;
+    max-width: 300px;
+}
+
+/* Theia Dialog Overrides */
+.dialogBlock .dialogContent {
+    min-width: 400px;
+}

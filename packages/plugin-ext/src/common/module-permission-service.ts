@@ -63,29 +63,29 @@ export interface SensitiveModuleConfig {
 }
 
 /**
- * 模块权限检查器接口
+ * 模块权限检查器接口 (RPC Main interface - all methods must start with $)
  */
 export interface ModulePermissionChecker {
     /**
      * 检查模块操作权限（异步，可能触发用户弹窗）
      * @throws Error 如果权限被拒绝
      */
-    checkModulePermission(operation: ModuleOperation): Promise<void>;
+    $checkModulePermission(operation: ModuleOperation): Promise<void>;
 
     /**
      * 获取已缓存的权限决策
      */
-    getCachedPermission(pluginId: string, moduleId: string, functionName: string): PermissionDecision | null;
+    $getCachedPermission(pluginId: string, moduleId: string, functionName: string): PermissionDecision | null;
 
     /**
      * 缓存权限决策
      */
-    cachePermission(pluginId: string, moduleId: string, functionName: string, decision: PermissionDecision): void;
+    $cachePermission(pluginId: string, moduleId: string, functionName: string, decision: PermissionDecision): void;
 
     /**
      * 清除插件的所有权限缓存
      */
-    clearPluginPermissions(pluginId: string): void;
+    $clearPluginPermissions(pluginId: string): void;
 }
 
 /**

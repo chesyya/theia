@@ -14,8 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import { injectable } from '@theia/core/shared/inversify';
-import { ConfirmDialog } from '@theia/core/lib/browser/dialogs';
+import { injectable, inject } from '@theia/core/shared/inversify';
 import {
     ModulePermissionChecker,
     ModuleOperation,
@@ -23,75 +22,33 @@ import {
     getSensitiveModuleConfig,
     ModuleSensitivityLevel
 } from '../../common/module-permission-service';
+import {
+    PermissionRequest,
+    PermissionSeverity,
+    PermissionCacheKey,
+    PermissionDecision as BasePermissionDecision
+} from '../../common/permission-request-service';
+import { PermissionRequestServiceImpl } from './permission-request-service-impl';
 
 /**
- * 前端模块权限服务 - 负责显示权限请求对话框并管理权限缓存
+ * 前端模块权限服务 - 使用通用权限请求服务
  */
 @injectable()
 export class ModulePermissionService implements ModulePermissionChecker {
-    // 权限缓存：pluginId -> moduleId -> functionName -> decision
-    private permissionCache = new Map<string, Map<string, Map<string, PermissionDecision>>>();
+    @inject(PermissionRequestServiceImpl)
+    protected readonly permissionRequestService: PermissionRequestServiceImpl;
 
-    // 正在进行的权限请求（避免重复弹窗）
-    private pendingRequests = new Map<string, Promise<void>>();
+    // 兼容性：保留原有缓存结构作为快速查找
+    private legacyCache = new Map<string, Map<string, Map<string, PermissionDecision>>>();
 
-    async checkModulePermission(operation: ModuleOperation): Promise<void> {
-        // 1. 检查缓存
-        const cached = this.getCachedPermission(operation.pluginId, operation.moduleId, operation.functionName);
-        if (cached) {
-            console.log(`[Module Permission] Using cached decision for ${operation.pluginId}:${operation.moduleId}.${operation.functionName} = ${cached.allowed}`);
-            if (!cached.allowed) {
-                throw new Error(`Permission denied (cached): ${operation.moduleId}.${operation.functionName}`);
-            }
-            return; // 允许
-        }
+    async $checkModulePermission(operation: ModuleOperation): Promise<void> {
+        console.log(`[Module Permission] Checking permission for ${operation.pluginId} - ${operation.moduleId}.${operation.functionName}`);
 
-        // 2. 检查是否有正在进行的请求（避免重复弹窗）
-        const requestKey = `${operation.pluginId}:${operation.moduleId}.${operation.functionName}`;
-        if (this.pendingRequests.has(requestKey)) {
-            console.log(`[Module Permission] Waiting for existing permission request: ${requestKey}`);
-            return this.pendingRequests.get(requestKey)!;
-        }
-
-        // 3. 创建新的权限请求
-        const requestPromise = this.requestUserPermissionInternal(operation);
-        this.pendingRequests.set(requestKey, requestPromise);
-
-        try {
-            await requestPromise;
-        } finally {
-            this.pendingRequests.delete(requestKey);
-        }
-    }
-
-    /**
-     * 内部方法：请求用户权限
-     */
-    private async requestUserPermissionInternal(operation: ModuleOperation): Promise<void> {
-        console.log(`[Module Permission] 🔔 Requesting user permission for ${operation.pluginId} - ${operation.moduleId}.${operation.functionName}`);
-
-        // 显示确认对话框
-        const decision = await this.requestUserPermission(operation);
-
-        // 缓存决策（如果用户选择记住）
-        if (decision.remember) {
-            this.cachePermission(operation.pluginId, operation.moduleId, operation.functionName, decision);
-        }
-
-        // 检查结果
-        if (!decision.allowed) {
-            throw new Error(`Permission denied by user: ${operation.moduleId}.${operation.functionName}`);
-        }
-    }
-
-    /**
-     * 显示权限请求对话框
-     */
-    private async requestUserPermission(operation: ModuleOperation): Promise<PermissionDecision> {
+        // 构建通用权限请求
         const config = getSensitiveModuleConfig(operation.moduleId);
-        const severityEmoji = this.getSeverityEmoji(operation.moduleId);
+        const severity = this.mapSensitivityToSeverity(config?.level || ModuleSensitivityLevel.MEDIUM);
 
-        // 构建参数显示字符串
+        // 构建参数显示
         const argsDisplay = operation.args.length > 0
             ? operation.args.slice(0, 3).map(arg => {
                 if (typeof arg === 'string') {
@@ -101,67 +58,105 @@ export class ModulePermissionService implements ModulePermissionChecker {
             }).join(', ') + (operation.args.length > 3 ? ', ...' : '')
             : '(no arguments)';
 
-        const message = `
-插件 "${operation.pluginName}" 正在尝试使用敏感功能：
-
-${severityEmoji} 模块: ${operation.moduleId}
-📋 功能: ${operation.functionName}(${argsDisplay})
-
-⚠️ 此操作可能：
-${config?.securityWarning || '• 访问系统底层功能'}
-
-是否允许此操作？
-        `.trim();
-
-        const dialog = new ConfirmDialog({
-            title: `⚠️ 插件权限请求 - ${operation.pluginName}`,
-            msg: message,
-            ok: '✅ 允许',
-            cancel: '❌ 拒绝',
-        });
-
-        const result = await dialog.open();
-
-        // 目前简化为：允许 = 记住，拒绝 = 不记住
-        // TODO: 添加"记住我的选择"复选框
-        return {
-            allowed: !!result,
-            remember: !!result, // 暂时只记住"允许"的决策
-            reason: result ? 'User approved' : 'User denied'
+        const request: PermissionRequest = {
+            title: `模块权限请求 - ${operation.pluginName}`,
+            message: `插件 **${operation.pluginName}** 正在尝试使用敏感模块功能：\n\n` +
+                     `**模块:** ${operation.moduleId}\n` +
+                     `**函数:** ${operation.functionName}(${argsDisplay})\n\n` +
+                     `**警告:** 此操作可能：\n${config?.securityWarning || '• 访问系统底层功能'}`,
+            severity,
+            pluginId: operation.pluginId,
+            pluginName: operation.pluginName,
+            operationId: `${operation.moduleId}.${operation.functionName}`,
+            metadata: {
+                moduleId: operation.moduleId,
+                functionName: operation.functionName,
+                args: operation.args
+            }
         };
+
+        // 使用通用权限请求服务
+        try {
+            const decision = await this.permissionRequestService.$requestPermission(request);
+
+            // 同步到 legacy cache（用于快速查找）
+            this.syncToLegacyCache(operation, decision);
+
+            if (!decision.allowed) {
+                throw new Error(`Permission denied: ${operation.moduleId}.${operation.functionName}`);
+            }
+        } catch (error) {
+            console.error(`[Module Permission] Permission denied for ${operation.pluginId} - ${operation.moduleId}.${operation.functionName}`);
+            throw error;
+        }
     }
 
     /**
-     * 获取严重级别图标
+     * 映射模块敏感级别到通用严重级别
      */
-    private getSeverityEmoji(moduleId: string): string {
-        const config = getSensitiveModuleConfig(moduleId);
-        if (!config) {
-            return 'ℹ️';
-        }
-
-        switch (config.level) {
+    private mapSensitivityToSeverity(level: ModuleSensitivityLevel): PermissionSeverity {
+        switch (level) {
             case ModuleSensitivityLevel.CRITICAL:
-                return '🚨'; // 严重
+                return PermissionSeverity.CRITICAL;
             case ModuleSensitivityLevel.HIGH:
-                return '⚠️'; // 高
+                return PermissionSeverity.HIGH;
             case ModuleSensitivityLevel.MEDIUM:
-                return '⚡'; // 中
+                return PermissionSeverity.WARNING;
+            case ModuleSensitivityLevel.LOW:
+                return PermissionSeverity.INFO;
             default:
-                return 'ℹ️'; // 低
+                return PermissionSeverity.WARNING;
         }
     }
 
-    getCachedPermission(pluginId: string, moduleId: string, functionName: string): PermissionDecision | null {
-        const decision = this.permissionCache.get(pluginId)?.get(moduleId)?.get(functionName);
+    /**
+     * 同步决策到 legacy cache
+     */
+    private syncToLegacyCache(operation: ModuleOperation, decision: BasePermissionDecision): void {
+        if (!this.legacyCache.has(operation.pluginId)) {
+            this.legacyCache.set(operation.pluginId, new Map());
+        }
+        const pluginCache = this.legacyCache.get(operation.pluginId)!;
+
+        if (!pluginCache.has(operation.moduleId)) {
+            pluginCache.set(operation.moduleId, new Map());
+        }
+        const moduleCache = pluginCache.get(operation.moduleId)!;
+
+        moduleCache.set(operation.functionName, {
+            allowed: decision.allowed,
+            remember: decision.remember,
+            reason: decision.reason
+        });
+    }
+
+
+    $getCachedPermission(pluginId: string, moduleId: string, functionName: string): PermissionDecision | null {
+        const decision = this.legacyCache.get(pluginId)?.get(moduleId)?.get(functionName);
         return decision || null;
     }
 
-    cachePermission(pluginId: string, moduleId: string, functionName: string, decision: PermissionDecision): void {
-        if (!this.permissionCache.has(pluginId)) {
-            this.permissionCache.set(pluginId, new Map());
+    $cachePermission(pluginId: string, moduleId: string, functionName: string, decision: PermissionDecision): void {
+        // 委托给通用服务
+        const cacheKey: PermissionCacheKey = {
+            pluginId,
+            operationId: `${moduleId}.${functionName}`
+        };
+
+        const baseDecision: BasePermissionDecision = {
+            allowed: decision.allowed,
+            remember: decision.remember,
+            reason: decision.reason,
+            timestamp: Date.now()
+        };
+
+        this.permissionRequestService.$cachePermission(cacheKey, baseDecision);
+
+        // 同步到 legacy cache
+        if (!this.legacyCache.has(pluginId)) {
+            this.legacyCache.set(pluginId, new Map());
         }
-        const pluginCache = this.permissionCache.get(pluginId)!;
+        const pluginCache = this.legacyCache.get(pluginId)!;
 
         if (!pluginCache.has(moduleId)) {
             pluginCache.set(moduleId, new Map());
@@ -169,12 +164,11 @@ ${config?.securityWarning || '• 访问系统底层功能'}
         const moduleCache = pluginCache.get(moduleId)!;
 
         moduleCache.set(functionName, decision);
-
-        console.log(`[Module Permission] ✅ Cached decision for ${pluginId}:${moduleId}.${functionName} = ${decision.allowed}`);
     }
 
-    clearPluginPermissions(pluginId: string): void {
-        this.permissionCache.delete(pluginId);
+    $clearPluginPermissions(pluginId: string): void {
+        this.legacyCache.delete(pluginId);
+        this.permissionRequestService.$clearPluginPermissions(pluginId);
         console.log(`[Module Permission] Cleared all permissions for plugin: ${pluginId}`);
     }
 
@@ -182,6 +176,6 @@ ${config?.securityWarning || '• 访问系统底层功能'}
      * 获取所有权限缓存（用于调试）
      */
     getAllCachedPermissions(): Map<string, Map<string, Map<string, PermissionDecision>>> {
-        return this.permissionCache;
+        return this.legacyCache;
     }
 }
