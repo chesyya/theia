@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+  <!-- 根元素 -->
+  <xs:element name="PluginApiAccessControl">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Plugin" type="PluginType" minOccurs="1" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- 插件类型 -->
+  <xs:complexType name="PluginType">
+    <xs:sequence>
+      <xs:element name="PluginId" type="xs:string"/>
+      <xs:element name="PluginName" type="LocalizedNameType"/>
+      <xs:element name="ApiAccess" type="ApiAccessType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- 本地化名称 -->
+  <xs:complexType name="LocalizedNameType">
+    <xs:attribute name="zh" type="xs:string" use="required"/>
+    <xs:attribute name="en" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- API 访问列表 -->
+  <xs:complexType name="ApiAccessType">
+    <xs:sequence>
+      <xs:element name="Api" type="ApiType" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- API 类型 -->
+  <xs:complexType name="ApiType">
+    <xs:attribute name="namespace" type="xs:string" use="required"/>
+    <xs:attribute name="method" type="xs:string" use="required"/>
+    <xs:attribute name="allowed" type="xs:boolean" use="required"/>
+  </xs:complexType>
+
+</xs:schema>

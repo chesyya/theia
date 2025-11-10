@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Theia 插件 API 访问控制配置 - 简化版 -->
+<PluginApiAccessControl>
+
+  <!-- 插件1: 示例插件 -->
+  <Plugin>
+    <PluginId>publisher.my-plugin</PluginId>
+    <PluginName zh="我的插件" en="My Plugin"/>
+
+    <!-- API 访问列表 -->
+    <ApiAccess>
+
+      <!-- window 命名空间 -->
+      <Api namespace="window" method="showInformationMessage" allowed="true"/>
+      <Api namespace="window" method="showWarningMessage" allowed="true"/>
+      <Api namespace="window" method="showErrorMessage" allowed="true"/>
+      <Api namespace="window" method="showInputBox" allowed="true"/>
+      <Api namespace="window" method="showQuickPick" allowed="true"/>
+      <Api namespace="window" method="showTextDocument" allowed="true"/>
+      <Api namespace="window" method="createWebviewPanel" allowed="false"/>
+      <Api namespace="window" method="createTerminal" allowed="false"/>
+      <Api namespace="window" method="showOpenDialog" allowed="true"/>
+      <Api namespace="window" method="showSaveDialog" allowed="true"/>
+
+      <!-- workspace 命名空间 -->
+      <Api namespace="workspace" method="openTextDocument" allowed="true"/>
+      <Api namespace="workspace" method="findFiles" allowed="true"/>
+      <Api namespace="workspace" method="getConfiguration" allowed="true"/>
+      <Api namespace="workspace" method="applyEdit" allowed="false"/>
+      <Api namespace="workspace" method="createFileSystemWatcher" allowed="true"/>
+      <Api namespace="workspace" method="saveAll" allowed="false"/>
+
+      <!-- commands 命名空间 -->
+      <Api namespace="commands" method="registerCommand" allowed="true"/>
+      <Api namespace="commands" method="executeCommand" allowed="true"/>
+      <Api namespace="commands" method="getCommands" allowed="true"/>
+
+      <!-- languages 命名空间 -->
+      <Api namespace="languages" method="registerCompletionItemProvider" allowed="false"/>
+      <Api namespace="languages" method="registerHoverProvider" allowed="false"/>
+      <Api namespace="languages" method="getDiagnostics" allowed="true"/>
+
+      <!-- debug 命名空间 -->
+      <Api namespace="debug" method="startDebugging" allowed="false"/>
+      <Api namespace="debug" method="registerDebugAdapterDescriptorFactory" allowed="false"/>
+
+      <!-- env 命名空间 -->
+      <Api namespace="env" method="openExternal" allowed="true"/>
+      <Api namespace="env" method="clipboard.writeText" allowed="true"/>
+      <Api namespace="env" method="clipboard.readText" allowed="false"/>
+
+    </ApiAccess>
+  </Plugin>
+
+  <!-- 插件2: 只读插件 -->
+  <Plugin>
+    <PluginId>readonly.analyzer</PluginId>
+    <PluginName zh="代码分析器" en="Code Analyzer"/>
+
+    <ApiAccess>
+      <!-- 只允许读取操作 -->
+      <Api namespace="window" method="showInformationMessage" allowed="true"/>
+      <Api namespace="workspace" method="openTextDocument" allowed="true"/>
+      <Api namespace="workspace" method="findFiles" allowed="true"/>
+      <Api namespace="workspace" method="getConfiguration" allowed="true"/>
+
+      <!-- 禁止所有写操作 -->
+      <Api namespace="workspace" method="applyEdit" allowed="false"/>
+      <Api namespace="window" method="createTerminal" allowed="false"/>
+    </ApiAccess>
+  </Plugin>
+
+  <!-- 插件3: Git 集成 (完全权限) -->
+  <Plugin>
+    <PluginId>vscode.git</PluginId>
+    <PluginName zh="Git版本控制" en="Git SCM"/>
+
+    <ApiAccess>
+      <!-- 允许所有常用 API -->
+      <Api namespace="window" method="showInformationMessage" allowed="true"/>
+      <Api namespace="window" method="showWarningMessage" allowed="true"/>
+      <Api namespace="window" method="showErrorMessage" allowed="true"/>
+      <Api namespace="window" method="showInputBox" allowed="true"/>
+      <Api namespace="window" method="showQuickPick" allowed="true"/>
+      <Api namespace="window" method="createTerminal" allowed="true"/>
+
+      <Api namespace="workspace" method="openTextDocument" allowed="true"/>
+      <Api namespace="workspace" method="findFiles" allowed="true"/>
+      <Api namespace="workspace" method="getConfiguration" allowed="true"/>
+      <Api namespace="workspace" method="applyEdit" allowed="true"/>
+      <Api namespace="workspace" method="createFileSystemWatcher" allowed="true"/>
+
+      <Api namespace="commands" method="registerCommand" allowed="true"/>
+      <Api namespace="commands" method="executeCommand" allowed="true"/>
+
+      <Api namespace="scm" method="createSourceControl" allowed="true"/>
+
+      <Api namespace="env" method="openExternal" allowed="true"/>
+    </ApiAccess>
+  </Plugin>
+
+  <!-- 插件4: 第三方未信任插件 -->
+  <Plugin>
+    <PluginId>untrusted.third-party</PluginId>
+    <PluginName zh="未信任插件" en="Untrusted Plugin"/>
+
+    <ApiAccess>
+      <!-- 只允许最基本的只读操作 -->
+      <Api namespace="window" method="showInformationMessage" allowed="true"/>
+      <Api namespace="workspace" method="openTextDocument" allowed="true"/>
+      <Api namespace="workspace" method="getConfiguration" allowed="true"/>
+
+      <!-- 禁止所有危险操作 -->
+      <Api namespace="window" method="createTerminal" allowed="false"/>
+      <Api namespace="window" method="createWebviewPanel" allowed="false"/>
+      <Api namespace="workspace" method="applyEdit" allowed="false"/>
+      <Api namespace="commands" method="executeCommand" allowed="false"/>
+      <Api namespace="env" method="openExternal" allowed="false"/>
+      <Api namespace="env" method="clipboard.readText" allowed="false"/>
+      <Api namespace="env" method="clipboard.writeText" allowed="false"/>
+    </ApiAccess>
+  </Plugin>
+
+  <!-- 插件5: 代码格式化工具 -->
+  <Plugin>
+    <PluginId>formatter.prettier</PluginId>
+    <PluginName zh="代码格式化" en="Code Formatter"/>
+
+    <ApiAccess>
+      <!-- 允许读写代码 -->
+      <Api namespace="workspace" method="openTextDocument" allowed="true"/>
+      <Api namespace="workspace" method="applyEdit" allowed="true"/>
+      <Api namespace="workspace" method="getConfiguration" allowed="true"/>
+
+      <Api namespace="window" method="showInformationMessage" allowed="true"/>
+      <Api namespace="window" method="showErrorMessage" allowed="true"/>
+
+      <Api namespace="commands" method="registerCommand" allowed="true"/>
+
+      <!-- 禁止其他危险操作 -->
+      <Api namespace="window" method="createTerminal" allowed="false"/>
+      <Api namespace="env" method="openExternal" allowed="false"/>
+    </ApiAccess>
+  </Plugin>
+
+  <!-- 插件6: 语言服务 (TypeScript) -->
+  <Plugin>
+    <PluginId>vscode.typescript-language-features</PluginId>
+    <PluginName zh="TypeScript语言服务" en="TypeScript Language Features"/>
+
+    <ApiAccess>
+      <!-- 文件操作 -->
+      <Api namespace="workspace" method="openTextDocument" allowed="true"/>
+      <Api namespace="workspace" method="findFiles" allowed="true"/>
+      <Api namespace="workspace" method="createFileSystemWatcher" allowed="true"/>
+      <Api namespace="workspace" method="getConfiguration" allowed="true"/>
+
+      <!-- 语言服务 -->
+      <Api namespace="languages" method="registerCompletionItemProvider" allowed="true"/>
+      <Api namespace="languages" method="registerHoverProvider" allowed="true"/>
+      <Api namespace="languages" method="registerDefinitionProvider" allowed="true"/>
+      <Api namespace="languages" method="registerReferenceProvider" allowed="true"/>
+      <Api namespace="languages" method="registerDocumentSymbolProvider" allowed="true"/>
+      <Api namespace="languages" method="registerCodeActionsProvider" allowed="true"/>
+      <Api namespace="languages" method="getDiagnostics" allowed="true"/>
+      <Api namespace="languages" method="createDiagnosticCollection" allowed="true"/>
+
+      <!-- UI -->
+      <Api namespace="window" method="showInformationMessage" allowed="true"/>
+      <Api namespace="window" method="showErrorMessage" allowed="true"/>
+
+      <!-- 命令 -->
+      <Api namespace="commands" method="registerCommand" allowed="true"/>
+      <Api namespace="commands" method="executeCommand" allowed="true"/>
+    </ApiAccess>
+  </Plugin>
+
+  <!-- 插件7: 调试器 -->
+  <Plugin>
+    <PluginId>vscode.node-debug</PluginId>
+    <PluginName zh="Node.js调试器" en="Node.js Debugger"/>
+
+    <ApiAccess>
+      <!-- 调试相关 -->
+      <Api namespace="debug" method="startDebugging" allowed="true"/>
+      <Api namespace="debug" method="registerDebugAdapterDescriptorFactory" allowed="true"/>
+      <Api namespace="debug" method="registerDebugConfigurationProvider" allowed="true"/>
+
+      <!-- 终端 -->
+      <Api namespace="window" method="createTerminal" allowed="true"/>
+
+      <!-- 文件操作 -->
+      <Api namespace="workspace" method="openTextDocument" allowed="true"/>
+      <Api namespace="workspace" method="findFiles" allowed="true"/>
+
+      <!-- UI -->
+      <Api namespace="window" method="showInformationMessage" allowed="true"/>
+      <Api namespace="window" method="showErrorMessage" allowed="true"/>
+
+      <!-- 命令 -->
+      <Api namespace="commands" method="registerCommand" allowed="true"/>
+      <Api namespace="commands" method="executeCommand" allowed="true"/>
+    </ApiAccess>
+  </Plugin>
+
+</PluginApiAccessControl>

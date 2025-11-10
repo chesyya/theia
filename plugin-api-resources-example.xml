@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 实际插件权限配置示例 -->
+<Resources>
+
+  <!-- 示例1: 代码片段插件 - 基础权限 -->
+  <Resource>
+    <ResourceID>vscode.snippets</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="代码片段插件" en="Code Snippets Plugin"/>
+    <Attributes>
+      <Attribute key="Enabled" type="boolean" default="true"/>
+      <Attribute key="PermissionLevel" type="enum" default="Write"/>
+      <Attribute key="TrustLevel" type="enum" default="Trusted"/>
+
+      <!-- 频率限制 -->
+      <Attribute key="MaxCallsPerSecond" type="number" default="50"/>
+      <Attribute key="MaxCallsPerHour" type="number" default="5000"/>
+
+      <!-- 命名空间权限 -->
+      <Attribute key="AllowWindowNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowWorkspaceNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowCommandsNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowLanguagesNamespace" type="boolean" default="true"/>
+
+      <!-- UI 权限 -->
+      <Attribute key="AllowShowInformationMessage" type="boolean" default="true"/>
+      <Attribute key="MaxMessagesPerHour" type="number" default="10"/>
+      <Attribute key="AllowModalDialogs" type="boolean" default="false"/>
+
+      <!-- 文件系统 -->
+      <Attribute key="AllowFileSystemRead" type="boolean" default="true"/>
+      <Attribute key="AllowFileSystemWrite" type="boolean" default="true"/>
+      <Attribute key="FileAccessPattern" type="string" default="**/*.{json,code-snippets}"/>
+      <Attribute key="MaxFileReadSize" type="number" default="1048576"/>
+
+      <!-- 编辑器权限 -->
+      <Attribute key="AllowDocumentEdit" type="boolean" default="true"/>
+      <Attribute key="AllowOpenTextDocument" type="boolean" default="true"/>
+      <Attribute key="MaxOpenDocuments" type="number" default="10"/>
+
+      <!-- 资源配额 -->
+      <Attribute key="MaxMemoryUsage" type="number" default="64"/>
+      <Attribute key="MaxCpuUsage" type="number" default="10"/>
+    </Attributes>
+  </Resource>
+
+  <!-- 示例2: Git 集成插件 - 需要更多权限 -->
+  <Resource>
+    <ResourceID>vscode.git</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="Git版本控制" en="Git SCM Integration"/>
+    <Attributes>
+      <Attribute key="Enabled" type="boolean" default="true"/>
+      <Attribute key="PermissionLevel" type="enum" default="Full"/>
+      <Attribute key="TrustLevel" type="enum" default="FullyTrusted"/>
+
+      <!-- 频率限制较宽松 -->
+      <Attribute key="MaxCallsPerSecond" type="number" default="200"/>
+      <Attribute key="MaxConcurrentCalls" type="number" default="20"/>
+
+      <!-- 命名空间 -->
+      <Attribute key="AllowWindowNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowWorkspaceNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowCommandsNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowScmNamespace" type="boolean" default="true"/>
+
+      <!-- 文件系统完整权限 -->
+      <Attribute key="AllowFileSystemRead" type="boolean" default="true"/>
+      <Attribute key="AllowFileSystemWrite" type="boolean" default="true"/>
+      <Attribute key="FileAccessPattern" type="string" default="**/*"/>
+      <Attribute key="FileAccessDenyPattern" type="string" default=""/>
+      <Attribute key="AllowFileWatch" type="boolean" default="true"/>
+      <Attribute key="MaxFileWatchers" type="number" default="500"/>
+
+      <!-- 终端权限 -->
+      <Attribute key="AllowCreateTerminal" type="boolean" default="true"/>
+      <Attribute key="MaxTerminals" type="number" default="5"/>
+      <Attribute key="AllowSendTextToTerminal" type="boolean" default="true"/>
+
+      <!-- 网络访问（用于远程仓库） -->
+      <Attribute key="AllowNetworkAccess" type="boolean" default="true"/>
+      <Attribute key="AllowedDomains" type="string" default="github.com,gitlab.com,bitbucket.org"/>
+
+      <!-- 资源配额 -->
+      <Attribute key="MaxMemoryUsage" type="number" default="512"/>
+      <Attribute key="MaxCpuUsage" type="number" default="50"/>
+    </Attributes>
+  </Resource>
+
+  <!-- 示例3: 主题插件 - 仅 UI 权限 -->
+  <Resource>
+    <ResourceID>publisher.my-theme</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="自定义主题插件" en="Custom Theme Plugin"/>
+    <Attributes>
+      <Attribute key="Enabled" type="boolean" default="true"/>
+      <Attribute key="PermissionLevel" type="enum" default="Read"/>
+      <Attribute key="TrustLevel" type="enum" default="Limited"/>
+
+      <!-- 低频率限制 -->
+      <Attribute key="MaxCallsPerSecond" type="number" default="10"/>
+
+      <!-- 仅需要 window 命名空间 -->
+      <Attribute key="AllowWindowNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowWorkspaceNamespace" type="boolean" default="false"/>
+      <Attribute key="AllowCommandsNamespace" type="boolean" default="true"/>
+
+      <!-- 无 UI 交互 -->
+      <Attribute key="AllowShowInformationMessage" type="boolean" default="false"/>
+      <Attribute key="AllowModalDialogs" type="boolean" default="false"/>
+
+      <!-- 只读配置 -->
+      <Attribute key="AllowReadConfiguration" type="boolean" default="true"/>
+      <Attribute key="AllowUpdateConfiguration" type="boolean" default="true"/>
+      <Attribute key="ConfigurationScope" type="enum" default="Self"/>
+
+      <!-- 无文件系统访问 -->
+      <Attribute key="AllowFileSystemRead" type="boolean" default="false"/>
+      <Attribute key="AllowFileSystemWrite" type="boolean" default="false"/>
+
+      <!-- 最小资源 -->
+      <Attribute key="MaxMemoryUsage" type="number" default="32"/>
+      <Attribute key="MaxCpuUsage" type="number" default="5"/>
+    </Attributes>
+  </Resource>
+
+  <!-- 示例4: 语言服务插件 - TypeScript/JavaScript -->
+  <Resource>
+    <ResourceID>vscode.typescript-language-features</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="TypeScript语言服务" en="TypeScript Language Features"/>
+    <Attributes>
+      <Attribute key="Enabled" type="boolean" default="true"/>
+      <Attribute key="PermissionLevel" type="enum" default="Full"/>
+      <Attribute key="TrustLevel" type="enum" default="FullyTrusted"/>
+
+      <!-- 高频调用 -->
+      <Attribute key="MaxCallsPerSecond" type="number" default="500"/>
+      <Attribute key="MaxConcurrentCalls" type="number" default="50"/>
+      <Attribute key="ApiTimeout" type="number" default="60000"/>
+
+      <!-- 完整命名空间 -->
+      <Attribute key="AllowWindowNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowWorkspaceNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowCommandsNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowLanguagesNamespace" type="boolean" default="true"/>
+
+      <!-- 语言服务权限 -->
+      <Attribute key="AllowRegisterLanguageProvider" type="boolean" default="true"/>
+      <Attribute key="AllowedLanguages" type="string" default="typescript,javascript,typescriptreact,javascriptreact"/>
+
+      <!-- 文件系统 -->
+      <Attribute key="AllowFileSystemRead" type="boolean" default="true"/>
+      <Attribute key="AllowFileSystemWrite" type="boolean" default="true"/>
+      <Attribute key="FileAccessPattern" type="string" default="**/*.{ts,tsx,js,jsx,json}"/>
+      <Attribute key="AllowFileWatch" type="boolean" default="true"/>
+      <Attribute key="MaxFileWatchers" type="number" default="1000"/>
+
+      <!-- 编辑器 -->
+      <Attribute key="AllowDocumentEdit" type="boolean" default="true"/>
+      <Attribute key="MaxOpenDocuments" type="number" default="100"/>
+
+      <!-- 高资源配额 -->
+      <Attribute key="MaxMemoryUsage" type="number" default="1024"/>
+      <Attribute key="MaxCpuUsage" type="number" default="80"/>
+    </Attributes>
+  </Resource>
+
+  <!-- 示例5: 第三方未验证插件 - 沙箱模式 -->
+  <Resource>
+    <ResourceID>unknown.untrusted-plugin</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="未验证第三方插件" en="Untrusted Third-party Plugin"/>
+    <Attributes>
+      <Attribute key="Enabled" type="boolean" default="true"/>
+      <Attribute key="PermissionLevel" type="enum" default="Read"/>
+      <Attribute key="TrustLevel" type="enum" default="Untrusted"/>
+
+      <!-- 严格的频率限制 -->
+      <Attribute key="MaxCallsPerSecond" type="number" default="5"/>
+      <Attribute key="MaxCallsPerMinute" type="number" default="100"/>
+      <Attribute key="MaxCallsPerHour" type="number" default="1000"/>
+      <Attribute key="MaxConcurrentCalls" type="number" default="2"/>
+
+      <!-- 仅基础命名空间 -->
+      <Attribute key="AllowWindowNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowWorkspaceNamespace" type="boolean" default="false"/>
+      <Attribute key="AllowCommandsNamespace" type="boolean" default="false"/>
+
+      <!-- 限制 UI 交互 -->
+      <Attribute key="AllowShowInformationMessage" type="boolean" default="true"/>
+      <Attribute key="MaxMessagesPerHour" type="number" default="3"/>
+      <Attribute key="AllowModalDialogs" type="boolean" default="false"/>
+      <Attribute key="AllowWebviewCreation" type="boolean" default="false"/>
+
+      <!-- 只读文件系统 -->
+      <Attribute key="AllowFileSystemRead" type="boolean" default="true"/>
+      <Attribute key="AllowFileSystemWrite" type="boolean" default="false"/>
+      <Attribute key="FileAccessPattern" type="string" default="**/workspace/**"/>
+      <Attribute key="FileAccessDenyPattern" type="string" default="**/.env,**/.git/**,**/node_modules/**"/>
+      <Attribute key="MaxFileReadSize" type="number" default="1048576"/>
+
+      <!-- 禁止编辑 -->
+      <Attribute key="AllowDocumentEdit" type="boolean" default="false"/>
+
+      <!-- 禁止网络访问 -->
+      <Attribute key="AllowNetworkAccess" type="boolean" default="false"/>
+
+      <!-- 禁止终端 -->
+      <Attribute key="AllowCreateTerminal" type="boolean" default="false"/>
+
+      <!-- 时间限制 -->
+      <Attribute key="AllowedStartTime" type="time" default="09:00"/>
+      <Attribute key="AllowedEndTime" type="time" default="18:00"/>
+      <Attribute key="AllowedDaysOfWeek" type="string" default="1,2,3,4,5"/>
+
+      <!-- 需要用户确认 -->
+      <Attribute key="RequireUserConfirmation" type="boolean" default="true"/>
+
+      <!-- 严格资源限制 -->
+      <Attribute key="MaxMemoryUsage" type="number" default="128"/>
+      <Attribute key="MaxCpuUsage" type="number" default="15"/>
+
+      <!-- 完整日志 -->
+      <Attribute key="ApiLogLevel" type="enum" default="Trace"/>
+    </Attributes>
+  </Resource>
+
+  <!-- 示例6: 调试器插件 -->
+  <Resource>
+    <ResourceID>vscode.node-debug</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="Node.js调试器" en="Node.js Debugger"/>
+    <Attributes>
+      <Attribute key="Enabled" type="boolean" default="true"/>
+      <Attribute key="PermissionLevel" type="enum" default="Execute"/>
+      <Attribute key="TrustLevel" type="enum" default="Trusted"/>
+
+      <!-- 命名空间 -->
+      <Attribute key="AllowWindowNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowWorkspaceNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowCommandsNamespace" type="boolean" default="true"/>
+      <Attribute key="AllowDebugNamespace" type="boolean" default="true"/>
+
+      <!-- 调试权限 -->
+      <Attribute key="AllowDebugSession" type="boolean" default="true"/>
+      <Attribute key="MaxDebugSessions" type="number" default="5"/>
+
+      <!-- 文件系统 -->
+      <Attribute key="AllowFileSystemRead" type="boolean" default="true"/>
+      <Attribute key="AllowFileSystemWrite" type="boolean" default="false"/>
+      <Attribute key="FileAccessPattern" type="string" default="**/*.{js,ts,json}"/>
+
+      <!-- 终端 -->
+      <Attribute key="AllowCreateTerminal" type="boolean" default="true"/>
+      <Attribute key="MaxTerminals" type="number" default="3"/>
+
+      <!-- 网络（调试协议） -->
+      <Attribute key="AllowNetworkAccess" type="boolean" default="true"/>
+      <Attribute key="AllowedDomains" type="string" default="localhost,127.0.0.1"/>
+
+      <!-- 资源 -->
+      <Attribute key="MaxMemoryUsage" type="number" default="512"/>
+      <Attribute key="MaxCpuUsage" type="number" default="60"/>
+    </Attributes>
+  </Resource>
+
+</Resources>

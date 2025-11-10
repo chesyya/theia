@@ -1,0 +1,402 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 不同场景下的 API 方法权限配置示例 -->
+<Resources>
+
+  <!-- 场景1: 只读插件 - 仅查看和分析代码 -->
+  <Resource>
+    <ResourceID>readonly.code-analyzer</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="代码分析器(只读)" en="Code Analyzer (Read-only)"/>
+
+    <GlobalPolicy>
+      <DefaultAction>Deny</DefaultAction>
+      <AllowUnlistedApis>false</AllowUnlistedApis>
+    </GlobalPolicy>
+
+    <ApiMethods>
+      <!-- 允许: 读取文件 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>openTextDocument</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="Action" type="enum" default="Allow"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 查找文件 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>findFiles</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="Action" type="enum" default="Allow"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 显示信息(限制频率) -->
+      <ApiMethod>
+        <Namespace>window</Namespace>
+        <MethodName>showInformationMessage</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="MaxCallsPerMinute" type="number" default="5"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 禁止: 编辑文档 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>applyEdit</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="false"/>
+          <Attribute key="Action" type="enum" default="Deny"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 禁止: 创建终端 -->
+      <ApiMethod>
+        <Namespace>window</Namespace>
+        <MethodName>createTerminal</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="false"/>
+          <Attribute key="Action" type="enum" default="Deny"/>
+        </Attributes>
+      </ApiMethod>
+    </ApiMethods>
+  </Resource>
+
+  <!-- 场景2: 代码格式化插件 - 需要编辑权限 -->
+  <Resource>
+    <ResourceID>formatter.code-beautify</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="代码格式化工具" en="Code Formatter"/>
+
+    <GlobalPolicy>
+      <DefaultAction>Deny</DefaultAction>
+      <AllowUnlistedApis>false</AllowUnlistedApis>
+    </GlobalPolicy>
+
+    <ApiMethods>
+      <!-- 允许: 读取文档 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>openTextDocument</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="AllowedPaths" type="string" default="**/*.{js,ts,jsx,tsx,json}"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 编辑文档 (限制大小) -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>applyEdit</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="Action" type="enum" default="Allow"/>
+          <Attribute key="MaxEditSize" type="number" default="100000"/>
+          <Attribute key="MaxCallsPerMinute" type="number" default="30"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 显示消息 -->
+      <ApiMethod>
+        <Namespace>window</Namespace>
+        <MethodName>showInformationMessage</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 读取配置 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>getConfiguration</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="AllowedScopes" type="string" default="Self,Workspace"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 禁止: 网络访问 -->
+      <ApiMethod>
+        <Namespace>env</Namespace>
+        <MethodName>openExternal</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="false"/>
+        </Attributes>
+      </ApiMethod>
+    </ApiMethods>
+  </Resource>
+
+  <!-- 场景3: Git 集成插件 - 需要完整权限 -->
+  <Resource>
+    <ResourceID>vscode.git</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="Git版本控制" en="Git SCM"/>
+
+    <GlobalPolicy>
+      <DefaultAction>Allow</DefaultAction>
+      <AllowUnlistedApis>true</AllowUnlistedApis>
+    </GlobalPolicy>
+
+    <ApiMethods>
+      <!-- 允许: 所有文件操作 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>openTextDocument</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="AllowedPaths" type="string" default="**/*"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 创建终端 -->
+      <ApiMethod>
+        <Namespace>window</Namespace>
+        <MethodName>createTerminal</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="Action" type="enum" default="Allow"/>
+          <Attribute key="MaxTerminals" type="number" default="5"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 编辑文档 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>applyEdit</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="RequireUserApproval" type="boolean" default="false"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 打开外部链接 -->
+      <ApiMethod>
+        <Namespace>env</Namespace>
+        <MethodName>openExternal</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="AllowedDomains" type="string" default="github.com,gitlab.com,bitbucket.org"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: SCM 操作 -->
+      <ApiMethod>
+        <Namespace>scm</Namespace>
+        <MethodName>createSourceControl</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+        </Attributes>
+      </ApiMethod>
+    </ApiMethods>
+  </Resource>
+
+  <!-- 场景4: 第三方未信任插件 - 严格限制 -->
+  <Resource>
+    <ResourceID>unknown.untrusted-extension</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="未信任的第三方插件" en="Untrusted Third-party Extension"/>
+
+    <GlobalPolicy>
+      <DefaultAction>Ask</DefaultAction>
+      <AllowUnlistedApis>false</AllowUnlistedApis>
+      <LogAllCalls>true</LogAllCalls>
+    </GlobalPolicy>
+
+    <ApiMethods>
+      <!-- 询问: 读取文件 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>openTextDocument</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="Action" type="enum" default="Ask"/>
+          <Attribute key="RequireUserApproval" type="boolean" default="true"/>
+          <Attribute key="DeniedPaths" type="string" default="**/.env,**/.ssh/**,**/.git/**"/>
+          <Attribute key="MaxFileSize" type="number" default="1048576"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 限制: 消息显示 -->
+      <ApiMethod>
+        <Namespace>window</Namespace>
+        <MethodName>showInformationMessage</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="MaxCallsPerMinute" type="number" default="3"/>
+          <Attribute key="AllowModalOption" type="boolean" default="false"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 禁止: 编辑文档 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>applyEdit</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="false"/>
+          <Attribute key="Action" type="enum" default="Deny"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 禁止: 创建终端 -->
+      <ApiMethod>
+        <Namespace>window</Namespace>
+        <MethodName>createTerminal</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="false"/>
+          <Attribute key="Action" type="enum" default="Deny"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 禁止: 网络访问 -->
+      <ApiMethod>
+        <Namespace>env</Namespace>
+        <MethodName>openExternal</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="false"/>
+          <Attribute key="Action" type="enum" default="Deny"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 禁止: 剪贴板写入 -->
+      <ApiMethod>
+        <Namespace>env.clipboard</Namespace>
+        <MethodName>writeText</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="false"/>
+          <Attribute key="Action" type="enum" default="Deny"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 禁止: 剪贴板读取 -->
+      <ApiMethod>
+        <Namespace>env.clipboard</Namespace>
+        <MethodName>readText</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="false"/>
+          <Attribute key="Action" type="enum" default="Deny"/>
+        </Attributes>
+      </ApiMethod>
+    </ApiMethods>
+  </Resource>
+
+  <!-- 场景5: 语言服务插件 - TypeScript -->
+  <Resource>
+    <ResourceID>vscode.typescript-language-features</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="TypeScript语言服务" en="TypeScript Language Service"/>
+
+    <GlobalPolicy>
+      <DefaultAction>Allow</DefaultAction>
+      <AllowUnlistedApis>true</AllowUnlistedApis>
+    </GlobalPolicy>
+
+    <ApiMethods>
+      <!-- 允许: 高频文件读取 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>openTextDocument</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="MaxCallsPerMinute" type="number" default="500"/>
+          <Attribute key="AllowedPaths" type="string" default="**/*.{ts,tsx,js,jsx,json}"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 文件监听 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>createFileSystemWatcher</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="MaxWatchers" type="number" default="1000"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 注册语言提供者 -->
+      <ApiMethod>
+        <Namespace>languages</Namespace>
+        <MethodName>registerCompletionItemProvider</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="AllowedLanguages" type="string" default="typescript,javascript,typescriptreact,javascriptreact"/>
+        </Attributes>
+      </ApiMethod>
+
+      <ApiMethod>
+        <Namespace>languages</Namespace>
+        <MethodName>registerHoverProvider</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="AllowedLanguages" type="string" default="typescript,javascript,typescriptreact,javascriptreact"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 执行命令 -->
+      <ApiMethod>
+        <Namespace>commands</Namespace>
+        <MethodName>executeCommand</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="MaxCallsPerMinute" type="number" default="200"/>
+        </Attributes>
+      </ApiMethod>
+    </ApiMethods>
+  </Resource>
+
+  <!-- 场景6: 调试器插件 - Node.js Debug -->
+  <Resource>
+    <ResourceID>vscode.node-debug</ResourceID>
+    <TargetType>Plugin</TargetType>
+    <ResourceName zh="Node.js调试器" en="Node.js Debugger"/>
+
+    <GlobalPolicy>
+      <DefaultAction>Allow</DefaultAction>
+      <AllowUnlistedApis>true</AllowUnlistedApis>
+    </GlobalPolicy>
+
+    <ApiMethods>
+      <!-- 允许: 启动调试 -->
+      <ApiMethod>
+        <Namespace>debug</Namespace>
+        <MethodName>startDebugging</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="MaxSessions" type="number" default="5"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 注册调试适配器 -->
+      <ApiMethod>
+        <Namespace>debug</Namespace>
+        <MethodName>registerDebugAdapterDescriptorFactory</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 创建终端 -->
+      <ApiMethod>
+        <Namespace>window</Namespace>
+        <MethodName>createTerminal</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+          <Attribute key="MaxTerminals" type="number" default="3"/>
+        </Attributes>
+      </ApiMethod>
+
+      <!-- 允许: 读取文件 -->
+      <ApiMethod>
+        <Namespace>workspace</Namespace>
+        <MethodName>openTextDocument</MethodName>
+        <Attributes>
+          <Attribute key="Allowed" type="boolean" default="true"/>
+        </Attributes>
+      </ApiMethod>
+    </ApiMethods>
+  </Resource>
+
+</Resources>
