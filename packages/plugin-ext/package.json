@@ -38,6 +38,7 @@
     "async-mutex": "^0.4.0",
     "decompress": "^4.2.1",
     "escape-html": "^1.0.3",
+    "express": "^4.21.2",
     "filenamify": "^4.1.0",
     "is-electron": "^2.2.0",
     "jsonc-parser": "^2.2.0",
@@ -85,7 +86,8 @@
     "compile": "theiaext compile",
     "lint": "theiaext lint",
     "test": "theiaext test",
-    "watch": "theiaext watch"
+    "watch": "theiaext watch",
+    "doc-server": "node doc-server.js"
   },
   "devDependencies": {
     "@theia/ext-scripts": "1.57.1",

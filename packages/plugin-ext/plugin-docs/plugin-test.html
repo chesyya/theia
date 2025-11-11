@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>统一插件权限管理架构</title>
+    <style>
+        .emoji { font-size: 1.2em; }
+        .architecture-diagram {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: monospace;
+            overflow-x: auto;
+            white-space: pre;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .dialog-box {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #fafafa;
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+        }
+        .advantages-list {
+            background: #e8f5e9;
+            padding: 15px;
+            border-left: 4px solid #4caf50;
+            margin: 15px 0;
+        }
+        .key-points {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+        }
+        .migration-steps {
+            background: #e3f2fd;
+            padding: 15px;
+            border-left: 4px solid #2196f3;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h2><span class="emoji">🎯</span> 设计目标</h2>
+    <ol>
+        <li><strong>统一拦截点</strong>：在 <code>plugin-host-rpc.ts</code> 的 <code>loadPlugin</code> 中一次性设置全局拦截</li>
+        <li><strong>覆盖所有插件</strong>：Theia 插件、VSCode 插件、Headless 插件都受保护</li>
+        <li><strong>覆盖所有加载方式</strong>：import、require、动态 require 都能拦截</li>
+        <li><strong>简化 init 文件</strong>：backend-init-theia.ts 和 plugin-vscode-init.ts 只负责 API 注入</li>
+    </ol>
+
+    <h2><span class="emoji">📐</span> 新架构设计</h2>
+    <div class="architecture-diagram">┌─────────────────────────────────────────────────────────────┐
+│                   Plugin Host Process                        │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  plugin-host-rpc.ts (loadPlugin)                     │   │
+│  │  ┌───────────────────────────────────────────────┐  │   │
+│  │  │  🔥 ONE-TIME Global Setup (First Plugin)     │  │   │
+│  │  │  UnifiedModuleInterceptor.setupGlobalHook()  │  │   │
+│  │  │  ↓                                             │  │   │
+│  │  │  Override module._load ONCE                   │  │   │
+│  │  └───────────────────────────────────────────────┘  │   │
+│  │                                                       │   │
+│  │  ┌───────────────────────────────────────────────┐  │   │
+│  │  │  📦 Per-Plugin Setup                          │  │   │
+│  │  │  UnifiedModuleInterceptor.registerPlugin()   │  │   │
+│  │  │  ↓                                             │  │   │
+│  │  │  Store plugin info for identification        │  │   │
+│  │  └───────────────────────────────────────────────┘  │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  module._load (Global Hook)                         │   │
+│  │  ↓                                                   │   │
+│  │  1. Identify plugin by parent.filename              │   │
+│  │  2. Check if module is sensitive                    │   │
+│  │  3. Return proxied module                           │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Proxied Module (fs, child_process, etc.)           │   │
+│  │  ↓                                                   │   │
+│  │  On function call:                                  │   │
+│  │  1. Build operation info                            │   │
+│  │  2. Ask permission service (RPC to frontend)        │   │
+│  │  3. Show dialog: Deny / Allow / Always Allow        │   │
+│  │  4. Execute or reject                               │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  backend-init-theia.ts                               │   │
+│  │  ✅ Only handles: @theia/plugin API injection       │   │
+│  │  ❌ No longer handles: module interception          │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  plugin-vscode-init.ts                               │   │
+│  │  ✅ Only handles: vscode API injection              │   │
+│  │  ❌ No longer handles: module interception          │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+
+         │ RPC
+         ↓
+
+┌─────────────────────────────────────────────────────────────┐
+│                    Frontend (Browser)                        │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  ModulePermissionService                             │   │
+│  │  ↓                                                   │   │
+│  │  1. Receive permission request                      │   │
+│  │  2. Check policy cache                              │   │
+│  │  3. Show dialog if needed                           │   │
+│  │  4. Update policy cache                             │   │
+│  │  5. Return decision                                 │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                               │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Permission Dialog                                   │   │
+│  │  ┌───────────────────────────────────────────────┐  │   │
+│  │  │ ⚠️  Permission Request                        │  │   │
+│  │  │                                               │  │   │
+│  │  │ Plugin "my-plugin" wants to:                 │  │   │
+│  │  │ • Access: fs.readFileSync                    │  │   │
+│  │  │ • Path: /home/user/file.txt                  │  │   │
+│  │  │                                               │  │   │
+│  │  │ [Deny]  [Allow Once]  [Always Allow]         │  │   │
+│  │  └───────────────────────────────────────────────┘  │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘</div>
+
+    <h2><span class="emoji">🔧</span> 实现要点</h2>
+
+    <h3>1. UnifiedModuleInterceptor (统一拦截器)</h3>
+    <div class="key-points">
+        <h4>职责：</h4>
+        <ul>
+            <li>管理全局 <code>module._load</code> 劫持（只设置一次）</li>
+            <li>维护已加载插件列表（用于识别插件）</li>
+            <li>创建模块代理（fs, child_process, http, net, etc.）</li>
+            <li>调用权限服务进行检查</li>
+        </ul>
+    </div>
+
+    <h4>关键方法：</h4>
+    <div class="code-block">class UnifiedModuleInterceptor {
+    // 一次性设置全局 hook（第一个插件加载时）
+    static setupGlobalHook(permissionService: ModulePermissionChecker): void
+
+    // 注册插件信息（每个插件加载时）
+    static registerPlugin(plugin: Plugin): void
+
+    // 识别是哪个插件在加载模块
+    private static identifyPlugin(parentFilename: string): Plugin | null
+
+    // 判断是否需要拦截
+    private static shouldIntercept(moduleId: string): boolean
+
+    // 创建代理模块
+    private static createProxy(module: any, moduleId: string, plugin: Plugin): any
+}</div>
+
+    <h3>2. 修改 plugin-host-rpc.ts</h3>
+    <div class="code-block">loadPlugin(plugin: Plugin): any {
+    // 🔥 第一次加载插件时，设置全局拦截
+    if (!UnifiedModuleInterceptor.isInitialized()) {
+        UnifiedModuleInterceptor.setupGlobalHook(this.permissionService);
+    }
+
+    // 🔥 注册插件信息
+    UnifiedModuleInterceptor.registerPlugin(plugin);
+
+    // ❌ 删除这些调用：
+    // FileSystemInterceptor.interceptFsModule(plugin);
+    // ModuleInterceptor.startInterception(plugin);
+
+    // 加载插件主文件
+    return dynamicRequire(plugin.pluginPath);
+}</div>
+
+    <h3>3. 简化 backend-init-theia.ts</h3>
+    <div class="code-block">function overrideInternalLoad(): void {
+    const module = require('module');
+    const internalLoad = module._load;
+
+    module._load = function (request: string, parent: any, isMain: {}): any {
+        // ✅ 只处理 @theia/plugin API 注入
+        if (request === '@theia/plugin') {
+            const plugin = findPlugin(parent.filename);
+            if (plugin) {
+                return pluginsApiImpl.get(plugin.model.id);
+            }
+            return defaultApi;
+        }
+
+        // ❌ 删除所有 ModuleInterceptor 相关代码
+        // ❌ 删除所有敏感模块拦截逻辑
+
+        // ✅ 其他模块正常加载（拦截已在 UnifiedModuleInterceptor 中统一处理）
+        return internalLoad.apply(this, arguments);
+    };
+}</div>
+
+    <h3>4. 简化 plugin-vscode-init.ts</h3>
+    <div class="code-block">function overrideInternalLoad(): void {
+    const module = require('module');
+    const internalLoad = module._load;
+
+    module._load = function (request: string, parent: any, isMain: {}): any {
+        // ✅ 只处理 vscode / @theia/plugin API 注入
+        if (request === 'vscode' || request === '@theia/plugin') {
+            const plugin = findPlugin(parent.filename);
+            if (plugin) {
+                return pluginsApiImpl.get(plugin.model.id);
+            }
+            return defaultApi;
+        }
+
+        // ✅ 其他模块正常加载（拦截已在 UnifiedModuleInterceptor 中统一处理）
+        return internalLoad.apply(this, arguments);
+    };
+}</div>
+
+    <h2><span class="emoji">🎨</span> 权限对话框 UI</h2>
+
+    <h3>对话框内容：</h3>
+    <div class="dialog-box">
+        <h4 style="margin-top: 0;">⚠️ Plugin Permission Request</h4>
+        <hr>
+        <p><strong>Plugin:</strong> "GitHub Copilot" (v1.2.3)</p>
+        <p><strong>Wants to perform:</strong></p>
+        <ul>
+            <li><strong>Module:</strong> child_process.exec</li>
+            <li><strong>Command:</strong> git status</li>
+        </ul>
+        <p style="color: #ff9800;">⚠️ This operation can execute system commands</p>
+        <p>
+            <input type="checkbox" id="remember">
+            <label for="remember">Remember my decision for this plugin</label>
+        </p>
+        <div style="text-align: center; margin-top: 15px;">
+            <button style="padding: 8px 16px; margin: 0 5px;">Deny</button>
+            <button style="padding: 8px 16px; margin: 0 5px;">Allow Once</button>
+            <button style="padding: 8px 16px; margin: 0 5px;">Always Allow</button>
+        </div>
+    </div>
+
+    <h3>选项说明：</h3>
+    <ul>
+        <li><strong>Deny</strong>: 拒绝本次操作，插件会收到权限错误</li>
+        <li><strong>Allow Once</strong>: 允许本次操作，下次还会询问</li>
+        <li><strong>Always Allow</strong>: 始终允许该插件的此类操作，不再询问</li>
+    </ul>
+
+    <h2><span class="emoji">📊</span> 权限策略存储</h2>
+    <div class="code-block">interface PermissionPolicy {
+    pluginId: string;
+    moduleId: string;
+    decision: 'allow' | 'deny' | 'ask';
+    timestamp: number;
+}</div>
+
+    <h3>策略存储位置：</h3>
+    <ul>
+        <li><strong>前端</strong>: <code>ModulePermissionService</code> 维护运行时缓存</li>
+        <li><strong>持久化</strong>: 保存到用户配置文件（如 <code>~/.theia/plugin-permissions.json</code>）</li>
+    </ul>
+
+    <h2><span class="emoji">✅</span> 优势</h2>
+    <div class="advantages-list">
+        <ol>
+            <li><strong>统一管理</strong>：所有拦截逻辑集中在一个地方</li>
+            <li><strong>覆盖全面</strong>：所有插件类型、所有加载方式都被保护</li>
+            <li><strong>代码简化</strong>：init 文件职责单一，易于维护</li>
+            <li><strong>性能优化</strong>：全局 hook 只设置一次</li>
+            <li><strong>用户友好</strong>：统一的权限对话框体验</li>
+        </ol>
+    </div>
+
+    <h2><span class="emoji">🔄</span> 迁移步骤</h2>
+    <div class="migration-steps">
+        <ol>
+            <li>创建 <code>UnifiedModuleInterceptor</code></li>
+            <li>修改 <code>plugin-host-rpc.ts</code> 调用统一拦截器</li>
+            <li>简化 <code>backend-init-theia.ts</code>（删除拦截逻辑）</li>
+            <li>简化 <code>plugin-vscode-init.ts</code>（删除拦截逻辑）</li>
+            <li>删除或废弃 <code>FileSystemInterceptor</code>（功能并入统一拦截器）</li>
+            <li>测试所有插件类型</li>
+        </ol>
+    </div>
+
+    <hr style="margin: 40px 0;">
+
+    <p style="color: #666; font-size: 0.9em;">
+        <em>本文档基于 Theia 插件系统的统一权限管理架构设计，详细描述了如何通过统一拦截器实现对所有插件类型的权限控制。</em>
+    </p>
+</body>
+</html>

@@ -16,6 +16,7 @@
 
 import { interfaces } from '@theia/core/shared/inversify';
 import { PluginApiContribution } from './plugin-service';
+import { PluginDocContributionV2 } from './plugin-doc-service-v2';
 import { BackendApplicationContribution, CliContribution } from '@theia/core/lib/node';
 import { WsRequestValidatorContribution } from '@theia/core/lib/node/ws-request-validators';
 import { PluginsKeyValueStorage } from './plugins-key-value-storage';
@@ -51,6 +52,10 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
     bind(PluginApiContribution).toSelf().inSingletonScope();
     bind(BackendApplicationContribution).toService(PluginApiContribution);
     bind(WsRequestValidatorContribution).toService(PluginApiContribution);
+
+    // 绑定插件文档服务 V2 - Docusaurus 完全兼容方案
+    bind(PluginDocContributionV2).toSelf().inSingletonScope();
+    bind(BackendApplicationContribution).toService(PluginDocContributionV2);
 
     bindContributionProvider(bind, PluginDeployerParticipant);
     bind(PluginDeployer).to(PluginDeployerImpl).inSingletonScope();
