@@ -24,11 +24,13 @@ export enum VSXSearchMode {
     Installed,
     Builtin,
     Recommended,
+    Popular,  // 新增：热门扩展模式
 }
 
 export const BUILTIN_QUERY = '@builtin';
 export const INSTALLED_QUERY = '@installed';
 export const RECOMMENDED_QUERY = '@recommended';
+export const POPULAR_QUERY = '@popular';  // 新增：热门扩展查询标签
 
 @injectable()
 export class VSXExtensionsSearchModel {
@@ -39,8 +41,10 @@ export class VSXExtensionsSearchModel {
         [BUILTIN_QUERY, VSXSearchMode.Builtin],
         [INSTALLED_QUERY, VSXSearchMode.Installed],
         [RECOMMENDED_QUERY, VSXSearchMode.Recommended],
+        [POPULAR_QUERY, VSXSearchMode.Popular],  // 新增：热门扩展映射
     ]);
 
+    // Default to empty string to trigger loading of popular extensions
     protected _query = '';
     set query(query: string) {
         if (this._query === query) {

@@ -65,4 +65,9 @@ export namespace VSXExtensionsCommands {
         label: 'Show Recommended Extensions',
         category: EXTENSIONS_CATEGORY,
     });
+    export const SHOW_POPULAR = Command.toDefaultLocalizedCommand({
+        id: 'vsxExtension.showPopular',
+        label: 'Show Popular Extensions',
+        category: EXTENSIONS_CATEGORY,
+    });
 }

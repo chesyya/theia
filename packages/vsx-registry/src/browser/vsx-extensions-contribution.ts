@@ -133,6 +133,10 @@ export class VSXExtensionsContribution extends AbstractViewContribution<VSXExten
         commands.registerCommand(VSXExtensionsCommands.SHOW_RECOMMENDATIONS, {
             execute: () => this.showRecommendedExtensions()
         });
+
+        commands.registerCommand(VSXExtensionsCommands.SHOW_POPULAR, {
+            execute: () => this.showPopularExtensions()
+        });
     }
 
     override registerMenus(menus: MenuModelRegistry): void {
@@ -369,5 +373,10 @@ export class VSXExtensionsContribution extends AbstractViewContribution<VSXExten
     protected async showRecommendedExtensions(): Promise<void> {
         await this.openView({ activate: true });
         this.model.search.query = RECOMMENDED_QUERY;
+    }
+
+    protected async showPopularExtensions(): Promise<void> {
+        await this.openView({ activate: true });
+        this.model.search.query = '@popular';
     }
 }

@@ -23,7 +23,7 @@ import { CancellationToken, CancellationTokenSource } from '@theia/core/lib/comm
 import { HostedPluginSupport } from '@theia/plugin-ext/lib/hosted/browser/hosted-plugin';
 import { VSXExtension, VSXExtensionFactory } from './vsx-extension';
 import { ProgressService } from '@theia/core/lib/common/progress-service';
-import { VSXExtensionsSearchModel } from './vsx-extensions-search-model';
+import { VSXExtensionsSearchModel, VSXSearchMode } from './vsx-extensions-search-model';
 import { PreferenceInspectionScope, PreferenceService } from '@theia/core/lib/browser';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { RecommendedExtensions } from './recommended-extensions/recommended-extensions-preference-contribution';
@@ -51,7 +51,11 @@ export class VSXExtensionsModel {
     protected searchCancellationTokenSource = new CancellationTokenSource();
     protected updateSearchResult = debounce(async () => {
         const { token } = this.resetSearchCancellationTokenSource();
-        await this.doUpdateSearchResult({ query: this.search.query, includeAllVersions: true }, token);
+        // Convert special queries to actual API query options
+        const searchOptions = this.convertToApiQuery(this.search.query);
+        if (searchOptions) {
+            await this.doUpdateSearchResult(searchOptions, token);
+        }
     }, 500);
 
     @inject(OVSXClientProvider)
@@ -217,10 +221,76 @@ export class VSXExtensionsModel {
         });
     }
 
+    /**
+     * Returns a default search query to show popular extensions when no specific search is performed.
+     * An empty string query to Open VSX API will return the most popular/downloaded extensions.
+     */
+    protected getDefaultSearchQuery(): string {
+        // Empty string query returns popular extensions from Open VSX
+        return '';
+    }
+
+    /**
+     * Converts special client-side queries (like @popular, @builtin, etc.) to actual API query options.
+     * Special queries that represent local data (@builtin, @installed, @recommended) should not
+     * trigger API calls, so they return undefined.
+     *
+     * @param query The user's search query
+     * @returns VSXSearchOptions to send to the API, or undefined if no API call should be made
+     */
+    protected convertToApiQuery(query: string): VSXSearchOptions | undefined {
+        const mode = this.search.getModeForQuery();
+
+        switch (mode) {
+            case VSXSearchMode.Builtin:
+            case VSXSearchMode.Installed:
+            case VSXSearchMode.Recommended:
+                // These modes use local data, don't query the API
+                return undefined;
+
+            case VSXSearchMode.Popular:
+                // For popular extensions, query with download count sorting
+                return {
+                    query: '',
+                    sortBy: 'downloadCount',
+                    sortOrder: 'desc',
+                    size: 50,  // Get top 50 popular extensions
+                    includeAllVersions: true
+                };
+
+            case VSXSearchMode.Search:
+                // Normal search, use the query as-is with relevance sorting
+                return {
+                    query,
+                    sortBy: 'relevance',
+                    includeAllVersions: true
+                };
+
+            case VSXSearchMode.None:
+            case VSXSearchMode.Initial:
+                // Default state: show popular extensions
+                return {
+                    query: '',
+                    sortBy: 'downloadCount',
+                    sortOrder: 'desc',
+                    size: 50,
+                    includeAllVersions: true
+                };
+
+            default:
+                return {
+                    query,
+                    includeAllVersions: true
+                };
+        }
+    }
+
     protected doUpdateSearchResult(param: VSXSearchOptions, token: CancellationToken): Promise<void> {
         return this.doChange(async () => {
             this._searchResult = new Set<string>();
-            if (!param.query) {
+            // Now we allow empty query to show popular extensions by default
+            // Only skip if query is explicitly undefined (initial state)
+            if (param.query === undefined) {
                 return;
             }
             const client = await this.clientProvider();

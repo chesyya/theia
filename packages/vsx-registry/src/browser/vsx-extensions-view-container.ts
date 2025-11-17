@@ -116,6 +116,10 @@ export class VSXExtensionsViewContainer extends ViewContainer {
         if (widgetsToShow.length) {
             return widgetsToShow.includes(part.wrapped.id);
         }
+        // In default mode (None/Initial), show all widgets including Open VSX Registry
+        if (this.currentMode === VSXSearchMode.None || this.currentMode === VSXSearchMode.Initial) {
+            return true;
+        }
         return part.wrapped.id !== generateExtensionWidgetId(VSXExtensionsSourceOptions.SEARCH_RESULT);
     }
 
@@ -129,6 +133,13 @@ export class VSXExtensionsViewContainer extends ViewContainer {
                 return [generateExtensionWidgetId(VSXExtensionsSourceOptions.RECOMMENDED)];
             case VSXSearchMode.Search:
                 return [generateExtensionWidgetId(VSXExtensionsSourceOptions.SEARCH_RESULT)];
+            case VSXSearchMode.Popular:
+                // 新增：显示 Open VSX Registry 热门扩展
+                return [generateExtensionWidgetId(VSXExtensionsSourceOptions.SEARCH_RESULT)];
+            case VSXSearchMode.None:
+            case VSXSearchMode.Initial:
+                // Show all views by default, including Open VSX Registry with popular extensions
+                return [];
             default:
                 return [];
         }

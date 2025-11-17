@@ -33,7 +33,21 @@ export const recommendedExtensionsPreferencesSchema: PreferenceSchema = {
         extensions: {
             $ref: extensionsSchemaID,
             description: nls.localize('theia/vsx-registry/recommendedExtensions', 'A list of the names of extensions recommended for use in this workspace.'),
-            defaultValue: { recommendations: [] },
+            defaultValue: {
+                recommendations: [
+                    // 添加你想要推荐的扩展 ID（格式：publisher.extensionName）
+                    // 代码质量和格式化
+                    'dbaeumer.vscode-eslint',           // ESLint - JavaScript/TypeScript 代码检查
+                    'esbenp.prettier-vscode',           // Prettier - 代码格式化
+
+                    // Git 工具
+                    'eamodio.gitlens',                  // GitLens - Git 增强工具
+
+                    // 其他常用工具
+                    // 'ms-vscode.vscode-typescript-next', // TypeScript 支持
+                    // 'editorconfig.editorconfig',        // EditorConfig 支持
+                ]
+            },
         },
     },
 };
