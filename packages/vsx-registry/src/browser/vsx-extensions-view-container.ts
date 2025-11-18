@@ -116,10 +116,8 @@ export class VSXExtensionsViewContainer extends ViewContainer {
         if (widgetsToShow.length) {
             return widgetsToShow.includes(part.wrapped.id);
         }
-        // In default mode (None/Initial), show all widgets including Open VSX Registry
-        if (this.currentMode === VSXSearchMode.None || this.currentMode === VSXSearchMode.Initial) {
-            return true;
-        }
+        // In default mode (None/Initial), hide SEARCH_RESULT (Open VSX Registry) by default
+        // User can manually enable it from the view menu
         return part.wrapped.id !== generateExtensionWidgetId(VSXExtensionsSourceOptions.SEARCH_RESULT);
     }
 

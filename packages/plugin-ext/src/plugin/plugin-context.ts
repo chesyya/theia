@@ -696,6 +696,10 @@ export function createAPIFactory(
                         ignoreCreateOrOptions as boolean, ignoreChangeEventsBoolean, ignoreDeleteEventsBoolean));
             }
         }
+        // 缓存已检查通过的权限，避免重复检查
+        // key: `${moduleId}.${functionName}`
+        const permissionCheckedCache = new Set<string>();
+
         const workspace: typeof theia.workspace = {
 
             get fs(): theia.FileSystem {
@@ -704,31 +708,40 @@ export function createAPIFactory(
                 // 使用 Proxy 拦截所有方法调用，在执行前进行权限检查
                 return new Proxy(originalFs, {
                     get(target, prop, receiver) {
-                        console.dir('aaaaaaaaaaaaaaaa')
                         const original = Reflect.get(target, prop, receiver);
 
                         // 如果是函数，则包装它进行权限检查
                         if (typeof original === 'function') {
                             return async (...args: any[]) => {
-                                // 构建模块操作信息
-                                const operation: ModuleOperation = {
-                                    moduleId: 'theia.workspace.fs',
-                                    functionName: String(prop),
-                                    args: args.map(arg => {
-                                        // 对参数进行脱敏处理
-                                        if (arg && typeof arg === 'object' && 'fsPath' in arg) {
-                                            return arg.fsPath;
-                                        }
-                                        return typeof arg === 'string' ? arg : '[object]';
-                                    }),
-                                    pluginId: plugin.model.id,
-                                    pluginName: plugin.model.displayName || plugin.model.name
-                                };
+                                const moduleId = 'theia.workspace.fs';
+                                const functionName = String(prop);
+                                const cacheKey = `${moduleId}.${functionName}`;
 
-                                // 调用 main 端的权限检查服务
-                                await modulePermissionMain.$checkModulePermission(operation);
+                                // 检查缓存，如果已经检查过则跳过
+                                if (!permissionCheckedCache.has(cacheKey)) {
+                                    // 构建模块操作信息
+                                    const operation: ModuleOperation = {
+                                        moduleId,
+                                        functionName,
+                                        args: args.map(arg => {
+                                            // 对参数进行脱敏处理
+                                            if (arg && typeof arg === 'object' && 'fsPath' in arg) {
+                                                return arg.fsPath;
+                                            }
+                                            return typeof arg === 'string' ? arg : '[object]';
+                                        }),
+                                        pluginId: plugin.model.id,
+                                        pluginName: plugin.model.displayName || plugin.model.name
+                                    };
 
-                                // 权限检查通过后，调用原方法
+                                    // 调用 main 端的权限检查服务
+                                    await modulePermissionMain.$checkModulePermission(operation);
+
+                                    // 权限检查通过，加入缓存
+                                    permissionCheckedCache.add(cacheKey);
+                                }
+
+                                // 调用原方法
                                 return original.apply(target, args);
                             };
                         }
