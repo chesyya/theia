@@ -38,6 +38,7 @@ import { WindowStateExtImpl } from './window-state';
 import { WorkspaceExtImpl } from './workspace';
 import { EnvExtImpl } from './env';
 import { QueryParameters } from '../common/env';
+import { ModuleOperation } from '../common/module-permission-service';
 import {
     ConfigurationTarget,
     Disposable,
@@ -350,6 +351,9 @@ export function createAPIFactory(
     const testingExt = rpc.set(MAIN_RPC_CONTEXT.TESTING_EXT, new TestingExtImpl(rpc, commandRegistry));
     const uriExt = rpc.set(MAIN_RPC_CONTEXT.URI_EXT, new UriExtImpl(rpc));
     rpc.set(MAIN_RPC_CONTEXT.DEBUG_EXT, debugExt);
+
+    // 获取模块权限检查服务代理
+    const modulePermissionMain = rpc.getProxy(PLUGIN_RPC_CONTEXT.MODULE_PERMISSION_MAIN);
 
     return function (plugin: InternalPlugin): typeof theia {
         const authentication: typeof theia.authentication = {
@@ -695,7 +699,43 @@ export function createAPIFactory(
         const workspace: typeof theia.workspace = {
 
             get fs(): theia.FileSystem {
-                return fileSystemExt.fileSystem.apiObject;
+                const originalFs = fileSystemExt.fileSystem.apiObject;
+
+                // 使用 Proxy 拦截所有方法调用，在执行前进行权限检查
+                return new Proxy(originalFs, {
+                    get(target, prop, receiver) {
+                        console.dir('aaaaaaaaaaaaaaaa')
+                        const original = Reflect.get(target, prop, receiver);
+
+                        // 如果是函数，则包装它进行权限检查
+                        if (typeof original === 'function') {
+                            return async (...args: any[]) => {
+                                // 构建模块操作信息
+                                const operation: ModuleOperation = {
+                                    moduleId: 'theia.workspace.fs',
+                                    functionName: String(prop),
+                                    args: args.map(arg => {
+                                        // 对参数进行脱敏处理
+                                        if (arg && typeof arg === 'object' && 'fsPath' in arg) {
+                                            return arg.fsPath;
+                                        }
+                                        return typeof arg === 'string' ? arg : '[object]';
+                                    }),
+                                    pluginId: plugin.model.id,
+                                    pluginName: plugin.model.displayName || plugin.model.name
+                                };
+
+                                // 调用 main 端的权限检查服务
+                                await modulePermissionMain.$checkModulePermission(operation);
+
+                                // 权限检查通过后，调用原方法
+                                return original.apply(target, args);
+                            };
+                        }
+
+                        return original;
+                    }
+                }) as theia.FileSystem;
             },
 
             get rootPath(): string | undefined {

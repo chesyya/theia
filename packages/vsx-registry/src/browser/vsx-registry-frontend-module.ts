@@ -85,14 +85,16 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
             const viewContainer = child.get(VSXExtensionsViewContainer);
             const widgetManager = child.get(WidgetManager);
             for (const id of [
-                VSXExtensionsSourceOptions.SEARCH_RESULT,
                 VSXExtensionsSourceOptions.RECOMMENDED,
+                VSXExtensionsSourceOptions.SEARCH_RESULT,
                 VSXExtensionsSourceOptions.INSTALLED,
                 VSXExtensionsSourceOptions.BUILT_IN,
             ]) {
                 const widget = await widgetManager.getOrCreateWidget(VSXExtensionsWidget.ID, { id });
                 viewContainer.addWidget(widget, {
-                    initiallyCollapsed: id === VSXExtensionsSourceOptions.BUILT_IN
+                    initiallyCollapsed: id === VSXExtensionsSourceOptions.BUILT_IN,
+                    initiallyHidden: id === VSXExtensionsSourceOptions.SEARCH_RESULT,
+                    canHide: true
                 });
             }
             return viewContainer;

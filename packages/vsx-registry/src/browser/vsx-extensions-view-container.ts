@@ -170,15 +170,33 @@ export class VSXExtensionsViewContainer extends ViewContainer {
         this.model.search.query = state.query;
     }
 
+    protected override getToggleVisibilityGroupLabel(): string {
+        return 'a/' + nls.localizeByDefault('Views');
+    }
+
     protected override updateToolbarItems(allParts: ViewContainerPart[]): void {
-        super.updateToolbarItems(allParts);
+        if (allParts.length > 1) {
+            const group = this.getToggleVisibilityGroupLabel();
+            for (let i = 0; i < allParts.length; i++) {
+                const part = allParts[i];
+                const existingId = this.toggleVisibilityCommandId(part);
+                const { caption, label, dataset: { visibilityCommandLabel } } = part.wrapped.title;
+                // 设置 order 使得菜单顺序与左边视图一致
+                this.registerToolbarItem(existingId, {
+                    tooltip: visibilityCommandLabel || caption || label,
+                    group,
+                    order: i.toString()
+                });
+            }
+        }
         this.registerToolbarItem(VSXExtensionsCommands.INSTALL_FROM_VSIX.id, { tooltip: VSXExtensionsCommands.INSTALL_FROM_VSIX.label, group: 'other_1' });
         this.registerToolbarItem(VSXExtensionsCommands.CLEAR_ALL.id, { tooltip: VSXExtensionsCommands.CLEAR_ALL.label, priority: 1, onDidChange: this.model.onDidChange });
     }
 
-    protected override getToggleVisibilityGroupLabel(): string {
-        return 'a/' + nls.localizeByDefault('Views');
+    protected override toggleVisibilityCommandId(part: ViewContainerPart): string {
+        return `${this.id}:toggle-visibility-${part.id}`;
     }
+
 }
 export namespace VSXExtensionsViewContainer {
     export interface State {
