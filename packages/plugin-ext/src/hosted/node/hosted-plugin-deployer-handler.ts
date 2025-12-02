@@ -26,6 +26,7 @@ import { Deferred } from '@theia/core/lib/common/promise-util';
 import { HostedPluginLocalizationService } from './hosted-plugin-localization-service';
 import { Stopwatch } from '@theia/core/lib/common';
 import { PluginUninstallationManager } from '../../main/node/plugin-uninstallation-manager';
+import { PluginApiCompatibilityService } from './plugin-api-compatibility-service';
 
 @injectable()
 export class HostedPluginDeployerHandler implements PluginDeployerHandler {
@@ -44,6 +45,9 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
 
     @inject(PluginUninstallationManager)
     protected readonly uninstallationManager: PluginUninstallationManager;
+
+    @inject(PluginApiCompatibilityService)
+    protected readonly compatibilityService: PluginApiCompatibilityService;
 
     private readonly deployedLocations = new Map<PluginIdentifiers.VersionedId, Set<string>>();
     protected readonly sourceLocations = new Map<PluginIdentifiers.VersionedId, Set<string>>();
@@ -165,6 +169,22 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             const manifest = await this.reader.readPackage(pluginPath);
             if (!manifest) {
                 deployPlugin.error(`Failed to read ${entryPoint} plugin manifest from '${pluginPath}''`);
+                return success = false;
+            }
+
+            // API 兼容性检查（系统插件跳过检查）
+            const isSystemPlugin = entry.type === PluginType.System;
+            const compatibilityResult = await this.compatibilityService.checkCompatibility(pluginPath, isSystemPlugin);
+            if (!compatibilityResult.compatible) {
+                deployPlugin.error(
+                    `Plugin at '${pluginPath}' is not compatible with current IDE API version.\n` +
+                    `Plugin API version: ${compatibilityResult.pluginApiVersion || 'N/A'}\n` +
+                    `Current IDE API version: ${compatibilityResult.currentIdeApiVersion || 'N/A'}\n` +
+                    `Errors:\n${compatibilityResult.errors?.map(e => `  - ${e}`).join('\n')}`
+                );
+                this.logger.error(
+                    `[API Compatibility] Skipping deployment of incompatible plugin at '${pluginPath}'`
+                );
                 return success = false;
             }
 

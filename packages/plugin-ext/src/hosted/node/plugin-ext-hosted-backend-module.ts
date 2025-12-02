@@ -34,6 +34,7 @@ import { HostedPluginDeployerHandler } from './hosted-plugin-deployer-handler';
 import { PluginUriFactory } from './scanners/plugin-uri-factory';
 import { FilePluginUriFactory } from './scanners/file-plugin-uri-factory';
 import { HostedPluginLocalizationService } from './hosted-plugin-localization-service';
+import { PluginApiCompatibilityService } from './plugin-api-compatibility-service';
 import { LanguagePackService, languagePackServicePath } from '../../common/language-pack-service';
 import { PluginLanguagePackService } from './plugin-language-pack-service';
 import { RpcConnectionHandler } from '@theia/core/lib/common/messaging/proxy-factory';
@@ -81,6 +82,8 @@ export function bindCommonHostedBackend(bind: interfaces.Bind): void {
 
     bind(HostedPluginLocalizationService).toSelf().inSingletonScope();
     bind(BackendApplicationContribution).toService(HostedPluginLocalizationService);
+    bind(PluginApiCompatibilityService).toSelf().inSingletonScope();
+    bind(BackendApplicationContribution).toService(PluginApiCompatibilityService);
     bind(HostedPluginDeployerHandler).toSelf().inSingletonScope();
     bind(PluginDeployerHandler).toService(HostedPluginDeployerHandler);
 
