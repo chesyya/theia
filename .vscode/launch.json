@@ -7,6 +7,19 @@
     {
       "type": "node",
       "request": "attach",
+      "name": "Attach to Hosted Plugin (test-plugin)",
+      "port": 9229,
+      "address": "localhost",
+      "localRoot": "${workspaceFolder}/plugins/test-plugin",
+      "remoteRoot": "${workspaceFolder}/plugins/test-plugin",
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/plugins/test-plugin/out/**/*.js"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "attach",
       "name": "Attach by Process ID",
       "processId": "${command:PickProcess}"
     },

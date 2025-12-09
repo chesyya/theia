@@ -206,7 +206,7 @@ export class HostedPluginManagerClient {
         await this.debugSessionManager.start({
             name,
             configuration: {
-                type: 'node',
+                type: 'pwa-node',
                 request: 'attach',
                 timeout: 30000,
                 name,

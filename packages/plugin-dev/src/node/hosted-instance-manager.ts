@@ -88,7 +88,7 @@ export interface HostedInstanceManager {
     isPluginValid(uri: URI): Promise<boolean>;
 }
 
-const HOSTED_INSTANCE_START_TIMEOUT_MS = 30000;
+const HOSTED_INSTANCE_START_TIMEOUT_MS = 300000;
 const THEIA_INSTANCE_REGEX = /.*Theia app listening on (.*).*\./;
 const PROCESS_OPTIONS = {
     cwd: process.cwd(),
@@ -187,7 +187,7 @@ export abstract class AbstractHostedInstanceManager implements HostedInstanceMan
      * Checks that the `instanceUri` is responding before exiting method
      */
     public async checkInstanceUriReady(): Promise<void> {
-        return new Promise<void>((resolve, reject) => this.pingLoop(60, resolve, reject));
+        return new Promise<void>((resolve, reject) => this.pingLoop(300, resolve, reject));
     }
 
     /**
@@ -314,7 +314,10 @@ export abstract class AbstractHostedInstanceManager implements HostedInstanceMan
 
             this.hostedInstanceProcess = cp.spawn(command.shift()!, command, options);
             this.hostedInstanceProcess.on('error', () => { this.isPluginRunning = false; });
-            this.hostedInstanceProcess.on('exit', () => { this.isPluginRunning = false; });
+            this.hostedInstanceProcess.on('exit', (code, signal) => {
+                this.hostedPluginSupport.sendLog({ data: `Hosted instance exited with code: ${code}, signal: ${signal}`, type: LogType.Info });
+                this.isPluginRunning = false;
+            });
             this.hostedInstanceProcess.stdout!.addListener('data', outputListener);
 
             this.hostedInstanceProcess.stdout!.addListener('data', data => {
@@ -383,7 +386,7 @@ export class NodeHostedPluginRunner extends AbstractHostedInstanceManager {
         if (!port) {
             port = process.env.HOSTED_PLUGIN_PORT ?
                 Number(process.env.HOSTED_PLUGIN_PORT) :
-                (debugConfig?.debugPort ? Number(debugConfig.debugPort) : DEFAULT_HOSTED_PLUGIN_PORT);
+                (debugConfig && typeof debugConfig.debugPort === 'number' ? debugConfig.debugPort : DEFAULT_HOSTED_PLUGIN_PORT);
         }
         return super.getStartCommand(port, debugConfig);
     }
