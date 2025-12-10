@@ -578,6 +578,7 @@ export interface PluginModel {
     l10n?: string;
     readmeUrl?: string;
     licenseUrl?: string;
+    disabled?: boolean;
 }
 
 export interface PluginEntryPoint {
@@ -947,6 +948,7 @@ export interface PluginMetadata {
     lifecycle: PluginLifecycle;
     isUnderDevelopment?: boolean;
     outOfSync: boolean;
+    disabled?: boolean;
 }
 
 export const MetadataProcessor = Symbol('MetadataProcessor');
@@ -988,6 +990,7 @@ export interface PluginDeployerHandler {
 
     getDeployedPlugins(): Promise<DeployedPlugin[]>;
     getDeployedPluginsById(pluginId: string): DeployedPlugin[];
+    getDeployedPluginIds(): Promise<readonly PluginIdentifiers.VersionedId[]>;
 
     getDeployedPlugin(pluginId: PluginIdentifiers.VersionedId): DeployedPlugin | undefined;
     /**
@@ -1000,6 +1003,9 @@ export interface PluginDeployerHandler {
      * This operation is not safe - references to deleted assets may remain.
      */
     undeployPlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean>;
+
+    enablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean>;
+    disablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean>;
 
     getPluginDependencies(pluginToBeInstalled: PluginDeployerEntry): Promise<PluginDependencies | undefined>;
 }
@@ -1023,6 +1029,8 @@ export interface HostedPluginServer extends RpcServer<HostedPluginClient> {
     getDeployedPluginIds(): Promise<PluginIdentifiers.VersionedId[]>;
 
     getUninstalledPluginIds(): Promise<readonly PluginIdentifiers.VersionedId[]>;
+
+    getDisabledPluginIds(): Promise<readonly PluginIdentifiers.VersionedId[]>;
 
     getDeployedPlugins(params: GetDeployedPluginsParams): Promise<DeployedPlugin[]>;
 
@@ -1062,6 +1070,13 @@ export interface PluginServer {
     deploy(pluginEntry: string, type?: PluginType, options?: PluginDeployOptions): Promise<void>;
     uninstall(pluginId: PluginIdentifiers.VersionedId): Promise<void>;
     undeploy(pluginId: PluginIdentifiers.VersionedId): Promise<void>;
+
+    enablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean>;
+    disablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean>;
+
+    getInstalledPlugins(): Promise<readonly PluginIdentifiers.VersionedId[]>;
+    getUninstalledPlugins(): Promise<readonly PluginIdentifiers.VersionedId[]>;
+    getDisabledPlugins(): Promise<readonly PluginIdentifiers.VersionedId[]>;
 
     setStorageValue(key: string, value: KeysToAnyValues, kind: PluginStorageKind): Promise<boolean>;
     getStorageValue(key: string, kind: PluginStorageKind): Promise<KeysToAnyValues>;

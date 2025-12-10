@@ -241,6 +241,9 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
             contributes.jsonValidation = (contributes.jsonValidation || []).concat(this.jsonValidation);
         }
         this.registry.set(plugin.model.id, plugin);
+        if (plugin.model.disabled) {
+            return;
+        }
         const activationEvents = this.getActivationEvents(plugin);
         if (plugin.pluginPath && activationEvents) {
             const activation = () => this.$activatePlugin(plugin.model.id);

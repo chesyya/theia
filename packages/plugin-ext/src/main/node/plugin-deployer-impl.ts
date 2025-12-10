@@ -35,6 +35,7 @@ import { PluginDeployerDirectoryHandlerContextImpl } from './plugin-deployer-dir
 import { ILogger, Emitter, ContributionProvider } from '@theia/core';
 import { PluginCliContribution } from './plugin-cli-contribution';
 import { Measurement, Stopwatch } from '@theia/core/lib/common';
+import { DisabledPluginService } from './disabled-plugin-service';
 
 @injectable()
 export class PluginDeployerImpl implements PluginDeployer {
@@ -53,6 +54,9 @@ export class PluginDeployerImpl implements PluginDeployer {
 
     @inject(Stopwatch)
     protected readonly stopwatch: Stopwatch;
+
+    @inject(DisabledPluginService)
+    protected readonly disabledPluginService: DisabledPluginService;
 
     /**
      * Inject all plugin resolvers found at runtime.
@@ -147,6 +151,14 @@ export class PluginDeployerImpl implements PluginDeployer {
         }
     }
 
+    enablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean> {
+        return this.pluginDeployerHandler.enablePlugin(pluginId);
+    }
+
+    disablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean> {
+        return this.pluginDeployerHandler.disablePlugin(pluginId);
+    }
+
     async deploy(plugin: UnresolvedPluginEntry, options?: PluginDeployOptions): Promise<number> {
         const deploy = this.measure('deploy');
         const numDeployedPlugins = await this.deployMultipleEntries([plugin], options);
@@ -192,6 +204,9 @@ export class PluginDeployerImpl implements PluginDeployer {
                         const versionedId = pluginData && PluginIdentifiers.componentsToVersionedId(pluginData.metadata.model);
                         const unversionedId = versionedId && PluginIdentifiers.componentsToUnversionedId(pluginData.metadata.model);
                         if (unversionedId && !pluginsToDeploy.has(versionedId)) {
+                            if (await this.disabledPluginService.isDisabled(unversionedId)) {
+                                deployerEntry.storeValue('disabled', true);
+                            }
                             pluginsToDeploy.set(versionedId, deployerEntry);
                             if (pluginData.mapping) {
                                 pendingDependencies.push({ dependencies: pluginData.mapping, type });

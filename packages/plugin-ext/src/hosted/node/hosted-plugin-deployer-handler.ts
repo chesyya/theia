@@ -87,6 +87,10 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
         return Array.from(this.deployedBackendPlugins.values());
     }
 
+    async getDeployedPluginIds(): Promise<readonly PluginIdentifiers.VersionedId[]> {
+        return [... await this.getDeployedBackendPluginIds(), ... await this.getDeployedFrontendPluginIds()];
+    }
+
     async getDeployedPlugins(): Promise<DeployedPlugin[]> {
         await this.frontendPluginsMetadataDeferred.promise;
         await this.backendPluginsMetadataDeferred.promise;
@@ -190,6 +194,10 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
 
             const metadata = this.reader.readMetadata(manifest);
             metadata.isUnderDevelopment = entry.getValue('isUnderDevelopment') ?? false;
+            // 复制禁用状态到模型
+            if (entry.getValue('disabled')) {
+                metadata.model.disabled = true;
+            }
 
             id = PluginIdentifiers.componentsToVersionedId(metadata.model);
 
@@ -290,5 +298,13 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             : [entry.rootPath];
         storedLocations.forEach(location => knownLocations.add(location));
         this.sourceLocations.set(id, knownLocations);
+    }
+
+    async enablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean> {
+        return this.uninstallationManager.markAsEnabled(pluginId);
+    }
+
+    async disablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean> {
+        return this.uninstallationManager.markAsDisabled(pluginId);
     }
 }

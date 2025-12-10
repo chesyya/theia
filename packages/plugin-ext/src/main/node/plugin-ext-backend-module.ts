@@ -34,7 +34,7 @@ import { HttpPluginDeployerResolver } from './plugin-http-resolver';
 import { ConnectionHandler, RpcConnectionHandler, bindContributionProvider } from '@theia/core';
 import { PluginPathsService, pluginPathsServicePath } from '../common/plugin-paths-protocol';
 import { PluginPathsServiceImpl } from './paths/plugin-paths-service';
-import { PluginServerHandler } from './plugin-server-handler';
+import { PluginServerImpl } from './plugin-server-impl';
 import { PluginCliContribution } from './plugin-cli-contribution';
 import { PluginTheiaEnvironment } from '../common/plugin-theia-environment';
 import { PluginTheiaDeployerParticipant } from './plugin-theia-deployer-participant';
@@ -42,6 +42,7 @@ import { WebviewBackendSecurityWarnings } from './webview-backend-security-warni
 import { PluginUninstallationManager } from './plugin-uninstallation-manager';
 import { LocalizationServerImpl } from '@theia/core/lib/node/i18n/localization-server';
 import { PluginLocalizationServer } from './plugin-localization-server';
+import { DisabledPluginService } from './disabled-plugin-service';
 import { PluginMgmtCliContribution } from './plugin-mgmt-cli-contribution';
 import { PluginRemoteCliContribution } from './plugin-remote-cli-contribution';
 import { RemoteCliContribution } from '@theia/core/lib/node/remote/remote-cli-contribution';
@@ -75,8 +76,9 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
     bind(PluginDeployerFileHandler).to(PluginTheiaFileHandler).inSingletonScope();
     bind(PluginDeployerDirectoryHandler).to(PluginTheiaDirectoryHandler).inSingletonScope();
 
-    bind(PluginServer).to(PluginServerHandler).inSingletonScope();
+    bind(PluginServer).to(PluginServerImpl).inSingletonScope();
 
+    bind(DisabledPluginService).toSelf().inSingletonScope();
     bind(PluginsKeyValueStorage).toSelf().inSingletonScope();
 
     bind(PluginPathsService).to(PluginPathsServiceImpl).inSingletonScope();
