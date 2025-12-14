@@ -1070,13 +1070,8 @@ export interface PluginServer {
     deploy(pluginEntry: string, type?: PluginType, options?: PluginDeployOptions): Promise<void>;
     uninstall(pluginId: PluginIdentifiers.VersionedId): Promise<void>;
     undeploy(pluginId: PluginIdentifiers.VersionedId): Promise<void>;
-
-    enablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean>;
-    disablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean>;
-
-    getInstalledPlugins(): Promise<readonly PluginIdentifiers.VersionedId[]>;
-    getUninstalledPlugins(): Promise<readonly PluginIdentifiers.VersionedId[]>;
-    getDisabledPlugins(): Promise<readonly PluginIdentifiers.VersionedId[]>;
+    enable(pluginId: string): Promise<void>;
+    disable(pluginId: string): Promise<void>;
 
     setStorageValue(key: string, value: KeysToAnyValues, kind: PluginStorageKind): Promise<boolean>;
     getStorageValue(key: string, kind: PluginStorageKind): Promise<KeysToAnyValues>;

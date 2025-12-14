@@ -197,6 +197,7 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             // 复制禁用状态到模型
             if (entry.getValue('disabled')) {
                 metadata.model.disabled = true;
+                metadata.disabled = true;
             }
 
             id = PluginIdentifiers.componentsToVersionedId(metadata.model);
