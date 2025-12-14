@@ -18,6 +18,7 @@ import { injectable, inject, postConstruct } from '@theia/core/shared/inversify'
 import debounce from 'p-debounce';
 import * as markdownit from '@theia/core/shared/markdown-it';
 import * as DOMPurify from '@theia/core/shared/dompurify';
+import * as semver from 'semver';
 import { Emitter, Event } from '@theia/core/lib/common/event';
 import { CancellationToken, CancellationTokenSource } from '@theia/core/lib/common/cancellation';
 import { HostedPluginSupport } from '@theia/plugin-ext/lib/hosted/browser/hosted-plugin';
@@ -391,7 +392,41 @@ export class VSXExtensionsModel {
             const installedSorted = Array.from(installed).sort((a, b) => this.compareExtensions(a, b));
             this._installed = new Set(installedSorted.values());
             await Promise.all(refreshing);
+            this.checkForUpdates().then(() => this.onDidChangeEmitter.fire());
         });
+    }
+
+    protected async checkForUpdates(): Promise<void> {
+        const checkUpdates: Promise<void>[] = [];
+        for (const id of this._installed) {
+            const extension = this.getExtension(id);
+            if (extension && !extension.builtin) {
+                checkUpdates.push(this.refreshLatestVersion(id));
+            }
+        }
+        await Promise.all(checkUpdates);
+    }
+
+    protected async refreshLatestVersion(id: string): Promise<void> {
+        try {
+            const filter = await this.vsxApiFilter();
+            const targetPlatform = await this.applicationServer.getApplicationPlatform() as VSXTargetPlatform;
+
+            const data = await filter.findLatestCompatibleExtension({
+                extensionId: id,
+                includeAllVersions: true,
+                targetPlatform
+            });
+
+            if (data && data.version) {
+                const extension = this.getExtension(id);
+                if (extension) {
+                    extension.update({ latestVersion: data.version });
+                }
+            }
+        } catch (e) {
+            console.error(`Failed to check for updates for ${id}`, e);
+        }
     }
 
     protected updateRecommended(): Promise<Array<VSXExtension | undefined>> {

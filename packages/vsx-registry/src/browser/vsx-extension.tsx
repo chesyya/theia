@@ -16,6 +16,7 @@
 
 import * as React from '@theia/core/shared/react';
 import * as DOMPurify from '@theia/core/shared/dompurify';
+import * as semver from 'semver';
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import URI from '@theia/core/lib/common/uri';
 import { TreeElement, TreeElementNode } from '@theia/core/lib/browser/source-tree';
@@ -59,6 +60,7 @@ export class VSXExtensionData {
     readonly readme?: string;
     readonly preview?: boolean;
     readonly verified?: boolean;
+    readonly latestVersion?: string;
     readonly namespaceAccess?: VSXExtensionNamespaceAccess;
     readonly publishedBy?: VSXUser;
     static KEYS: Set<(keyof VSXExtensionData)> = new Set([
@@ -78,6 +80,7 @@ export class VSXExtensionData {
         'readme',
         'preview',
         'verified',
+        'latestVersion',
         'namespaceAccess',
         'publishedBy'
     ]);
@@ -244,6 +247,10 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
 
     get version(): string | undefined {
         return this.getData('version');
+    }
+
+    get latestVersion(): string | undefined {
+        return this.getData('latestVersion');
     }
 
     get averageRating(): number | undefined {
@@ -451,6 +458,21 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
         }
     };
 
+    readonly updateExtension = async (event?: React.MouseEvent) => {
+        event?.stopPropagation();
+        this.forceUpdate();
+        try {
+            const pending = this.props.extension.install({
+                version: this.props.extension.latestVersion,
+                ignoreOtherVersions: true
+            });
+            this.forceUpdate();
+            await pending;
+        } finally {
+            this.forceUpdate();
+        }
+    };
+
     readonly enable = async (event?: React.MouseEvent) => {
         event?.stopPropagation();
         this.props.extension.enable();
@@ -472,7 +494,7 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
     };
 
     protected renderAction(host?: TreeWidget): React.ReactNode {
-        const { builtin, busy, plugin } = this.props.extension;
+        const { builtin, busy, plugin, version, latestVersion } = this.props.extension;
         const disabled = this.props.extension.disabled;
         const isFocused = (host?.model.getFocusedNode() as TreeElementNode)?.element === this.props.extension;
         const tabIndex = (!host || isFocused) ? 0 : undefined;
@@ -488,6 +510,9 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
             return <button className="theia-button action prominent theia-mod-disabled">{nls.localizeByDefault('Installing')}</button>;
         }
         if (installed) {
+            if (latestVersion && version && semver.gt(latestVersion, version)) {
+                return <button className="theia-button prominent action" onClick={this.updateExtension}>{nls.localizeByDefault('Update')}</button>;
+            }
             return <div>
                 {
                     outOfSynch
