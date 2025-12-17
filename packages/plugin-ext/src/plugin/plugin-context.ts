@@ -704,6 +704,8 @@ export function createAPIFactory(
 
             get fs(): theia.FileSystem {
                 const originalFs = fileSystemExt.fileSystem.apiObject;
+                // 在 getter 内部捕获 plugin 引用，确保闭包正确
+                const currentPlugin = plugin;
 
                 // 使用 Proxy 拦截所有方法调用，在执行前进行权限检查
                 return new Proxy(originalFs, {
@@ -713,12 +715,22 @@ export function createAPIFactory(
                         // 如果是函数，则包装它进行权限检查
                         if (typeof original === 'function') {
                             return async (...args: any[]) => {
+                                // 调试输出
+                                console.log('[fs Proxy] currentPlugin:', currentPlugin ? `${currentPlugin.model.id}` : 'undefined');
+                                console.log('[fs Proxy] Calling:', String(prop));
+
                                 const moduleId = 'theia.workspace.fs';
                                 const functionName = String(prop);
                                 const cacheKey = `${moduleId}.${functionName}`;
 
                                 // 检查缓存，如果已经检查过则跳过
                                 if (!permissionCheckedCache.has(cacheKey)) {
+                                    // 确保 currentPlugin 存在
+                                    if (!currentPlugin || !currentPlugin.model) {
+                                        console.error('[fs Proxy] Plugin is undefined!');
+                                        return original.apply(target, args);
+                                    }
+
                                     // 构建模块操作信息
                                     const operation: ModuleOperation = {
                                         moduleId,
@@ -730,12 +742,12 @@ export function createAPIFactory(
                                             }
                                             return typeof arg === 'string' ? arg : '[object]';
                                         }),
-                                        pluginId: plugin.model.id,
-                                        pluginName: plugin.model.displayName || plugin.model.name
+                                        pluginId: currentPlugin.model.id,
+                                        pluginName: currentPlugin.model.displayName || currentPlugin.model.name
                                     };
 
                                     // 调用 main 端的权限检查服务
-                                    await modulePermissionMain.$checkModulePermission(operation);
+                                    await modulePermissionMain.$checkModulePermission(operation, currentPlugin);
 
                                     // 权限检查通过，加入缓存
                                     permissionCheckedCache.add(cacheKey);
