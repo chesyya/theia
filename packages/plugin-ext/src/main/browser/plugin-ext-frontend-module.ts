@@ -95,8 +95,13 @@ import { CustomEditorUndoRedoHandler } from './custom-editors/custom-editor-undo
 import { FileSystemPermissionService } from './file-system-permission-service';
 import { ModulePermissionService } from './module-permission-service';
 import { PermissionRequestServiceImpl } from './permission-request-service-impl';
+import { AsyncActionFrontendService } from './async-action-frontend-service';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
+
+    // Register async action frontend service
+    bind(AsyncActionFrontendService).toSelf().inSingletonScope();
+    bind(MainPluginApiProvider).toService(AsyncActionFrontendService);
 
     // Register file system permission service
     bind(FileSystemPermissionService).toSelf().inSingletonScope();

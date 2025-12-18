@@ -286,6 +286,8 @@ import { NotebookEditorsExtImpl } from './notebook/notebook-editors';
 import { TestingExtImpl } from './tests';
 import { UriExtImpl } from './uri-ext';
 import { isObject } from '@theia/core';
+import { AsyncActionBackendServiceImpl } from './async-action-service-impl';
+import { ASYNC_ACTION_RPC_CONTEXT } from '../common/async-action-protocol';
 
 export function createAPIObject<T extends Object>(rawObject: T): T {
     return new Proxy(rawObject, {
@@ -350,12 +352,18 @@ export function createAPIFactory(
     const telemetryExt = rpc.set(MAIN_RPC_CONTEXT.TELEMETRY_EXT, new TelemetryExtImpl());
     const testingExt = rpc.set(MAIN_RPC_CONTEXT.TESTING_EXT, new TestingExtImpl(rpc, commandRegistry));
     const uriExt = rpc.set(MAIN_RPC_CONTEXT.URI_EXT, new UriExtImpl(rpc));
+    const asyncActionBackend = rpc.set(ASYNC_ACTION_RPC_CONTEXT.ASYNC_ACTION_BACKEND, new AsyncActionBackendServiceImpl());
     rpc.set(MAIN_RPC_CONTEXT.DEBUG_EXT, debugExt);
 
     // 获取模块权限检查服务代理
     const modulePermissionMain = rpc.getProxy(PLUGIN_RPC_CONTEXT.MODULE_PERMISSION_MAIN);
 
     return function (plugin: InternalPlugin): typeof theia {
+        const actionProvider: typeof theia.actionProvider = {
+            registerActionProvider(anchorId: string, provider: theia.actionProvider.ActionProvider): theia.Disposable {
+                return asyncActionBackend.registerProvider(anchorId, provider);
+            }
+        };
         const authentication: typeof theia.authentication = {
             registerAuthenticationProvider(id: string, label: string, provider: theia.AuthenticationProvider, options?: theia.AuthenticationProviderOptions): theia.Disposable {
                 return authenticationExt.registerAuthenticationProvider(id, label, provider, options);
@@ -1412,6 +1420,7 @@ export function createAPIFactory(
         return <typeof theia>{
             version: require('../../package.json').version,
             authentication,
+            actionProvider,
             chat,
             commands,
             comments,
