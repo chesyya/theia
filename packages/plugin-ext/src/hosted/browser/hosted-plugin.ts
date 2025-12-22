@@ -328,6 +328,7 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
                     uiKind: isElectron ? UIKind.Desktop : UIKind.Web,
                     appName: FrontendApplicationConfigProvider.get().applicationName,
                     appHost: isElectron ? 'desktop' : 'web', // TODO: 'web' could be the embedder's name, e.g. 'github.dev'
+                    appPort: window.location.port,
                     appRoot,
                     appUriScheme: FrontendApplicationConfigProvider.get().electron.uriScheme
                 },

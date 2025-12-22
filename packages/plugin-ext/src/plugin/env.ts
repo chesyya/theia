@@ -37,6 +37,7 @@ export abstract class EnvExtImpl {
     private applicationRoot: string;
     private appUriScheme: string;
     private _remoteName: string | undefined;
+    private _appPort: string | undefined;
 
     constructor() {
         this.envSessionId = generateUuid();
@@ -50,6 +51,9 @@ export abstract class EnvExtImpl {
     }
 
     getEnvVariable(envVarName: string): Promise<string | undefined> {
+        if (envVarName === 'THEIA_BROWSER_PORT' && this._appPort) {
+            return Promise.resolve(this._appPort);
+        }
         return this.proxy.$getEnvVariable(envVarName).then(x => {
             if (x === null) {
                 return undefined;
@@ -84,6 +88,10 @@ export abstract class EnvExtImpl {
 
     setAppHost(appHost: string): void {
         this.host = appHost;
+    }
+
+    setAppPort(appPort: string | undefined): void {
+        this._appPort = appPort;
     }
 
     setAppRoot(appRoot: string): void {

@@ -181,6 +181,7 @@ export interface EnvInit {
     uiKind: UIKind;
     appName: string;
     appHost: string;
+    appPort?: string;
     appRoot: string;
     appUriScheme: string;
 }

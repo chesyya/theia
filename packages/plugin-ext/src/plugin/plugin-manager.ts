@@ -483,8 +483,13 @@ export class PluginManagerExtImpl extends AbstractPluginManagerExtImpl<PluginMan
         this.terminalService.$setShell(params.env.shell);
         this.envExt.setApplicationName(params.env.appName);
         this.envExt.setAppHost(params.env.appHost);
+        this.envExt.setAppPort(params.env.appPort);
         this.envExt.setAppRoot(params.env.appRoot);
         this.envExt.setAppUriScheme(params.env.appUriScheme);
+
+        if (params.env.appPort && typeof process !== 'undefined' && process.env) {
+            process.env['THEIA_BROWSER_PORT'] = params.env.appPort;
+        }
 
         this.preferencesManager.init(params.preferences);
 
