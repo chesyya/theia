@@ -8,7 +8,7 @@
 
 import debounce = require('@theia/core/shared/lodash.debounce');
 import { injectable, inject, interfaces, named, postConstruct, unmanaged } from '@theia/core/shared/inversify';
-import { PluginMetadata, HostedPluginServer, DeployedPlugin, PluginServer, PluginIdentifiers } from '../../common/plugin-protocol';
+import { PluginMetadata, HostedPluginServer, DeployedPlugin, PluginServer, PluginIdentifiers, PluginType } from '../../common/plugin-protocol';
 import { AbstractPluginManagerExt, ConfigStorage } from '../../common/plugin-api-rpc';
 import {
     Disposable, DisposableCollection, Emitter,
@@ -80,6 +80,7 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
     protected readonly onUserPluginsDeployedEmitter = new Emitter<string>();
 
     protected readonly builtinVersions = new Map<string, string>();
+    protected readonly sharedVersions = new Map<string, string>();
 
     protected readonly deferredWillStart = new Deferred<void>();
 
@@ -129,6 +130,10 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
 
     getBuiltinVersion(id: string): string | undefined {
         return this.builtinVersions.get(id);
+    }
+
+    getSharedVersion(id: string): string | undefined {
+        return this.sharedVersions.get(id);
     }
 
     /** do not call it, except from the plugin frontend contribution */
@@ -232,12 +237,15 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
                 this.server.getAllDeployedPlugins(userInfo?.userId)
             ]);
 
-            // Track all built-in versions
+            // Track all built-in and shared versions
             this.builtinVersions.clear();
+            this.sharedVersions.clear();
             for (const plugin of allDeployedPlugins) {
+                const id = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
                 if (plugin.type === PluginType.System) {
-                    const id = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
                     this.builtinVersions.set(id, plugin.metadata.model.version);
+                } else if (plugin.metadata.model.packagePath.includes(`/.baosky/${SharedStorage}/${PluginStorageKey}/`)) {
+                    this.sharedVersions.set(id, plugin.metadata.model.version);
                 }
             }
 
@@ -255,7 +263,7 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
 
             for (const versionedId of deployedPluginIds) {
                 const unversionedId = PluginIdentifiers.unversionedFromVersioned(versionedId);
-                
+
                 // 清理逻辑：如果已经存在该插件且版本不一致，则强制触发卸载和重新部署
                 const existing = this.contributions.get(unversionedId);
                 if (existing) {
@@ -282,25 +290,6 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
             }
 
             for (const contribution of this.contributions.values()) {
-                //处理共享插件
-                if(contribution.plugin.metadata.model.packagePath.includes(`/.baosky/${SharedStorage}/${PluginStorageKey}/`)){
-                    //是内置且为普通用户
-                    if(contribution.plugin.type === 0 && !userInfo?.isAdmin)
-                        break;
-                    //是非内置且为管理员
-                    else if(contribution.plugin.type === 1 && userInfo?.isAdmin)
-                        break;
-                    //设为内置插件
-                    else if(!userInfo?.isAdmin){
-                        contribution.plugin.type = 0;
-                        didChangeInstallationStatus = true;
-                    }
-                    //设为已普通插件
-                    else{
-                        contribution.plugin.type = 1;
-                        didChangeInstallationStatus = true;
-                    }
-                }
                 if (contribution.plugin.metadata.outOfSync && !uninstalledPluginIds.includes(PluginIdentifiers.componentsToVersionedId(contribution.plugin.metadata.model))) {
                     contribution.plugin.metadata.outOfSync = false;
                     didChangeInstallationStatus = true;
@@ -328,10 +317,6 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
                 }
 
                 for (let plugin of plugins) {
-                    if (userInfo && !userInfo.isAdmin) {
-                        if (plugin.metadata.model.packagePath.includes(`/.baosky/${SharedStorage}/${PluginStorageKey}/`))
-                            plugin.type = 0;
-                    }
                     const pluginId = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
                     let contributions = new PluginContributions(plugin);
                     this.contributions.set(pluginId, contributions);

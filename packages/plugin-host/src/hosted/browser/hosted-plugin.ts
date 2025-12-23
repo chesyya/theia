@@ -19,7 +19,8 @@ import {
     CommandRegistry, WillExecuteCommandEvent,
     CancellationTokenSource, ProgressService, nls,
     RpcProxy,
-    MenuModelRegistry
+    MenuModelRegistry,
+    MessageService
 } from '@theia/core';
 import { PreferenceServiceImpl, PreferenceProviderProvider } from '@theia/core/lib/browser/preferences';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
@@ -187,7 +188,8 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
     @inject(UserLoginService)
     protected readonly userLoginService: UserLoginService;
 
-
+    @inject(MessageService)
+    protected readonly messageService: MessageService;
 
     @inject(SystemEventSubscriber) protected readonly subscriber: SystemEventSubscriber;
 
@@ -296,6 +298,29 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
             //     }
             // })
         });
+
+        // Listen to uninstall events to restore overridden system plugins
+        this.watcher.onDidUninstall(async (userId) => {
+            // Reload plugins to reflect restored system plugins
+            this.load(this.userInfo);
+        });
+
+        this.watcher.onDidUninstallSharedPlugin(pluginId => {
+            const unversionedId = pluginId as PluginIdentifiers.UnversionedId;
+            const activePlugin = this.getPlugin(unversionedId);
+            
+            if (activePlugin) {
+                // Mark as out of sync to show "Reload" button in UI
+                activePlugin.metadata.outOfSync = true;
+                
+                // Notify user
+                this.messageService.info(nls.localize('plugin.admin.uninstalled', 'Plugin {0} has been uninstalled by administrator.', activePlugin.metadata.model.displayName));
+                
+                // Trigger UI update to reflect the "Reload" state
+                this.onDidChangePluginsEmitter.fire();
+            }
+        });
+
         this.server.onDidOpenConnection(() => {
             console.dir(`hosted-plugin listen OpenConnection`)
             this.load(this.userInfo)

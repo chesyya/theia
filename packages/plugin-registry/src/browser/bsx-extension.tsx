@@ -164,6 +164,7 @@ export class BSXExtension implements BSXExtensionData, TreeElement {
     protected _enabled: boolean = true;
     protected _needsRestart: boolean = false;
     protected _builtinVersion?: string;
+    protected _sharedVersion?: string;
 
     protected registryUri: Promise<string>;
 
@@ -228,11 +229,11 @@ export class BSXExtension implements BSXExtensionData, TreeElement {
     }
 
     get builtin(): boolean {
-        return !!this._builtinVersion || this.plugin?.type === PluginType.System;
+        return !!this._builtinVersion || !!this._sharedVersion || this.plugin?.type === PluginType.System;
     }
 
     get systemActive(): boolean {
-        return this.plugin?.type === PluginType.System;
+        return this.plugin?.type === PluginType.System || this.shared;
     }
 
     get builtinVersion(): string | undefined {
@@ -241,6 +242,14 @@ export class BSXExtension implements BSXExtensionData, TreeElement {
 
     set builtinVersion(version: string | undefined) {
         this._builtinVersion = version;
+    }
+
+    get sharedVersion(): string | undefined {
+        return this._sharedVersion;
+    }
+
+    set sharedVersion(version: string | undefined) {
+        this._sharedVersion = version;
     }
 
     get authorized(): boolean {
@@ -724,13 +733,13 @@ export abstract class AbstractBSXExtensionComponent<Props extends AbstractBSXExt
     };
 
     protected renderAction(host?: TreeWidget): React.ReactNode {
-        const { builtin, busy, plugin, enabled } = this.props.extension;
+        const { builtin, busy, plugin, enabled, shared, admin } = this.props.extension;
         const isFocused = (host?.model.getFocusedNode() as TreeElementNode)?.element === this.props.extension;
         const tabIndex = (!host || isFocused) ? 0 : undefined;
         const installed = !!plugin;
         const outOfSynch = plugin?.metadata.outOfSync;
 
-        if (builtin) {
+        if (builtin && !(shared && admin)) {
             return <div className="codicon codicon-settings-gear action" tabIndex={tabIndex} onClick={this.manage}></div>;
         }
         if (busy) {
@@ -820,6 +829,10 @@ export class BSXExtensionComponent<Props extends BSXExtensionComponent.Props = B
                         {/* 显示授权和禁用状态 */}
                         {!authorized && <span className='unauthorized-status'>{this.props.extension.unauthorizedText}</span>}
                         {shared && <span className='shared-plugin'>{this.props.extension.sharedText}</span>}
+                        {/* 灰色的系统级图标：表示存在被覆盖的系统版本 */}
+                        {this.props.extension.builtin && !this.props.extension.systemActive && (
+                            <i className={codicon('server')} title={localizeSystem} style={{ color: 'gray', marginLeft: '4px' }} />
+                        )}
                     </div>
                     <div className='stat'>
                         {!!downloadCount && <span className='download-count'><i className={codicon('cloud-download')} />{downloadCompactFormatter.format(downloadCount)}</span>}

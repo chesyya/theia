@@ -1040,6 +1040,8 @@ export interface HostedPluginClient {
     onDidDeploy(userId?: string): void;
 
     onDidUninstall(userId?: string): void;
+
+    onDidUninstallSharedPlugin(pluginId: string): void;
 }
 
 export interface PluginDependencies {
@@ -1065,6 +1067,8 @@ export interface PluginDeployerHandler {
     getDeployedPlugin(pluginId: PluginIdentifiers.VersionedId): DeployedPlugin | undefined;
 
     getSystemPlugins(): Promise<DeployedPlugin[]>;
+
+    getSharedPlugins(): Promise<DeployedPlugin[]>;
 
     /**
      * Removes the plugin from the location it originally resided on disk.

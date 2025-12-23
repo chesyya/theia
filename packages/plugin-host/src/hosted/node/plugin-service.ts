@@ -101,6 +101,7 @@ export class HostedPluginServerImpl implements HostedPluginServer {
                 }
             }),
             this.deployerHandler.onDidUninstall(() => this.client?.onDidUninstall()),
+            this.deployerHandler.onDidUninstallSharedPlugin((pluginId) => this.client?.onDidUninstallSharedPlugin(pluginId)),
             Disposable.create(() => this.hostedPlugin.clientClosed()),
         ]);
     }

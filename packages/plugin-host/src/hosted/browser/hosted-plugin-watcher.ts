@@ -15,6 +15,9 @@ export class HostedPluginWatcher {
     private readonly onDidUninstallEmitter = new Emitter<string | undefined>();
     readonly onDidUninstall = this.onDidUninstallEmitter.event;
 
+    private readonly onDidUninstallSharedPluginEmitter = new Emitter<string>();
+    readonly onDidUninstallSharedPlugin = this.onDidUninstallSharedPluginEmitter.event;
+
     getHostedPluginClient(): HostedPluginClient {
         const messageEmitter = this.onPostMessage;
         const logEmitter = this.onLogMessage;
@@ -28,7 +31,8 @@ export class HostedPluginWatcher {
                 return Promise.resolve();
             },
             onDidDeploy: (userId?: string) => this.onDidDeployEmitter.fire(userId),
-            onDidUninstall: (userId?: string) => this.onDidUninstallEmitter.fire(userId)
+            onDidUninstall: (userId?: string) => this.onDidUninstallEmitter.fire(userId),
+            onDidUninstallSharedPlugin: (pluginId: string) => this.onDidUninstallSharedPluginEmitter.fire(pluginId)
         };
     }
 

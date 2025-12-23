@@ -55,6 +55,9 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
     private readonly onDidUninstallEmitter = new Emitter<void>();
     readonly onDidUninstall = this.onDidUninstallEmitter.event;
 
+    private readonly onDidUninstallSharedPluginEmitter = new Emitter<string>();
+    readonly onDidUninstallSharedPlugin = this.onDidUninstallSharedPluginEmitter.event;
+
     /**
      * Managed plugin metadata backend entries.
      */
@@ -327,25 +330,38 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
                 return false;
             }
 
-            // 获取插件信息以检查类型
+            // 获取插件信息以检查类型和 scope
             const deployedPlugin = this.getDeployedPlugin(pluginId, options?.userId);
             const isSystemPlugin = deployedPlugin?.type === PluginType.System;
 
+            // 检查插件是否在系统级 scope（System 或 Shared）中
+            // Shared 插件是 admin 安装的，对于普通用户来说是系统级的，不应该被物理删除
+            const isInSystemScope = this.deployedBackendPlugins.get(PluginScope.System)?.has(pluginId) ||
+                                    this.deployedFrontendPlugins.get(PluginScope.System)?.has(pluginId) ||
+                                    this.deployedBackendPlugins.get(PluginScope.Shared)?.has(pluginId) ||
+                                    this.deployedFrontendPlugins.get(PluginScope.Shared)?.has(pluginId);
+
+            // 只有 admin 可以物理删除 shared 插件
+            const canPhysicallyDelete = !isSystemPlugin &&
+                                       (!isInSystemScope || (options?.userId === PluginScope.Admin && options?.shared));
+
             if (options && options.userId) {
                 // 通过个人空间适配器删除文件
-                const adapter = await this.userStorageAdapterFactory({
-                    type: PluginStorageKey,
-                    userName: options.userId,
-                    shared: options.shared
-                });
-                // 解构这个set 拿到和设置时一样的key
-                // 此处传入的pluginId 与设置时不一样
-                const [location] = sourceLocations;
-                const key = location.split('/').pop() || '';
-                await adapter.delete([key]);
+                if (canPhysicallyDelete) {
+                    const adapter = await this.userStorageAdapterFactory({
+                        type: PluginStorageKey,
+                        userName: options.userId,
+                        shared: options.shared
+                    });
+                    // 解构这个set 拿到和设置时一样的key
+                    // 此处传入的pluginId 与设置时不一样
+                    const [location] = sourceLocations;
+                    const key = location.split('/').pop() || '';
+                    await adapter.delete([key]);
+                }
             } else {
-                // 只有非系统插件才执行物理删除
-                if (!isSystemPlugin) {
+                // 只有非系统级插件才执行物理删除
+                if (canPhysicallyDelete) {
                     await Promise.all(
                         Array.from(sourceLocations, (location) =>
                             fs
@@ -359,11 +375,12 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
                         )
                     );
                 } else {
-                    console.log(`[Plugin System] Skipping physical deletion for system plugin: ${pluginId}`);
+                    const pluginType = isSystemPlugin ? 'built-in' : 'admin-shared';
+                    console.log(`[Plugin System] Skipping physical deletion for ${pluginType} plugin: ${pluginId}`);
                 }
             }
-            // 只有非系统插件才清理源码路径记录，系统插件保留记录以便恢复
-            if (!isSystemPlugin) {
+            // 只有可以物理删除的插件才清理源码路径记录，系统级插件保留记录以便恢复
+            if (canPhysicallyDelete) {
                 this.sourceLocations.delete(pluginId);
             }
             this.documentationService.unregisterPluginDocumentation(pluginId);
@@ -381,9 +398,17 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
                 this.uninstallationManager.markAsUninstalled(scopeOptions, pluginId);
             })
 
-            // 如果卸载的是用户插件，检查是否有被覆盖的系统插件需要恢复
-            if (!isSystemPlugin) {
+            // 如果卸载的是用户级插件（非系统级），检查是否有被覆盖的系统级插件需要恢复
+            if (!isSystemPlugin && !isInSystemScope) {
                 this.restoreOverriddenSystemPlugins(pluginId, options);
+            }
+
+            // 如果是 admin 卸载 shared 插件，广播通知所有用户
+            const isAdminUninstallShared = options?.userId === PluginScope.Admin && options?.shared === true;
+            if (isAdminUninstallShared) {
+                const unversionedId = PluginIdentifiers.unversionedFromVersioned(pluginId);
+                this.onDidUninstallSharedPluginEmitter.fire(unversionedId);
+                console.log(`[Plugin System] Broadcasting admin uninstall of shared plugin: ${unversionedId}`);
             }
 
             this.onDidUninstallEmitter.fire();
@@ -395,8 +420,8 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
     }
 
     /**
-     * 当卸载用户插件时，恢复被覆盖的系统插件
-     * 策略：将系统插件从卸载列表中移除，触发前端重新加载
+     * 当卸载用户插件时，恢复被覆盖的系统插件（包括内置和 admin 安装的 shared 插件）
+     * 策略：将系统级插件从卸载列表中移除，触发前端重新加载
      */
     protected restoreOverriddenSystemPlugins(pluginId: PluginIdentifiers.VersionedId, options?: PluginUninstallOptions): void {
         const metadata = PluginIdentifiers.idAndVersionFromVersionedId(pluginId);
@@ -404,21 +429,25 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             return;
         }
 
-        // 查找所有同 ID 的系统插件
-        const systemPlugins = this.deployedBackendPlugins.get(PluginScope.System) ?? new Map();
-        const systemFrontendPlugins = this.deployedFrontendPlugins.get(PluginScope.System) ?? new Map();
+        // 查找所有同 ID 的系统级插件（包括 System 和 Shared scope）
+        const scopesToRestore = [PluginScope.System, PluginScope.Shared];
 
-        const allSystemPlugins = [...systemPlugins.keys(), ...systemFrontendPlugins.keys()];
+        for (const scope of scopesToRestore) {
+            const backendPlugins = this.deployedBackendPlugins.get(scope) ?? new Map();
+            const frontendPlugins = this.deployedFrontendPlugins.get(scope) ?? new Map();
+            const allPlugins = [...backendPlugins.keys(), ...frontendPlugins.keys()];
 
-        for (const systemPluginId of allSystemPlugins) {
-            const systemMetadata = PluginIdentifiers.idAndVersionFromVersionedId(systemPluginId);
-            if (systemMetadata && systemMetadata.id === metadata.id) {
-                // 找到同 ID 的系统插件，将其从卸载列表中移除
-                // 这会触发前端的 onDidChangePlugins 事件，前端会重新同步插件列表
-                // 系统插件因为 outOfSync 标记被清除而重新激活
-                const systemOptions = this.createOptionsForScope(PluginScope.System);
-                this.uninstallationManager.markAsInstalled(systemOptions, systemPluginId);
-                console.log(`[Plugin System] Restored system plugin: ${systemPluginId}`);
+            for (const scopePluginId of allPlugins) {
+                const scopeMetadata = PluginIdentifiers.idAndVersionFromVersionedId(scopePluginId);
+                if (scopeMetadata && scopeMetadata.id === metadata.id) {
+                    // 找到同 ID 的系统级插件，将其从卸载列表中移除
+                    // 这会触发前端的 onDidChangePlugins 事件，前端会重新同步插件列表
+                    // 系统级插件因为 outOfSync 标记被清除而重新激活
+                    const scopeOptions = this.createOptionsForScope(scope);
+                    this.uninstallationManager.markAsInstalled(scopeOptions, scopePluginId);
+                    const scopeName = scope === PluginScope.System ? 'built-in' : 'admin-shared';
+                    console.log(`[Plugin System] Restored ${scopeName} plugin: ${scopePluginId}`);
+                }
             }
         }
     }
