@@ -1,0 +1,16 @@
+/node_modules
+/lib
+/unit_test_report
+
+/coverage
+/*-reports
+.ipynb_checkpoints
+
+*.lock
+*.log
+
+
+.lsp
+.clj-kondo
+.calva
+.nrepl-port

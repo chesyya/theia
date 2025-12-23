@@ -1,0 +1,111 @@
+{
+  "name": "@baosky/plugin-host",
+  "version": "1.0.250201",
+  "description": "Baosky Plugin Host",
+  "main": "lib/common/index.js",
+  "typings": "lib/common/index.d.ts",
+  "dependencies": {
+    "@baosky/plugin-usermanual": "alpha",
+    "@baosky/gvs": "alpha",
+    "@baosky/program-unit": "alpha",
+    "@baosky/plugin": "alpha",
+    "@baosky/platform": "alpha",
+    "@baosky/project": "alpha",
+    "@baosky/plc-protocol": "alpha",
+    "@theia/bulk-edit": "alpha",
+    "@theia/callhierarchy": "alpha",
+    "@theia/console": "alpha",
+    "@theia/core": "alpha",
+    "@theia/debug": "alpha",
+    "@theia/editor": "alpha",
+    "@theia/editor-preview": "alpha",
+    "@theia/file-search": "alpha",
+    "@theia/filesystem": "alpha",
+    "@theia/keymaps": "alpha",
+    "@theia/markers": "alpha",
+    "@theia/messages": "alpha",
+    "@theia/monaco": "alpha",
+    "@theia/monaco-editor-core": "1.83.101",
+    "@theia/navigator": "alpha",
+    "@theia/notebook": "alpha",
+    "@theia/output": "alpha",
+    "@theia/preferences": "alpha",
+    "@theia/scm": "alpha",
+    "@theia/search-in-workspace": "alpha",
+    "@theia/task": "alpha",
+    "@theia/terminal": "alpha",
+    "@theia/test": "alpha",
+    "@theia/timeline": "alpha",
+    "@theia/typehierarchy": "alpha",
+    "@theia/variable-resolver": "alpha",
+    "@theia/workspace": "alpha",
+    "@types/mime": "^2.0.1",
+    "@vscode/debugprotocol": "^1.51.0",
+    "@vscode/proxy-agent": "^0.13.2",
+    "async-mutex": "^0.4.0",
+    "decompress": "^4.2.1",
+    "filenamify": "^4.1.0",
+    "is-electron": "^2.2.0",
+    "jsonc-parser": "^2.2.0",
+    "lodash.clonedeep": "^4.5.0",
+    "macaddress": "^0.5.3",
+    "mime": "^2.4.4",
+    "ps-tree": "^1.2.0",
+    "semver": "^7.5.4",
+    "tslib": "^2.6.2",
+    "vhost": "^3.0.2",
+    "vscode-textmate": "9.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "theiaExtensions": [
+    {
+      "backend": "lib/plugin-ext-backend-module",
+      "frontend": "lib/plugin-ext-frontend-module"
+    }
+  ],
+  "keywords": [
+    "theia-extension"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "http://10.25.7.11/lishuzhi/plugin-host.git"
+  },
+  "files": [
+    "lib",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc && cp src/utils/cert.pem lib/utils/cert.pem",
+    "clean": "rimraf lib tsconfig.tsbuildinfo",
+    "prepare": "yarn clean && yarn build",
+    "test": "jest --runInBand",
+    "watch": "tsc -w"
+  },
+  "devDependencies": {
+    "jest-html-reporters": "^3.1.4",
+    "jest-sonar": "^0.2.16",
+    "@types/jest": "^29.5.0",
+    "@types/sinon": "^10.0.14",
+    "@types/object-hash": "3.0.0",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^29.5.0",
+    "jest-environment-jsdom": "^29.5.0",
+    "jest-junit": "^15.0.0",
+    "sinon": "^15.0.4",
+    "ts-jest": "^29.0.5",
+    "ts-node": "^10.9.1",
+    "typescript": "5.7.3",
+    "@types/vscode-notebook-renderer": "^1.0.0",
+    "@types/decompress": "^4.2.2",
+    "@types/lodash.clonedeep": "^4.5.3",
+    "@types/ps-tree": "^1.1.0"
+  },
+  "resolutions": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "@types/react": "18.3.1",
+    "@types/react-dom": "18.3.1"
+  }
+}
