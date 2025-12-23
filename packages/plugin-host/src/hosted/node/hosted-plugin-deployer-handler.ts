@@ -362,7 +362,10 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
                     console.log(`[Plugin System] Skipping physical deletion for system plugin: ${pluginId}`);
                 }
             }
-            this.sourceLocations.delete(pluginId);
+            // 只有非系统插件才清理源码路径记录，系统插件保留记录以便恢复
+            if (!isSystemPlugin) {
+                this.sourceLocations.delete(pluginId);
+            }
             this.documentationService.unregisterPluginDocumentation(pluginId);
             this.localizationService.undeployLocalizations(pluginId);
             const key = this.resolveKey(options);
