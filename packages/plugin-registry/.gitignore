@@ -1,0 +1,12 @@
+/node_modules
+/lib
+/unit_test_report
+
+/coverage
+/*-reports
+.ipynb_checkpoints
+.idea
+/compiler
+*.log
+happydom.ts
+bunfig.toml
