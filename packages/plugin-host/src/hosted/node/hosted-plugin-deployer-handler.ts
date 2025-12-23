@@ -396,6 +396,7 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
 
     /**
      * 当卸载用户插件时，恢复被覆盖的系统插件
+     * 策略：将系统插件从卸载列表中移除，触发前端重新加载
      */
     protected restoreOverriddenSystemPlugins(pluginId: PluginIdentifiers.VersionedId, options?: PluginUninstallOptions): void {
         const metadata = PluginIdentifiers.idAndVersionFromVersionedId(pluginId);
@@ -413,6 +414,8 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             const systemMetadata = PluginIdentifiers.idAndVersionFromVersionedId(systemPluginId);
             if (systemMetadata && systemMetadata.id === metadata.id) {
                 // 找到同 ID 的系统插件，将其从卸载列表中移除
+                // 这会触发前端的 onDidChangePlugins 事件，前端会重新同步插件列表
+                // 系统插件因为 outOfSync 标记被清除而重新激活
                 const systemOptions = this.createOptionsForScope(PluginScope.System);
                 this.uninstallationManager.markAsInstalled(systemOptions, systemPluginId);
                 console.log(`[Plugin System] Restored system plugin: ${systemPluginId}`);

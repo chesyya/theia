@@ -79,6 +79,8 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
 
     protected readonly onUserPluginsDeployedEmitter = new Emitter<string>();
 
+    protected readonly builtinVersions = new Map<string, string>();
+
     protected readonly deferredWillStart = new Deferred<void>();
 
     protected checkMenubarPlugin = false;
@@ -123,6 +125,10 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
     getPlugin(id: PluginIdentifiers.UnversionedId): DeployedPlugin | undefined {
         const contributions = this.contributions.get(id);
         return contributions && contributions.plugin;
+    }
+
+    getBuiltinVersion(id: string): string | undefined {
+        return this.builtinVersions.get(id);
     }
 
     /** do not call it, except from the plugin frontend contribution */
@@ -220,35 +226,54 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
         let didChangeInstallationStatus = false;
         try {
             const newPluginIds: PluginIdentifiers.VersionedId[] = [];
-            const [deployedPluginIds, uninstalledPluginIds] = await Promise.all([this.server.getDeployedPluginIds(userInfo?.userId), this.server.getUninstalledPluginIds(userInfo?.userId)]);
+            const [deployedPluginIds, uninstalledPluginIds, allDeployedPlugins] = await Promise.all([
+                this.server.getDeployedPluginIds(userInfo?.userId),
+                this.server.getUninstalledPluginIds(userInfo?.userId),
+                this.server.getAllDeployedPlugins(userInfo?.userId)
+            ]);
+
+            // Track all built-in versions
+            this.builtinVersions.clear();
+            for (const plugin of allDeployedPlugins) {
+                if (plugin.type === PluginType.System) {
+                    const id = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
+                    this.builtinVersions.set(id, plugin.metadata.model.version);
+                }
+            }
+
             waitPluginsMeasurement.log('Waiting for backend deployment');
             syncPluginsMeasurement = this.measure('syncPlugins');
 
             // this.uninstalledPluginIds = uninstalledPluginIds;
             for (const versionedId of uninstalledPluginIds) {
-                // if (this.contributions.has(versionedId)) {
-                //     this.contributions.get(versionedId)?.dispose();
-                //     await this.deactivatePlugin(versionedId);
-                // }
                 const unversionedId = PluginIdentifiers.unversionedFromVersioned(versionedId);
                 const plugin = this.getPlugin(unversionedId);
                 if (plugin && PluginIdentifiers.componentsToVersionedId(plugin.metadata.model) === versionedId && !plugin.metadata.outOfSync) {
                     plugin.metadata.outOfSync = didChangeInstallationStatus = true;
-                    // this.contributions.get(unversionedId)?.dispose();
-                    // this.contributions.delete(unversionedId);
-                    // await this.deactivatePlugin(versionedId);
                 }
             }
 
             for (const versionedId of deployedPluginIds) {
                 const unversionedId = PluginIdentifiers.unversionedFromVersioned(versionedId);
+                
+                // 清理逻辑：如果已经存在该插件且版本不一致，则强制触发卸载和重新部署
+                const existing = this.contributions.get(unversionedId);
+                if (existing) {
+                    const existingVersionedId = PluginIdentifiers.componentsToVersionedId(existing.plugin.metadata.model);
+                    if (existingVersionedId !== versionedId) {
+                        this.logger.info(`[PLUGIN-HOST] 版本变化检测：${unversionedId} (${existingVersionedId} -> ${versionedId})。准备清理并重新部署。`);
+                        // 不从 toUnload 中删除，使其在后续循环中被 dispose
+                        newPluginIds.push(versionedId);
+                        continue;
+                    }
+                }
+
                 toUnload.delete(unversionedId);
                 if (!this.contributions.has(unversionedId)) {
                     newPluginIds.push(versionedId);
                 }
                 else
                     if (userInfo && this.contributions.get(unversionedId)?.plugin.metadata.model.packagePath.includes(`/.baosky/${SharedStorage}/${PluginStorageKey}/`)) {
-                        // this.contributions.delete(unversionedId);
                         newPluginIds.push(versionedId);
                     }
             }

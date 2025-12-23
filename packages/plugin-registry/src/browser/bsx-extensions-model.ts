@@ -450,6 +450,7 @@ export class BSXExtensionsModelImpl implements BSXExtensionsModel {
                     const id = plugin.model.id;
                     this._installed.delete(id);
                     const extension = this.setExtension(id);
+                    extension.builtinVersion = (this.pluginSupport as any).getBuiltinVersion ? (this.pluginSupport as any).getBuiltinVersion(id) : undefined;
                     currInstalled.add(extension.id);
                     refreshing.push(this.refresh(id, version));
                 }

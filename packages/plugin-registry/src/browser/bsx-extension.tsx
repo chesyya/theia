@@ -41,6 +41,8 @@ import { SharedStorage } from '@baosky/platform/lib/common/storage-space/user-st
 import { PluginStorageKey } from '@baosky/plugin-host/lib/main/common/user-plugin-management/user-plugin-environment-service';
 export const EXTENSIONS_CONTEXT_MENU: MenuPath = ['extensions_context_menu'];
 const localizeBuiltin = bnls.localizeByDefault('内置插件');
+const localizeSystem = bnls.localizeByDefault('系统级');
+const localizeUser = bnls.localizeByDefault('用户级');
 
 export namespace BSXExtensionsContextMenu {
     export const INSTALL = [...EXTENSIONS_CONTEXT_MENU, '1_install'];
@@ -161,6 +163,7 @@ export class BSXExtension implements BSXExtensionData, TreeElement {
     protected _installed: boolean = false;
     protected _enabled: boolean = true;
     protected _needsRestart: boolean = false;
+    protected _builtinVersion?: string;
 
     protected registryUri: Promise<string>;
 
@@ -225,7 +228,19 @@ export class BSXExtension implements BSXExtensionData, TreeElement {
     }
 
     get builtin(): boolean {
+        return !!this._builtinVersion || this.plugin?.type === PluginType.System;
+    }
+
+    get systemActive(): boolean {
         return this.plugin?.type === PluginType.System;
+    }
+
+    get builtinVersion(): string | undefined {
+        return this._builtinVersion;
+    }
+
+    set builtinVersion(version: string | undefined) {
+        this._builtinVersion = version;
     }
 
     get authorized(): boolean {
@@ -796,6 +811,12 @@ export class BSXExtensionComponent<Props extends BSXExtensionComponent.Props = B
                 <div className='title'>
                     <div className='noWrapInfo'>
                         <span className='name'>{displayName}</span> <span className='version'>{BSXExtension.formatVersion(version)}</span>
+                        {/* 显示系统级/用户级状态 */}
+                        {this.props.extension.builtin && (
+                            <span className={this.props.extension.systemActive ? 'system-plugin' : 'user-plugin'}>
+                                {this.props.extension.systemActive ? localizeSystem : localizeUser}
+                            </span>
+                        )}
                         {/* 显示授权和禁用状态 */}
                         {!authorized && <span className='unauthorized-status'>{this.props.extension.unauthorizedText}</span>}
                         {shared && <span className='shared-plugin'>{this.props.extension.sharedText}</span>}
@@ -855,7 +876,11 @@ export class BSXExtensionEditorComponent extends AbstractBSXExtensionComponent {
                         <span title='Extension name' className='name'>{displayName}</span>
                     </div>
                     <div className='subtitle'>
-                        {builtin && <span className='builtin'>{localizeBuiltin}</span>}
+                        {this.props.extension.builtin && (
+                            <span className={this.props.extension.systemActive ? 'builtin' : 'user-plugin-label'}>
+                                {this.props.extension.systemActive ? localizeSystem : localizeUser}
+                            </span>
+                        )}
                         <span title='Extension identifier' className='identifier'>ID : {id}</span>
                         {preview && <span className='preview'>Preview</span>}
                         <div className="codicon codicon-settings-gear action" onClick={this.manage}></div>

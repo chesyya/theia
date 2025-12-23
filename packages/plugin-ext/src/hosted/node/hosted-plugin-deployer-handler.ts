@@ -62,6 +62,8 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
      */
     private readonly deployedFrontendPlugins = new Map<PluginIdentifiers.VersionedId, DeployedPlugin>();
 
+    private readonly systemPlugins = new Map<PluginIdentifiers.VersionedId, DeployedPlugin>();
+
     private backendPluginsMetadataDeferred = new Deferred<void>();
 
     private frontendPluginsMetadataDeferred = new Deferred<void>();
@@ -95,6 +97,12 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
         await this.frontendPluginsMetadataDeferred.promise;
         await this.backendPluginsMetadataDeferred.promise;
         return [...this.deployedFrontendPlugins.values(), ...this.deployedBackendPlugins.values()];
+    }
+
+    async getSystemPlugins(): Promise<DeployedPlugin[]> {
+        await this.frontendPluginsMetadataDeferred.promise;
+        await this.backendPluginsMetadataDeferred.promise;
+        return Array.from(this.systemPlugins.values());
     }
 
     getDeployedPluginsById(pluginId: string): DeployedPlugin[] {
@@ -218,6 +226,12 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             deployed.contributes = await this.reader.readContribution(manifest);
             await this.localizationService.deployLocalizations(deployed);
             deployedPlugins.set(id, deployed);
+
+            // 记录系统插件
+            if (type === PluginType.System) {
+                this.systemPlugins.set(id, deployed);
+            }
+
             deployPlugin.debug(`Deployed ${entryPoint} plugin "${id}" from "${metadata.model.entryPoint[entryPoint] || pluginPath}"`);
         } catch (e) {
             deployPlugin.error(`Failed to deploy ${entryPoint} plugin from '${pluginPath}' path`, e);
@@ -236,6 +250,16 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             if (!sourceLocations) {
                 return false;
             }
+
+            // 保护逻辑：如果是系统插件，只清理内存，不删文件
+            const plugin = this.getDeployedPlugin(pluginId);
+            if (plugin && plugin.type === PluginType.System) {
+                this.sourceLocations.delete(pluginId);
+                this.localizationService.undeployLocalizations(pluginId);
+                this.uninstallationManager.markAsUninstalled(pluginId);
+                return true;
+            }
+
             await Promise.all(Array.from(sourceLocations,
                 location => fs.remove(location).catch(err => console.error(`Failed to remove source for ${pluginId} at ${location}`, err))));
             this.sourceLocations.delete(pluginId);

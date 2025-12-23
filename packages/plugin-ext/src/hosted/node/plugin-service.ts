@@ -179,6 +179,17 @@ export class HostedPluginServerImpl implements HostedPluginServer {
         return Promise.resolve(this.uninstallationManager.getUninstalledPluginIds());
     }
 
+    async getAllDeployedPlugins(): Promise<DeployedPlugin[]> {
+        await this.initialized.promise;
+        const activePlugins = await this.deployerHandler.getDeployedPlugins();
+        const systemPlugins = await this.deployerHandler.getSystemPlugins();
+        
+        // Merge lists, ensuring we include persistent system plugins even if inactive
+        const allPlugins = [...activePlugins, ...systemPlugins];
+        
+        return Promise.all(allPlugins.map(plugin => this.localizationService.localizePlugin(plugin)));
+    }
+
     getDisabledPluginIds(): Promise<readonly PluginIdentifiers.VersionedId[]> {
         return Promise.resolve(this.uninstallationManager.getDisabledPluginIds());
     }

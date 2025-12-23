@@ -1063,6 +1063,9 @@ export interface PluginDeployerHandler {
     getDeployedPluginsById(pluginId: string, userId?: string): DeployedPlugin[];
 
     getDeployedPlugin(pluginId: PluginIdentifiers.VersionedId): DeployedPlugin | undefined;
+
+    getSystemPlugins(): Promise<DeployedPlugin[]>;
+
     /**
      * Removes the plugin from the location it originally resided on disk.
      * Unless `--uncompressed-plugins-in-place` is passed to the CLI, this operation is safe.
@@ -1104,6 +1107,8 @@ export interface HostedPluginServer extends RpcServer<HostedPluginClient> {
     getUninstalledPluginIds(userId?: string): Promise<readonly PluginIdentifiers.VersionedId[]>;
 
     getDeployedPlugins(params: GetDeployedPluginsParams, userId?: string): Promise<DeployedPluginWithInitpath[]>;
+
+    getAllDeployedPlugins(userId?: string): Promise<DeployedPlugin[]>;
 
     getExtPluginAPI(): Promise<ExtPluginApi[]>;
 
