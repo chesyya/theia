@@ -267,16 +267,24 @@ export class PluginDeployerImpl implements PluginDeployer {
                 if (!leftPlugin) {
                     return 1;
                 }
-                if (leftPlugin.type === PluginType.System && rightPlugin.type === PluginType.User) {
+
+                // 1. Prioritize User over System (User installed plugins always take precedence)
+                if (leftPlugin.type === PluginType.User && rightPlugin.type === PluginType.System) {
                     return -1;
                 }
-                if (leftPlugin.type === PluginType.User && rightPlugin.type === PluginType.System) {
+                if (leftPlugin.type === PluginType.System && rightPlugin.type === PluginType.User) {
                     return 1;
                 }
-                if (semver.gtr(left.version, right.version)) {
+
+                // 2. Prioritize version
+                if (semver.gt(left.version, right.version)) {
                     return -1;
                 }
-                return 1;
+                if (semver.lt(left.version, right.version)) {
+                    return 1;
+                }
+
+                return 0;
             }).forEach((versionedEntry, index) => {
                 if (index !== 0) {
                     // Mark as not accepted to prevent deployment of all but the winner.

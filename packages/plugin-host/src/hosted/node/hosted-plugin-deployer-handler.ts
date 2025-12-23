@@ -326,31 +326,41 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             if (!sourceLocations) {
                 return false;
             }
+
+            // 获取插件信息以检查类型
+            const deployedPlugin = this.getDeployedPlugin(pluginId, options?.userId);
+            const isSystemPlugin = deployedPlugin?.type === PluginType.System;
+
             if (options && options.userId) {
                 // 通过个人空间适配器删除文件
-              const adapter = await this.userStorageAdapterFactory({
-                type: PluginStorageKey,
-                userName: options.userId,
-                shared: options.shared
-              });
-              // 解构这个set 拿到和设置时一样的key
-              // 此处传入的pluginId 与设置时不一样
-              const [location] = sourceLocations;
-              const key =  location.split('/').pop() || '';
-              await adapter.delete([key]);
+                const adapter = await this.userStorageAdapterFactory({
+                    type: PluginStorageKey,
+                    userName: options.userId,
+                    shared: options.shared
+                });
+                // 解构这个set 拿到和设置时一样的key
+                // 此处传入的pluginId 与设置时不一样
+                const [location] = sourceLocations;
+                const key = location.split('/').pop() || '';
+                await adapter.delete([key]);
             } else {
-              await Promise.all(
-                Array.from(sourceLocations, (location) =>
-                  fs
-                    .remove(location)
-                    .catch((err) =>
-                      console.error(
-                        `Failed to remove source for ${pluginId} at ${location}`,
-                        err
-                      )
-                    )
-                )
-              );
+                // 只有非系统插件才执行物理删除
+                if (!isSystemPlugin) {
+                    await Promise.all(
+                        Array.from(sourceLocations, (location) =>
+                            fs
+                                .remove(location)
+                                .catch((err) =>
+                                    console.error(
+                                        `Failed to remove source for ${pluginId} at ${location}`,
+                                        err
+                                    )
+                                )
+                        )
+                    );
+                } else {
+                    console.log(`[Plugin System] Skipping physical deletion for system plugin: ${pluginId}`);
+                }
             }
             this.sourceLocations.delete(pluginId);
             this.documentationService.unregisterPluginDocumentation(pluginId);
@@ -360,12 +370,19 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
                 options?.userId === PluginScope.Admin
                 ? [PluginScope.Admin, PluginScope.Shared]
                 : [key]; // 其他用户只查自己对应的作用域
-            scopesToCheck.forEach(key => {
+            scopesToCheck.forEach(scope => {
                 // Don't delete from deployed plugins - keep them for outOfSync mechanism
-                // this.deployedBackendPlugins.get(key)?.delete(pluginId);
-                // this.deployedFrontendPlugins.get(key)?.delete(pluginId);
-                this.uninstallationManager.markAsUninstalled(options, pluginId);
+                // this.deployedBackendPlugins.get(scope)?.delete(pluginId);
+                // this.deployedFrontendPlugins.get(scope)?.delete(pluginId);
+                const scopeOptions = this.createOptionsForScope(scope);
+                this.uninstallationManager.markAsUninstalled(scopeOptions, pluginId);
             })
+
+            // 如果卸载的是用户插件，检查是否有被覆盖的系统插件需要恢复
+            if (!isSystemPlugin) {
+                this.restoreOverriddenSystemPlugins(pluginId, options);
+            }
+
             this.onDidUninstallEmitter.fire();
             return true;
         } catch (e) {
@@ -374,34 +391,98 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
         }
     }
 
+    /**
+     * 当卸载用户插件时，恢复被覆盖的系统插件
+     */
+    protected restoreOverriddenSystemPlugins(pluginId: PluginIdentifiers.VersionedId, options?: PluginUninstallOptions): void {
+        const metadata = PluginIdentifiers.idAndVersionFromVersionedId(pluginId);
+        if (!metadata) {
+            return;
+        }
+
+        // 查找所有同 ID 的系统插件
+        const systemPlugins = this.deployedBackendPlugins.get(PluginScope.System) ?? new Map();
+        const systemFrontendPlugins = this.deployedFrontendPlugins.get(PluginScope.System) ?? new Map();
+
+        const allSystemPlugins = [...systemPlugins.keys(), ...systemFrontendPlugins.keys()];
+
+        for (const systemPluginId of allSystemPlugins) {
+            const systemMetadata = PluginIdentifiers.idAndVersionFromVersionedId(systemPluginId);
+            if (systemMetadata && systemMetadata.id === metadata.id) {
+                // 找到同 ID 的系统插件，将其从卸载列表中移除
+                const systemOptions = this.createOptionsForScope(PluginScope.System);
+                this.uninstallationManager.markAsInstalled(systemOptions, systemPluginId);
+                console.log(`[Plugin System] Restored system plugin: ${systemPluginId}`);
+            }
+        }
+    }
+
     protected markAsInstalled(id: PluginIdentifiers.VersionedId, options?: PluginUninstallOptions): void {
         const key = this.resolveKey(options);
         const metadata = PluginIdentifiers.idAndVersionFromVersionedId(id);
         if (metadata) {
-            const toMarkAsUninstalled: PluginIdentifiers.VersionedId[] = [];
-            const checkForDifferentVersions = (others: Iterable<PluginIdentifiers.VersionedId>) => {
+            // 记录需要卸载的插件及其所在的 scope
+            const toMarkAsUninstalled: Array<{ pluginId: PluginIdentifiers.VersionedId, scope: string }> = [];
+
+            // 检查所有相关作用域（包括 System），不仅仅是当前安装的作用域
+            const scopesToCheck: string[] = [PluginScope.System, PluginScope.Shared];
+            if (key !== PluginScope.System && key !== PluginScope.Shared) {
+                scopesToCheck.push(key);
+            }
+
+            const checkForConflicts = (others: Iterable<PluginIdentifiers.VersionedId>, scope: string) => {
                 for (const other of others) {
                     const otherMetadata = PluginIdentifiers.idAndVersionFromVersionedId(other);
-                    if (metadata.id === otherMetadata?.id && metadata.version !== otherMetadata.version) {
-                        toMarkAsUninstalled.push(other);
+                    if (metadata.id === otherMetadata?.id) {
+                        // 1. 如果版本不同，必须卸载旧版本
+                        if (metadata.version !== otherMetadata.version) {
+                            toMarkAsUninstalled.push({ pluginId: other, scope });
+                        }
+                        // 2. 如果版本相同，但冲突的是 System 插件（而我们正在安装的肯定不是 System，或者是 System 覆盖 System），则允许覆盖
+                        // 注意：这里假设我们正在安装的是 User 插件（因为 System 插件通常是在启动时加载，不会动态调用 markAsInstalled 覆盖 User）
+                        // 更严谨的做法是检查当前安装插件的类型，但在 markAsInstalled 上下文中，我们主要关注"新安装"去覆盖"旧存在"。
+                        else {
+                            const existingPlugin = this.getDeployedPlugin(other, scope === 'default' ? undefined : scope);
+                            if (existingPlugin?.type === PluginType.System) {
+                                toMarkAsUninstalled.push({ pluginId: other, scope });
+                            }
+                        }
                     }
                 }
             };
-            const scopesToCheck: string[] =
-                options?.userId === PluginScope.Admin
-                    ? [PluginScope.Admin, PluginScope.Shared]
-                    : [key]; // 其他用户只查自己对应的作用域
 
             for (const scope of scopesToCheck) {
                 const frontendPlugins = this.deployedFrontendPlugins.get(scope)?.keys() ?? [];
                 const backendPlugins = this.deployedBackendPlugins.get(scope)?.keys() ?? [];
-                checkForDifferentVersions(frontendPlugins);
-                checkForDifferentVersions(backendPlugins);
+                checkForConflicts(frontendPlugins, scope);
+                checkForConflicts(backendPlugins, scope);
             }
-            this.uninstallationManager.markAsUninstalled(options, ...toMarkAsUninstalled);
+
+            // 过滤掉自己（防止把自己卸载了）
+            const finalToUninstall = toMarkAsUninstalled.filter(item => item.pluginId !== id);
+
+            // 根据每个插件所在的 scope，使用正确的 options 来标记为卸载
+            finalToUninstall.forEach(({ pluginId, scope }) => {
+                const uninstallOptions = this.createOptionsForScope(scope);
+                this.uninstallationManager.markAsUninstalled(uninstallOptions, pluginId);
+                this.uninstallPlugin(pluginId, uninstallOptions);
+            });
+
             this.uninstallationManager.markAsInstalled(options, id);
-            toMarkAsUninstalled.forEach(pluginToUninstall => this.uninstallPlugin(pluginToUninstall, options));
         }
+    }
+
+    /**
+     * 根据 scope 创建对应的 PluginUninstallOptions
+     */
+    protected createOptionsForScope(scope: string): PluginUninstallOptions | undefined {
+        if (scope === PluginScope.System || scope === PluginScope.Default) {
+            return undefined; // default scope
+        }
+        if (scope === PluginScope.Shared) {
+            return { userId: PluginScope.Admin, shared: true };
+        }
+        return { userId: scope };
     }
 
     protected resolveKey(options?: PluginUninstallOptions): string {

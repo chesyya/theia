@@ -90,9 +90,13 @@ export class PluginUninstallationManager {
 
     getUninstalledPluginIds(options?: PluginUninstallOptions): readonly PluginIdentifiers.VersionedId[] {
         const userId = options?.userId ?? 'default';
+        // 总是包含 default (系统插件) 的卸载列表
+        const defaultUninstalled = this.uninstalledPluginsMap.get('default') || [];
         const sharedUninstalled = this.uninstalledPluginsMap.get('shared') || [];
-        const userUninstalled = userId ? (this.uninstalledPluginsMap.get(userId) || []) : [];
-        const result = [...sharedUninstalled, ...userUninstalled];
+        const userUninstalled = userId && userId !== 'default' ? (this.uninstalledPluginsMap.get(userId) || []) : [];
+
+        // 合并所有相关的卸载列表，去重
+        const result = Array.from(new Set([...defaultUninstalled, ...sharedUninstalled, ...userUninstalled]));
 
         return Object.freeze(result);
     }
