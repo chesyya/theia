@@ -5,9 +5,9 @@ import { GotoService } from '@baosky/platform/lib/browser/info-view/goto/goto-se
 import { GotoInfo } from '@baosky/platform/lib/common/info-view/goto-info';
 import { ContributionProvider, ILogger, URI } from "@theia/core";
 import { CommonLoadingPageDialogFactory } from '@baosky/platform/lib/browser/common-dialog/common-loading-page-dialog'
-import { GoToHelpServiceTechImpl } from '@baosky/plugin-usermanual/lib/browser/go-to-help/go-to-help-service-impl'
+import { GoToHelpService } from "@baosky/platform/lib/browser/go-to-help-service";
 import { InfoPanelTabBarDecorateService, InfoPanelTitleKind } from '@baosky/platform/lib/browser/info-view/info-view-tab-bar-decorator-contribution'
-import { GlobalSelectionService, SelectionData, SelectionType } from "@baosky/platform/lib/browser/service/global-selection-service";
+import { GlobalSelectionService } from "@baosky/platform/lib/browser/service/global-selection-service";
 import { CrossReferenceContribution } from "@baosky/platform/lib/browser/cross-reference/interface"
 import { CrossReferenceWidget } from "@baosky/platform/lib/browser/cross-reference/widget/cross-reference-widget"
 import { CrossReferenceViewContribution } from "@baosky/platform/lib/browser/cross-reference/view-contribution"
@@ -32,7 +32,7 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
     protected readonly commonLoadingPageDialogFactory: CommonLoadingPageDialogFactory;
     protected callbackMap = new Map<string, any>();
     protected readonly proxy: PlatformServiceExt;
-    protected readonly goToHelpService: GoToHelpServiceTechImpl;
+    protected readonly goToHelpService: GoToHelpService;
     protected readonly infoPanelTabBarDecorateService: InfoPanelTabBarDecorateService;
     protected contributionProvider: ContributionProvider<CrossReferenceContribution>;
     protected crossReferenceWidget: CrossReferenceWidget;
@@ -57,7 +57,7 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
     constructor(container: interfaces.Container) {
         this.gototoService = container.get(GotoService);
         this.commonLoadingPageDialogFactory = container.get(CommonLoadingPageDialogFactory);
-        this.goToHelpService = container.get(GoToHelpServiceTechImpl);
+        this.goToHelpService = container.get(GoToHelpService);
         this.infoPanelTabBarDecorateService = container.get(InfoPanelTabBarDecorateService);
         this.contributionProvider = container.getNamed<ContributionProvider<CrossReferenceContribution>>(
             ContributionProvider,
@@ -147,7 +147,7 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
 
     $registerPreference<T extends baosky.BasePreferenceSchema>(schema: T) {
         if (!Array.isArray(schema.path)) {
-            throw new Error('[PLUGIN-HOST] schema.path must be an array');
+            throw new Error('[PLUGIN-HOST] schema.path 必须为数组');
         }
 
         // 自动在 path 前面添加插件根节点
@@ -172,7 +172,7 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
         return value;
     }
 
-    async $executeCrossReference(params: baosky.platform.CrossReferenceParam): Promise<baosky.platform.CrossRefTableDataType[] | baosky.platform.CrossReferenceResponse> {
+    async $executeCrossReference(params: baosky.CrossReferenceParam): Promise<baosky.CrossRefTableDataType[] | baosky.CrossReferenceResponse> {
         //转换为语言服务需要的参数
         let newPara: CrossReferenceParam;
 
@@ -184,15 +184,15 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
             newPara = params as CrossReferenceParam;
         }
         if (params.type == 'TASK')
-            return await this.dataProvider.getCrossReferenceData(newPara as TaskCrossReferenceParam) as baosky.platform.CrossRefTableDataType[];
-        const result = await this.languageService.crossreference(newPara) as baosky.platform.CrossReferenceResponse;
+            return await this.dataProvider.getCrossReferenceData(newPara as TaskCrossReferenceParam) as baosky.CrossRefTableDataType[];
+        const result = await this.languageService.crossreference(newPara) as baosky.CrossReferenceResponse;
         return result;
     }
     async $decorateInteractiveTarget(target: baosky.platform.InteractiveTarget): Promise<void> {
         return this.infoPanelTabBarDecorateService.decorateTabBar(InfoPanelTitleKind[target.id]);
     }
     async $gotoHelp(pluginId: string, route: string): Promise<void> {
-        this.goToHelpService.goToHelpRelativePath(`${pluginId}/${route}`);
+        this.goToHelpService.goToHelpRelativePath(`${route}`, 'Plugins');
     }
 
     async $goto(gotoOptions: baosky.platform.GotoOptions): Promise<void> {
@@ -226,7 +226,7 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
         return this.navigateService.getProjectInfo();
     }
 
-    public async $getDeviceParamsByPath(uri: baosky.Uri): Promise<baosky.platform.DeviceParams> {
+    public async $getDeviceParamsByPath(uri: baosky.Uri): Promise<baosky.DeviceParams> {
         return this.navigateService.getDeviceParamsByPath(uri as any);
     }
 

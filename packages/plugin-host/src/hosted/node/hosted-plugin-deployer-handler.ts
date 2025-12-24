@@ -62,6 +62,7 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
      * Managed plugin metadata backend entries.
      */
     private readonly deployedBackendPlugins = new Map<string, Map<PluginIdentifiers.VersionedId, DeployedPlugin>>();
+    private readonly systemPlugins = new Map<PluginIdentifiers.VersionedId, DeployedPlugin>();
 
     /**
      * Managed plugin metadata frontend entries.
@@ -135,6 +136,13 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
         const backend = this.collectFromStore<PluginIdentifiers.VersionedId, DeployedPlugin>(this.deployedBackendPlugins, userId, true) as DeployedPlugin[];
         const frontend = this.collectFromStore<PluginIdentifiers.VersionedId, DeployedPlugin>(this.deployedFrontendPlugins, userId, true) as DeployedPlugin[];
         return [...frontend, ...backend];
+    }
+
+
+    async getSystemPlugins(): Promise<DeployedPlugin[]> {
+        await this.frontendPluginsMetadataDeferred.promise;
+        await this.backendPluginsMetadataDeferred.promise;
+        return Array.from(this.systemPlugins.values());
     }
 
     getDeployedPluginsById(pluginId: string, userId?: string): DeployedPlugin[] {
@@ -258,8 +266,8 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             }
 
             // API 兼容性检查（系统插件跳过检查）
-            const isSystemPlugin = entry.type === PluginType.System;
-            const compatibilityResult = await this.compatibilityService.checkCompatibility(pluginPath, isSystemPlugin);
+            // const isSystemPlugin = entry.type === PluginType.System;
+            // const compatibilityResult = await this.compatibilityService.checkCompatibility(pluginPath, isSystemPlugin);
             // if (!compatibilityResult.compatible) {
             //     this.logger.error(
             //         `[API Compatibility] 跳过部署，兼容性检查未通过 '${pluginPath}'`
@@ -295,6 +303,11 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             const { type } = entry;
             const deployed: DeployedPlugin = { metadata, type };
             deployed.contributes = await this.reader.readContribution(manifest);
+
+            // 记录系统插件
+            if (type === PluginType.System) {
+                this.systemPlugins.set(id, deployed);
+            }
             // 读取插件帮助文档到内存
             if (deployed.contributes?.usermanual) {
                 this.documentationService.registerPluginDocumentation(deployed);
@@ -392,8 +405,8 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
                 : [key]; // 其他用户只查自己对应的作用域
             scopesToCheck.forEach(scope => {
                 // Don't delete from deployed plugins - keep them for outOfSync mechanism
-                // this.deployedBackendPlugins.get(scope)?.delete(pluginId);
-                // this.deployedFrontendPlugins.get(scope)?.delete(pluginId);
+                this.deployedBackendPlugins.get(scope)?.delete(pluginId);
+                this.deployedFrontendPlugins.get(scope)?.delete(pluginId);
                 const scopeOptions = this.createOptionsForScope(scope);
                 this.uninstallationManager.markAsUninstalled(scopeOptions, pluginId);
             })

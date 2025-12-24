@@ -101,19 +101,14 @@ export interface PluginUsermanual {
     path: string;
 
     /**
+     * doc title
+    */
+    title: string;
+
+    /**
      * The commands binded to the help documentation.
      */
     commands?: string[];
-
-    /**
-     * The description
-     */
-    description?: string;
-
-    /**
-     * The route to navigate to the help documentation.
-     */
-    route?: string;
 }
 
 export interface PluginPackageHelpDoc {
@@ -1068,7 +1063,7 @@ export interface PluginDeployerHandler {
 
     getSystemPlugins(): Promise<DeployedPlugin[]>;
 
-    getSharedPlugins(): Promise<DeployedPlugin[]>;
+    // getSharedPlugins(): Promise<DeployedPlugin[]>;
 
     /**
      * Removes the plugin from the location it originally resided on disk.

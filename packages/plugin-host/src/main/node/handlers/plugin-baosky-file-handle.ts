@@ -5,7 +5,9 @@ import * as fs from '@theia/core/shared/fs-extra';
 import { PluginBaoskyEnvironment } from '../plugin-baosky-environment';
 import { FileUri } from '@theia/core/lib/common/file-uri';
 import { unpackToDeploymentDir } from '../../../utils/plugin-baosky-utils';
-import { UserPluginEnvironment } from '../../common/user-plugin-management/user-plugin-environment-service';
+import { PluginStorageKey, UserPluginEnvironment } from '../../common/user-plugin-management/user-plugin-environment-service';
+import { PluginUserStorageAdapterFactory } from '../plugin-adapter/plugin-adapter-control';
+import { DEFAULT_USER_NAME } from '@baosky/platform/lib/common/es-server/user-protocol';
 
 export const isBaoskyPluginFile = (pluginPath?: string) => Boolean(pluginPath && (pluginPath.endsWith('.bsx') || pluginPath.endsWith('.tgz')));
 
@@ -15,6 +17,8 @@ export class PluginBaoskyFileHandler implements PluginDeployerFileHandler {
     protected readonly environment: PluginBaoskyEnvironment;
     @inject(UserPluginEnvironment)
     protected readonly userPluginEnvironment: UserPluginEnvironment;
+    @inject(PluginUserStorageAdapterFactory)
+    private readonly userStorageAdapterFactory: PluginUserStorageAdapterFactory;
 
     async accept(resolvedPlugin: PluginDeployerEntry): Promise<boolean> {
         return resolvedPlugin.isFile().then(file => {
@@ -28,11 +32,21 @@ export class PluginBaoskyFileHandler implements PluginDeployerFileHandler {
     async handle(context: PluginDeployerFileHandlerContext, options?: PluginDeployOptions): Promise<void> {
         const id = this.getNormalizedExtensionId(context.pluginEntry().id());
         let extensionDeploymentDir: string;
+        let userName = DEFAULT_USER_NAME;
         if (options && options.userId) {
-            extensionDeploymentDir = await unpackToDeploymentDir(this.userPluginEnvironment, context.pluginEntry().path(), id, options);
+            userName = options.userId;
         }
-        else
-            extensionDeploymentDir = await unpackToDeploymentDir(this.environment, context.pluginEntry().path(), id);
+        const adapter = this.userStorageAdapterFactory({
+            type: PluginStorageKey,
+            userName: userName,
+            shared: options?.shared,
+        });
+        extensionDeploymentDir = await adapter.setPluginData(id, {
+            env: options?.userId ? this.userPluginEnvironment : this.environment,
+            sourcePath: context.pluginEntry().path(),
+            extensionId: id,
+            options: options?.userId ? options : undefined,
+        });
         context.pluginEntry().updatePath(extensionDeploymentDir);
         console.log(`root path: ${context.pluginEntry().rootPath}`);
         const originalPath = context.pluginEntry().originalPath();

@@ -300,6 +300,9 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
 
                 const plugins: DeployedPlugin[] = [];
                 for (const item of deployedPlugins) {
+                    if(this.contributions.get(PluginIdentifiers.componentsToUnversionedId(item.deployed.metadata.model))){
+                        return;
+                    }
                     const deployed = item.deployed;
                     const lifecycle = deployed.metadata.lifecycle ?? {};
 

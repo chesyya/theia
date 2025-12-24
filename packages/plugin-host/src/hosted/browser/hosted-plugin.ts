@@ -65,6 +65,7 @@ import { UserLoginController } from '@baosky/project/lib/browser/es-server/contr
 import { USER_NAME } from '@baosky/project/lib/browser/es-server/controller/impl/user-login-controller-impl';
 import { EventId, SystemEventSubscriber } from '@baosky/platform/lib/browser/events';
 import { UserLoginService } from '@baosky/platform/lib/browser/user-login/user-login-service';
+import { PluginDataServer } from "../../main/common/plugin-data-server"
 
 export type DebugActivationEvent = 'onDebugResolve' | 'onDebugInitialConfigurations' | 'onDebugAdapterProtocolTracker' | 'onDebugDynamicConfigurations';
 
@@ -188,6 +189,9 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
     @inject(UserLoginService)
     protected readonly userLoginService: UserLoginService;
 
+    @inject(PluginDataServer)
+    protected readonly pluginDataServer: PluginDataServer;
+
     @inject(MessageService)
     protected readonly messageService: MessageService;
 
@@ -308,14 +312,14 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
         this.watcher.onDidUninstallSharedPlugin(pluginId => {
             const unversionedId = pluginId as PluginIdentifiers.UnversionedId;
             const activePlugin = this.getPlugin(unversionedId);
-            
+
             if (activePlugin) {
                 // Mark as out of sync to show "Reload" button in UI
                 activePlugin.metadata.outOfSync = true;
-                
+
                 // Notify user
                 this.messageService.info(nls.localize('plugin.admin.uninstalled', 'Plugin {0} has been uninstalled by administrator.', activePlugin.metadata.model.displayName));
-                
+
                 // Trigger UI update to reflect the "Reload" state
                 this.onDidChangePluginsEmitter.fire();
             }
@@ -528,13 +532,9 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
     }
 
     protected async getHostGlobalStoragePath(): Promise<string> {
-        const configDirUri = await this.envServer.getConfigDirUri();
-        const globalStorageFolderUri = new URI(configDirUri).resolve('globalStorage');
+        const configDirUri = await this.pluginDataServer.getPluginDataPath();
+        const globalStorageFolderUri = new URI(configDirUri);
 
-        // Make sure that folder by the path exists
-        if (!await this.fileService.exists(globalStorageFolderUri)) {
-            await this.fileService.createFolder(globalStorageFolderUri, { fromUserGesture: false });
-        }
         const globalStorageFolderFsPath = await this.fileService.fsPath(globalStorageFolderUri);
         if (!globalStorageFolderFsPath) {
             throw new Error(`Could not resolve the FS path for URI: ${globalStorageFolderUri}`);

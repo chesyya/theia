@@ -24,11 +24,15 @@ export enum BSXSearchMode {
     Installed,
     Builtin,
     Recommended,
+    SystemLevel,
+    UserLevel,
 }
 
 export const BUILTIN_QUERY = '@builtin';
 export const INSTALLED_QUERY = '@installed';
 export const RECOMMENDED_QUERY = '@recommended';
+export const SYSTEM_LEVEL_QUERY = '@system-level';
+export const USER_LEVEL_QUERY = '@user-level';
 
 @injectable()
 export class BSXExtensionsSearchModel {
@@ -39,6 +43,8 @@ export class BSXExtensionsSearchModel {
         [BUILTIN_QUERY, BSXSearchMode.Builtin],
         [INSTALLED_QUERY, BSXSearchMode.Installed],
         [RECOMMENDED_QUERY, BSXSearchMode.Recommended],
+        [SYSTEM_LEVEL_QUERY, BSXSearchMode.SystemLevel],
+        [USER_LEVEL_QUERY, BSXSearchMode.UserLevel],
     ]);
 
     protected _query = '';

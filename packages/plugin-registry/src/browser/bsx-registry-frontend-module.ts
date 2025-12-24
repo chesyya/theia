@@ -14,7 +14,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
 
-import './style/index.css';
+import '../../src/browser/style/index.css';
 import { ContainerModule } from '@theia/core/shared/inversify';
 import {
     WidgetFactory, bindViewContribution, FrontendApplicationContribution, ViewContainerIdentifier, OpenHandler, WidgetManager, WebSocketConnectionProvider,
@@ -97,6 +97,8 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
                 BSXExtensionsSourceOptions.RECOMMENDED,
                 BSXExtensionsSourceOptions.SEARCH_RESULT,
                 BSXExtensionsSourceOptions.INSTALLED,
+                BSXExtensionsSourceOptions.SYSTEM_LEVEL,
+                BSXExtensionsSourceOptions.USER_LEVEL,
                 BSXExtensionsSourceOptions.BUILT_IN,
             ]) {
                 const widget = await widgetManager.getOrCreateWidget(BSXExtensionsWidget.ID, { id });

@@ -10,7 +10,7 @@
 import * as baosky from '@baosky/plugin';
 import { interfaces } from "@theia/core/shared/inversify";
 import { LibraryExt, LibraryMain } from "../../../common";
-import { LibraryManagerService, ProjectLibService } from '@baosky/plc-protocol/lib/browser/software/library';
+import { LibraryManagerService, LibraryService, ProjectLibService } from '@baosky/plc-protocol/lib/browser/software/library';
 import { URI } from '@theia/core';
 import { UriComponents } from '@theia/core/lib/common/uri';
 import { ReferenceLibraryController } from '@baosky/plc-protocol/lib/browser/software/library/reference-lib/controller/reference-lib-controller';
@@ -23,12 +23,17 @@ export class LibraryMainImpl implements LibraryMain {
     protected readonly libraryManagerService: LibraryManagerService;
     protected readonly globalQuickfixProvider: GlobalQuickfixProvider;
     protected readonly proxy: LibraryExt;
+    protected readonly libraryService: LibraryService;
 
     constructor(container: interfaces.Container) {
         this.projectLibService = container.get(ProjectLibService);
         this.referenceLibraryController = container.get(ReferenceLibraryController);
         this.libraryManagerService = container.get(LibraryManagerService);
         this.globalQuickfixProvider = container.get(GlobalQuickfixProvider);
+        this.libraryService = container.get(LibraryService);
+    }
+    $getAllLibraryInfo(type: baosky.LibraryCategory) {
+        return this.libraryService.getAllLibraryInfo(type as any);
     }
 
     $addToRefLibByLibSet(plcUri: UriComponents, libSetParamters: { libSet: string; version: string; category: string; }) {

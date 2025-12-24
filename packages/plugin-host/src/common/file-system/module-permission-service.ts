@@ -1,5 +1,5 @@
 import { PluginApiScope } from '..';
-import { Plugin } from '../plugin-api-rpc';
+import { Plugin } from '../../common/plugin-api-rpc';
 // 模块操作信息
 export interface ModuleOperation {
     moduleId?: PluginApiScope;

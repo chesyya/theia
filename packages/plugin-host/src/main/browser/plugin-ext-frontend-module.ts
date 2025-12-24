@@ -1,6 +1,6 @@
-import '../style/status-bar.css';
-import './style/index.css';
-import './style/comments.css';
+import '../../../src/main/style/status-bar.css';
+import '../../../src/main/browser/style/index.css';
+import '../../../src/main/browser/style/comments.css';
 
 import { ContainerModule } from '@theia/core/shared/inversify';
 import {
@@ -54,7 +54,7 @@ import { CommentingRangeDecorator } from './comments/comments-decorator';
 import { CommentsContribution } from './comments/comments-contribution';
 import { CommentsContextKeyService } from './comments/comments-context-key-service';
 import { PluginCustomEditorRegistry } from './custom-editors/plugin-custom-editor-registry';
-import { CustomEditorWidgetFactory } from './custom-editors/custom-editor-widget-factory';
+import { CustomEditorWidgetFactory } from '../browser/custom-editors/custom-editor-widget-factory';
 import { CustomEditorWidget } from './custom-editors/custom-editor-widget';
 import { CustomEditorService } from './custom-editors/custom-editor-service';
 import { WebviewFrontendSecurityWarnings } from './webview/webview-frontend-security-warnings';
@@ -79,14 +79,13 @@ import { PluginBaoskyEnvironment } from '../node/plugin-baosky-environment';
 import { bindPluginDialog } from './dialog/plugin-dialog';
 import { bindPluginNode } from './project-tree-node/bindPluginNode';
 import { PluginTreeNodeManagerImpl } from './project-tree-node/plugin-node-manager';
-import { PluginDocumentationFrontendService, PluginDocumentationService } from './plugin-usermanual/plugin-usermanual-service';
-import { UsermanualRegistry } from './plugin-usermanual/plugin-usermanual-command';
 import { IAuthorizationService } from '../../common/authorization/i-authorization-service';
 import { AuthorizationFrontendProxy } from './authorization/authorization-frontend-proxy';
 import { ModulePermissionServiceImpl } from './module-permission-system/module-permission-service-impl';
 import { ModulePermissionService } from '../../common/file-system/module-permission-service'
 import { PluginCommandManagerImp } from './command/plugin-command-manager';
 import { IPluginCommandManager } from './command/plugin-command-manager-protocol';
+import { PluginDataServer, pluginDataServerPath } from '../common/plugin-data-server';
 
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
@@ -296,15 +295,12 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     );
     bindContributionProvider(bind, ArgumentProcessorContribution);
 
-    bind(PluginDocumentationFrontendService).toSelf().inSingletonScope();
-    bind(PluginDocumentationService).toService(PluginDocumentationFrontendService);
-    bind(UsermanualRegistry).toSelf().inSingletonScope();
-
     bind(AuthorizationFrontendProxy).toSelf().inSingletonScope();
     bind(IAuthorizationService).toService(AuthorizationFrontendProxy);
 
-    // bind(AuthorizationMenuContribution).toSelf().inSingletonScope();
-    // bind(CommandContribution).toService(AuthorizationMenuContribution);
-    // bind(MenuContribution).toService(AuthorizationMenuContribution);
+    bind(PluginDataServer).toDynamicValue(ctx => {
+        const provider = ctx.container.get(WebSocketConnectionProvider);
+        return provider.createProxy<PluginDataServer>(pluginDataServerPath);
+    }).inSingletonScope();
 
 });

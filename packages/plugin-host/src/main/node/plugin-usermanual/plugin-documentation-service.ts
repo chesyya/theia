@@ -11,7 +11,7 @@ import { ILogger, MaybePromise } from '@theia/core';
 import { DeployedPlugin, PluginIdentifiers } from '../../../common/plugin-protocol';
 import { bnls } from '@baosky/platform/lib/common/bnls';
 import { BackendApplicationContribution } from '@theia/core/lib/node';
-import { UsermanualServer } from '@baosky/plugin-usermanual/lib/node/usermanual-server'
+import { UsermanualServer } from '@baosky/platform/lib/common/documentation/documentation-server'
 
 export interface PluginDocumentationInfo {
     pluginId: string;
@@ -21,8 +21,7 @@ export interface PluginDocumentationInfo {
 
 export interface PluginPagesInfo {
     filePath: string; // 文档路径
-    description?: string; // 文档描述
-    route: string; // 路由路径
+    title: string; // 文档标题
 }
 
 /**
@@ -58,7 +57,7 @@ export class PluginDocumentationServiceImpl implements PluginDocumentationServic
     protected readonly usermanualService: UsermanualServer;
 
     private pluginDocs = new Map<string, PluginDocumentationInfo>();
-    private commandUrlMap = new Map<string, string>();
+    // private commandUrlMap = new Map<string, string>();
 
     onStart(): MaybePromise<void> {
 
@@ -84,8 +83,7 @@ export class PluginDocumentationServiceImpl implements PluginDocumentationServic
             const filePath = path.resolve(pluginPackagePath, doc.path);
             return {
                 filePath,
-                description: doc.description,
-                route: doc.route ?? ''
+                title: doc.title
             };
         });
 
@@ -93,15 +91,6 @@ export class PluginDocumentationServiceImpl implements PluginDocumentationServic
             pluginId,
             pluginName: plugin.metadata.model.name,
             pages
-        });
-
-        helpDocs.forEach(doc => {
-            if (Array.isArray(doc.commands)) {
-                const route = doc.route || '';
-                doc.commands.forEach(cmd => {
-                    this.commandUrlMap.set(cmd, route);
-                });
-            }
         });
 
         this.usermanualService.registerDocumentation({ pluginId: pluginId, pluginName: plugin.metadata.model.name, pages: pages });

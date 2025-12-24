@@ -75,66 +75,30 @@ export const implementedVSCodeContributionPoints = [
     'tree/plc/category',
     'tree/task/category',
     'tree/software/category',
+    'tree/chart/element',
+    'tree/chart/folder',
+    'tree/chart/category',
 
-    'pu/head/context',
-    'pu/headCell/context',
-    'pu/bodyST/context',
+    'table/head/context',
+    'table/cell/context',
     'io-mapping/head/context',
-    'pu/bodyLD/context',
+
+    'pu/ld/segment',
+    'pu/ld/singleNode',
+    'pu/ld/boxNode',
+    'pu/ld/connection',
+    'pu/ld/bridge',
+    'pu/ld/boxPin',
+    'pu/ld/operand',
+    'pu/ld/editor',
+    'pu/ld/instanceName',
+    'pu/ld/label',
+    'pu/ld/st',
     'menubar/help/document'
 
 ] as const;
 
 export type ContributionPoint = (typeof implementedVSCodeContributionPoints)[number];
-
-const PROJECTVIEW_CONTEXT = [
-    ['project_root'],
-
-    ['test-context-menu'], //PLC目录
-
-    ['software'],
-
-    ['gvs-folder'],
-    ['gvs-subfolder'],
-    ['GVS-context-menu'],
-
-    ['program-unit-folder'],
-    ['program-unit-subfolder'],
-    ['programUnit-context-menu'],
-
-    ['task-folder-context-menu'],
-    ['task-context-menu'],
-
-    ['io-mapping-folder-context-menu'],
-    ['io-mapping-context-menu'],
-    ['io-mapping-subfolder'],
-
-    ['UDT-folder'],
-    ['UDT-subfolder'],
-    ['UDT-context-menu'],
-
-    ['library-folder'],
-    ['library-sub-folder-context-menu'],
-    ['library-create-folder'],
-
-    ['technology-control-menu'],
-    ['technology-control-subfolder'],
-    ['AXIS_BASE'],
-
-    ['debug-config'],
-
-    ['watch-table-folder-context-menu'],
-    ['watch-table-subfolder'],
-    ['watch-table-context-menu'],
-
-    ['hw'],
-    ['local-config'],
-    ['test_menu'], //远程配置目录
-    ['remote_iomodule_menu'],
-    ['local_iomodule_menu'],
-    ['iosystem_menu'],
-    ['iodevice']
-]
 
 /** The values are menu paths to which the VSCode contribution points correspond */
 export const codeToTheiaMappings = new Map<ContributionPoint, MenuPath[]>([
@@ -187,11 +151,27 @@ export const codeToTheiaMappings = new Map<ContributionPoint, MenuPath[]>([
     ['tree/task/category', [['task-folder-context-menu']]],
     ['tree/software/category', [['software']]],
 
-    ['pu/head/context', [['text-table-menu']]],
-    ['pu/bodyST/context', [['editor_context_menu']]],
-    ['pu/headCell/context', [['text-table-cell-menu']]],
+    ['tree/chart/category', [["chart-folder"]]],
+    ['tree/chart/folder', [["chart-subfolder"]]],
+    ['tree/chart/element', [["chart-file"]]],
+
     ['io-mapping/head/context', [['io-mapping-row-context-menu']]],
-    ['pu/bodyLD/context', [['diagram-context-menu', 'ladder-diagram']]],
+
+    ['pu/ld/segment', [['LD-context-menu-0-segment']]],
+    ['pu/ld/singleNode', [['LD-context-menu-1-single-node']]],
+    ['pu/ld/boxNode', [['LD-context-menu-2-box-node']]],
+    ['pu/ld/connection', [['LD-context-menu-3-connection']]],
+    ['pu/ld/bridge', [['LD-context-menu-4-bridge']]],
+    ['pu/ld/boxPin', [['LD-context-menu-5-box-pin']]],
+    ['pu/ld/operand', [['LD-context-menu-6-operand']]],
+    ['pu/ld/editor', [['LD-context-menu-7-editor']]],
+    ['pu/ld/instanceName', [['LD-context-menu-8-instance-name']]],
+    ['pu/ld/label', [['LD-context-menu-9-lable']]],
+    ['pu/ld/st', [['LD-context-menu-10-st-code']]],
+
+    ['table/head/context', [['text-table-menu']]],
+    ['table/cell/context', [['text-table-cell-menu']]],
+
     ['menubar/help/document', [USER_MANUAL_MENU]]
 ]);
 

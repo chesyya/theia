@@ -124,6 +124,9 @@ export class PluginMenuCommandAdapter implements MenuCommandAdapter {
             ['tree/plc/category', selectedResource],
             ['tree/task/category', selectedResource],
             ['tree/software/category', selectedResource],
+            ['tree/chart/category', selectedResource],
+            ['tree/chart/element', selectedResource],
+            ['tree/chart/folder', selectedResource],
 
             ['pu/bodyST/context', selectedResource],
             ['pu/head/context', selectedResource],
