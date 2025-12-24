@@ -1105,6 +1105,8 @@ export interface HostedPluginServer extends RpcServer<HostedPluginClient> {
 
     getUninstalledPluginIds(userId?: string): Promise<readonly PluginIdentifiers.VersionedId[]>;
 
+    getDisabledPluginIds(userId?: string): Promise<readonly PluginIdentifiers.VersionedId[]>;
+
     getDeployedPlugins(params: GetDeployedPluginsParams, userId?: string): Promise<DeployedPluginWithInitpath[]>;
 
     getAllDeployedPlugins(userId?: string): Promise<DeployedPlugin[]>;

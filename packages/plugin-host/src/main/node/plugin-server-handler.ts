@@ -4,6 +4,7 @@ import { PluginDeployerImpl } from './plugin-deployer-impl';
 import { PluginsKeyValueStorage } from './plugins-key-value-storage';
 import { PluginServer, PluginDeployer, PluginStorageKind, PluginType, UnresolvedPluginEntry, PluginIdentifiers, PluginDeployOptions, PluginUninstallOptions, DeployedResult, DISABLED_PLUGINS_STORAGE_KEY } from '../../common/plugin-protocol';
 import { KeysToAnyValues, KeysToKeysToAnyValue } from '../../common/types';
+import { PluginUninstallationManager } from './plugin-uninstallation-manager';
 
 @injectable()
 export class PluginServerHandler implements PluginServer {
@@ -13,6 +14,9 @@ export class PluginServerHandler implements PluginServer {
 
     @inject(PluginsKeyValueStorage)
     protected readonly pluginsKeyValueStorage: PluginsKeyValueStorage;
+
+    @inject(PluginUninstallationManager)
+    protected readonly uninstallationManager: PluginUninstallationManager;
 
     async deploy(pluginEntry: string, arg2?: PluginType | CancellationToken, options?: PluginDeployOptions): Promise<DeployedResult[]> {
         const type = typeof arg2 === 'number' ? arg2 as PluginType : undefined;
@@ -52,56 +56,35 @@ export class PluginServerHandler implements PluginServer {
     }
 
     async enablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<void> {
-        const disabledPlugins = await this.getDisabledPlugins();
-        const index = disabledPlugins.indexOf(pluginId);
-        if (index > -1) {
-            disabledPlugins.splice(index, 1);
-            await this.setStorageValue(DISABLED_PLUGINS_STORAGE_KEY, { plugins: disabledPlugins }, undefined);
-        }
+        // Use PluginUninstallationManager for default (system-level) disable
+        await this.uninstallationManager.markAsEnabled(undefined, pluginId);
     }
 
     async disablePlugin(pluginId: PluginIdentifiers.VersionedId): Promise<void> {
-        const disabledPlugins = await this.getDisabledPlugins();
-        if (!disabledPlugins.includes(pluginId)) {
-            disabledPlugins.push(pluginId);
-            await this.setStorageValue(DISABLED_PLUGINS_STORAGE_KEY, { plugins: disabledPlugins }, undefined);
-        }
+        // Use PluginUninstallationManager for default (system-level) disable
+        await this.uninstallationManager.markAsDisabled(undefined, pluginId);
     }
 
     async disablePluginForUser(pluginId: PluginIdentifiers.VersionedId, username: string): Promise<void> {
-        const storageKey = `${DISABLED_PLUGINS_STORAGE_KEY}.user.${username}`;
-        const disabledPlugins = await this.getDisabledPluginsForUser(username);
-        if (!disabledPlugins.includes(pluginId)) {
-            disabledPlugins.push(pluginId);
-            await this.setStorageValue(storageKey, { plugins: disabledPlugins }, undefined);
-        }
+        // Use PluginUninstallationManager for user-specific disable
+        await this.uninstallationManager.markAsDisabled({ userId: username }, pluginId);
     }
 
     async getDisabledPluginsForUser(username: string): Promise<string[]> {
-        try {
-            const storageKey = `${DISABLED_PLUGINS_STORAGE_KEY}.user.${username}`;
-            const storage = await this.getStorageValue(storageKey, undefined);
-            if (storage && storage['plugins']) {
-                return storage['plugins'] as string[];
-            }
-        } catch (e) {
-            console.error('Failed to get disabled plugins for user:', username, e);
-        }
-        return [];
+        // Use PluginUninstallationManager
+        const disabledPlugins = await this.uninstallationManager.getDisabledPluginIds({ userId: username });
+        return Array.from(disabledPlugins);
     }
 
     async isPluginEnabled(pluginId: PluginIdentifiers.VersionedId): Promise<boolean> {
-        const disabledPlugins = await this.getDisabledPlugins();
-        return !disabledPlugins.includes(pluginId);
+        // Check if plugin is disabled (default scope)
+        return !(await this.uninstallationManager.isDisabled(pluginId, undefined));
     }
 
     async getDisabledPlugins(): Promise<string[]> {
-        try {
-            const storage = await this.getStorageValue(DISABLED_PLUGINS_STORAGE_KEY, undefined);
-            return (storage && storage.plugins as string[]) || [];
-        } catch (error) {
-            return [];
-        }
+        // Use PluginUninstallationManager for default (system-level) disabled plugins
+        const disabledPlugins = await this.uninstallationManager.getDisabledPluginIds(undefined);
+        return Array.from(disabledPlugins);
     }
 
 }

@@ -102,23 +102,50 @@ export class HostedPluginServerImpl implements HostedPluginServer {
                         }
                     }
                     this.client?.onDidDeploy();
-                }),
-                // this.uninstallationManager.onDidChangeDisabledPlugins(currentlyDisabled => {
-                //     if (this.disabledPlugins) {
-                //         const disabled = new Set(currentlyDisabled);
-                //         for (const previouslyUninstalled of this.disabledPlugins) {
-                //             if (!disabled.has(previouslyUninstalled)) {
-                //                 this.disabledPlugins.delete(previouslyUninstalled);
-                //             }
-                //         }
-                //     }
-                //     this.client?.onDidDeploy();
-                // }),
-                Disposable.create(() => this.hostedPlugin.clientClosed()),
-            ]);
-            this.initialized.resolve();
-        };
-        asyncInit();
+                }
+            }),
+
+        this.uninstallationManager.onDidChangeDisabledPlugins(event => {
+            const currentDisabled = event.versionIds;
+
+            if (this._ignoredPlugins) {
+                const disabled = new Set(currentDisabled);
+
+                let ignoredForKey = this._ignoredPlugins.get(
+                    event.type === 'default' ? 'default' : event.userId
+                );
+                if (!ignoredForKey) {
+                    ignoredForKey = new Set();
+                    this._ignoredPlugins.set(
+                        event.type === 'default' ? 'default' : event.userId,
+                        ignoredForKey
+                    );
+                }
+
+                // Update ignored plugins based on disabled state
+                for (const disabledId of disabled) {
+                    ignoredForKey.add(disabledId);
+                }
+
+                // Remove plugins that are no longer disabled
+                for (const previouslyIgnored of [...ignoredForKey]) {
+                    if (!disabled.has(previouslyIgnored)) {
+                        ignoredForKey.delete(previouslyIgnored);
+                    }
+                }
+            }
+
+            if (event.type === "user") {
+                this.client?.onDidDeploy(event.userId);
+            } else {
+                this.client?.onDidDeploy();
+            }
+        }),
+
+            this.deployerHandler.onDidUninstall(() => this.client?.onDidUninstall()),
+            this.deployerHandler.onDidUninstallSharedPlugin((pluginId) => this.client?.onDidUninstallSharedPlugin(pluginId)),
+            Disposable.create(() => this.hostedPlugin.clientClosed()),
+        ]);
     }
 
     protected getServerName(): string {
@@ -186,6 +213,10 @@ export class HostedPluginServerImpl implements HostedPluginServer {
 
     getUninstalledPluginIds(userId?: string): Promise<readonly PluginIdentifiers.VersionedId[]> {
         return Promise.resolve(this.uninstallationManager.getUninstalledPluginIds({ userId }));
+    }
+
+    getDisabledPluginIds(userId?: string): Promise<readonly PluginIdentifiers.VersionedId[]> {
+        return this.uninstallationManager.getDisabledPluginIds({ userId });
     }
 
     async getDeployedPlugins({ pluginIds }: GetDeployedPluginsParams, userId?: string): Promise<DeployedPluginWithInitpath[]> {

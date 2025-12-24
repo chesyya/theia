@@ -23,7 +23,7 @@ import { PluginEnvironment } from '../common/plugin-environment';
 import { PluginTheiaDeployerParticipant } from './plugin-theia-deployer-participant';
 import { WebviewBackendSecurityWarnings } from './webview-backend-security-warnings';
 import { PluginUninstallationManager } from './plugin-uninstallation-manager';
-// import { PluginOverrideManager } from './plugin-override-manager';
+import { PluginStorageService, MockPluginStorageService } from './plugin-storage-service';
 import { LocalizationServerImpl } from '@theia/core/lib/node/i18n/localization-server';
 import { PluginLocalizationServer } from './plugin-localization-server';
 import { PluginMgmtCliContribution } from './plugin-mgmt-cli-contribution';
@@ -48,6 +48,8 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
     bind(PluginDeployerContribution).toSelf().inSingletonScope();
     bind(BackendApplicationContribution).toService(PluginDeployerContribution);
 
+    // Bind storage service for plugin settings (mock implementation - replace with database later)
+    bind(PluginStorageService).to(MockPluginStorageService).inSingletonScope();
     bind(PluginUninstallationManager).toSelf().inSingletonScope();
     // bind(PluginOverrideManager).toSelf().inSingletonScope();
 

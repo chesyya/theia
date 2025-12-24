@@ -231,11 +231,15 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
         let didChangeInstallationStatus = false;
         try {
             const newPluginIds: PluginIdentifiers.VersionedId[] = [];
-            const [deployedPluginIds, uninstalledPluginIds, allDeployedPlugins] = await Promise.all([
+            const [deployedPluginIds, uninstalledPluginIds, disabledPluginIds, allDeployedPlugins] = await Promise.all([
                 this.server.getDeployedPluginIds(userInfo?.userId),
                 this.server.getUninstalledPluginIds(userInfo?.userId),
+                this.server.getDisabledPluginIds(userInfo?.userId),
                 this.server.getAllDeployedPlugins(userInfo?.userId)
             ]);
+
+            // Merge uninstalled and disabled plugins into ignoredPlugins
+            const ignoredPlugins = [...disabledPluginIds, ...uninstalledPluginIds];
 
             // Track all built-in and shared versions
             this.builtinVersions.clear();
@@ -252,8 +256,8 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
             waitPluginsMeasurement.log('Waiting for backend deployment');
             syncPluginsMeasurement = this.measure('syncPlugins');
 
-            // this.uninstalledPluginIds = uninstalledPluginIds;
-            for (const versionedId of uninstalledPluginIds) {
+            // Mark ignored plugins (disabled and uninstalled) as outOfSync
+            for (const versionedId of ignoredPlugins) {
                 const unversionedId = PluginIdentifiers.unversionedFromVersioned(versionedId);
                 const plugin = this.getPlugin(unversionedId);
                 if (plugin && PluginIdentifiers.componentsToVersionedId(plugin.metadata.model) === versionedId && !plugin.metadata.outOfSync) {
@@ -290,7 +294,7 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
             }
 
             for (const contribution of this.contributions.values()) {
-                if (contribution.plugin.metadata.outOfSync && !uninstalledPluginIds.includes(PluginIdentifiers.componentsToVersionedId(contribution.plugin.metadata.model))) {
+                if (contribution.plugin.metadata.outOfSync && !ignoredPlugins.includes(PluginIdentifiers.componentsToVersionedId(contribution.plugin.metadata.model))) {
                     contribution.plugin.metadata.outOfSync = false;
                     didChangeInstallationStatus = true;
                 }
