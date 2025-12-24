@@ -7,7 +7,7 @@ import { URI } from '@theia/core/shared/vscode-uri';
 import { CommandRegistryImpl } from '../command-registry';
 import { ReferenceMap } from '../../common/reference-map';
 import { DisposableCollection } from '@theia/core/lib/common/disposable';
-import { InlineCompletionTriggerKind as TriggerKind } from '../../plugin/types-impl';
+import { InlineCompletionTriggerKind as TriggerKind } from '../types-impl';
 import { Command, InlineCompletionContext, InlineCompletionTriggerKind } from '../../common/plugin-api-rpc-model';
 import { IdentifiableInlineCompletion, IdentifiableInlineCompletions, Position } from '../../common/plugin-api-rpc';
 

@@ -248,7 +248,7 @@ import { TextEditorExt } from './text-editor';
 import { ClipboardExt } from './clipboard-ext';
 import { WebviewsExtImpl } from './webviews';
 import { ExtHostFileSystemEventService } from './file-system-event-service-ext-impl';
-import { LabelServiceExtImpl } from '../plugin/label-service';
+import { LabelServiceExtImpl } from './label-service';
 import { TimelineExtImpl } from './timeline';
 import { ThemingExtImpl } from './theming';
 import { CommentsExtImpl } from './comments';
@@ -595,7 +595,7 @@ export function createAPIFactory(
             async getMatchedPLCModelVersionByProject(projectVersion: number): Promise<number> {
                 return versionServiceExt.getMatchedPLCModelVersionByProject(projectVersion);
             },
-            async focusInfoViewTab(type: string, stopAutoScroll?: boolean): Promise<void>{
+            async focusInfoViewTab(type: string, stopAutoScroll?: boolean): Promise<void> {
                 return platformServiceExt.focusInfoViewTab(type, stopAutoScroll);
             }
         }
@@ -620,7 +620,7 @@ export function createAPIFactory(
                     return libraryExt.getAllReferenceLibElement(plcUri);
                 },
 
-                getAllLibraryInfo(type: baosky.LibraryCategory){
+                getAllLibraryInfo(type: baosky.LibraryCategory) {
                     return libraryExt.getAllLibraryInfo(type);
                 }
             },

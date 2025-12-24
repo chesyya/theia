@@ -2,7 +2,7 @@ import { injectable } from '@theia/core/shared/inversify';
 import { Message } from '@theia/core/shared/@phosphor/messaging';
 import { codiconArray, Key } from '@theia/core/lib/browser';
 import { AbstractDialog } from '@theia/core/lib/browser/dialogs';
-import '../../../../src/main/browser/dialogs/style/modal-notification.css';
+import './style/modal-notification.css';
 import { MainMessageItem, MainMessageOptions } from '../../../common/plugin-api-rpc';
 import { FrontendApplicationConfigProvider } from '@theia/core/lib/browser/frontend-application-config-provider';
 import { nls } from '@theia/core/lib/common/nls';
