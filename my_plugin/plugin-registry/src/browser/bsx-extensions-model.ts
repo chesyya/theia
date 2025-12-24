@@ -462,43 +462,38 @@ export class BSXExtensionsModelImpl implements BSXExtensionsModel {
                     const id = plugin.model.id;
                     this._installed.delete(id);
                     const extension = this.setExtension(id);
-                    extension.builtinVersion = (this.pluginSupport as any).getBuiltinVersion ? (this.pluginSupport as any).getBuiltinVersion(id) : undefined;
-                    extension.sharedVersion = (this.pluginSupport as any).getSharedVersion ? (this.pluginSupport as any).getSharedVersion(id) : undefined;
                     currInstalled.add(extension.id);
 
-                    // // 获取 DeployedPlugin 以访问 type、originType 等属性
-                    // const deployedPlugin = this.pluginSupport.getPlugin(id as any);
-                    // if (deployedPlugin) {
-                    //     // 分类插件到系统级或用户级（基于当前激活的版本）
-                    //     const isSystem = this.isSystemLevelPlugin(deployedPlugin);
-                    //     const isUser = this.isUserLevelPlugin(deployedPlugin);
-
-                    //     // 一个插件只能在系统级或用户级其中一个
-                    //     // 后端已经通过 isActive 字段标记了激活的版本，所以不应该同时是两个级别
-                    //     if (isSystem && isUser) {
-                    //         console.error(
-                    //             `[updateInstalled] BUG: Plugin ${id} is classified as both system and user level. ` +
-                    //             `This should not happen as backend already filters by isActive. ` +
-                    //             `type=${deployedPlugin.type}, originType=${deployedPlugin.originType}, ` +
-                    //             `activeOriginType=${deployedPlugin.overrideInfo?.activeOriginType}, ` +
-                    //             `isActive=${deployedPlugin.isActive}`
-                    //         );
-                    //         // 根据 activeOriginType 决定分类（后端数据为准）
-                    //         if (deployedPlugin.overrideInfo?.activeOriginType === 'user') {
-                    //             currUserLevel.add(extension.id);
-                    //         } else {
-                    //             currSystemLevel.add(extension.id);
-                    //         }
-                    //     } else if (isSystem) {
-                    //         currSystemLevel.add(extension.id);
-                    //     } else if (isUser) {
-                    //         currUserLevel.add(extension.id);
-                    //     }
-                    // }
+                    // 🆕 根据 tags 分类到系统级或用户级
+                    if (extension.isSystemLevel) {
+                        currSystemLevel.add(id);
+                    } else if (extension.isUserLevel) {
+                        currUserLevel.add(id);
+                    }
 
                     refreshing.push(this.refresh(id, version));
                 }
             }
+
+            // 🆕 处理未激活的内置插件（例如覆盖版本刚卸载，系统版本等待重启加载）
+            // 确保它们出现在系统级列表中
+            if ((this.pluginSupport as any).getBuiltinPluginIds) {
+                const builtinIds = (this.pluginSupport as any).getBuiltinPluginIds() as string[];
+                for (const id of builtinIds) {
+                    if (!currInstalled.has(id)) {
+                        const extension = this.setExtension(id);
+                        // 添加到系统级视图
+                        currSystemLevel.add(id);
+                        // 也添加到已安装列表，以便 refresh 能获取最新信息
+                        currInstalled.add(id);
+
+                        // 使用 tags 中的 builtinVersion 进行 refresh
+                        const builtinVersion = extension.tags?.builtinVersion;
+                        refreshing.push(this.refresh(id, builtinVersion));
+                    }
+                }
+            }
+
             for (const id of this._installed) {
                 const extension = this.getExtension(id);
                 if (!extension) { continue; }
@@ -507,6 +502,13 @@ export class BSXExtensionsModelImpl implements BSXExtensionsModel {
             const installed = new Set([...prevInstalled, ...currInstalled]);
             const installedSorted = Array.from(installed).sort((a, b) => this.compareExtensions(a, b));
             this._installed = new Set(installedSorted.values());
+
+            // 🆕 更新系统级和用户级列表
+            const systemLevelSorted = Array.from(currSystemLevel).sort((a, b) => this.compareExtensions(a, b));
+            const userLevelSorted = Array.from(currUserLevel).sort((a, b) => this.compareExtensions(a, b));
+            this._systemLevel = new Set(systemLevelSorted);
+            this._userLevel = new Set(userLevelSorted);
+
             await Promise.all(refreshing);
         });
     }

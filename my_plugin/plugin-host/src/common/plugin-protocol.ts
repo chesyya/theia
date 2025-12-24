@@ -1083,6 +1083,29 @@ export interface GetDeployedPluginsParams {
     pluginIds: PluginIdentifiers.VersionedId[]
 }
 
+/**
+ * Tags describing the available versions of a plugin.
+ * Used by frontend to correctly classify plugins in different views.
+ */
+export interface PluginTags {
+    /** Whether a builtin (system-level) version exists */
+    hasBuiltinVersion: boolean;
+    /** Whether a shared (admin-installed) version exists */
+    hasSharedVersion: boolean;
+    /** Whether a user-level version exists */
+    hasUserVersion: boolean;
+
+    /** Version number of builtin version (if exists) */
+    builtinVersion?: string;
+    /** Version number of shared version (if exists) */
+    sharedVersion?: string;
+    /** Version number of user version (if exists) */
+    userVersion?: string;
+
+    /** The level of the currently active instance */
+    currentLevel: 'builtin' | 'shared' | 'user';
+}
+
 export interface DeployedPlugin {
     /**
      * defaults to system
@@ -1090,6 +1113,8 @@ export interface DeployedPlugin {
     type?: PluginType;
     metadata: PluginMetadata;
     contributes?: PluginContribution;
+    /** Tags describing available versions and current activation level */
+    tags?: PluginTags;
 }
 
 export interface DeployedPluginWithInitpath {

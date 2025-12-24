@@ -79,8 +79,6 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
 
     protected readonly onUserPluginsDeployedEmitter = new Emitter<string>();
 
-    protected readonly builtinVersions = new Map<string, string>();
-    protected readonly sharedVersions = new Map<string, string>();
 
     protected readonly deferredWillStart = new Deferred<void>();
 
@@ -128,13 +126,6 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
         return contributions && contributions.plugin;
     }
 
-    getBuiltinVersion(id: string): string | undefined {
-        return this.builtinVersions.get(id);
-    }
-
-    getSharedVersion(id: string): string | undefined {
-        return this.sharedVersions.get(id);
-    }
 
     /** do not call it, except from the plugin frontend contribution */
     async onStart(container: interfaces.Container): Promise<void> {
@@ -237,17 +228,6 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
                 this.server.getAllDeployedPlugins(userInfo?.userId)
             ]);
 
-            // Track all built-in and shared versions
-            this.builtinVersions.clear();
-            this.sharedVersions.clear();
-            for (const plugin of allDeployedPlugins) {
-                const id = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
-                if (plugin.type === PluginType.System) {
-                    this.builtinVersions.set(id, plugin.metadata.model.version);
-                } else if (plugin.metadata.model.packagePath.includes(`/.baosky/${SharedStorage}/${PluginStorageKey}/`)) {
-                    this.sharedVersions.set(id, plugin.metadata.model.version);
-                }
-            }
 
             waitPluginsMeasurement.log('Waiting for backend deployment');
             syncPluginsMeasurement = this.measure('syncPlugins');

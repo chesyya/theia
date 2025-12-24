@@ -814,6 +814,21 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
     }
 
     /**
+     * 🆕 获取所有有内置版本的插件 ID 列表
+     * 使用 contributions Map，因为它包含完整的 DeployedPlugin（包括 tags）
+     */
+    getBuiltinPluginIds(): string[] {
+        const builtinIds: string[] = [];
+        for (const [id, contribution] of this.contributions.entries()) {
+            // contribution.plugin 是 DeployedPlugin，包含 tags
+            if (contribution.plugin.tags?.hasBuiltinVersion) {
+                builtinIds.push(id);
+            }
+        }
+        return builtinIds;
+    }
+
+    /**
      * Set whether plugins need to be restarted
      */
     setPluginsNeedRestart(value: boolean): void {

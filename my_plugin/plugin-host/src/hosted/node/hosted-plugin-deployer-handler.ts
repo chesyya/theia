@@ -75,26 +75,52 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
 
     /**
      * 从插件存储里收集 keys 或 values
+     * 🆕 应用优先级过滤：用户级 > 共享级 > 系统级
+     * 对于同一个插件的多个版本，只返回优先级最高的那个
      */
     collectFromStore<K, V>(
         store: Map<string, Map<K, V>>,
         userId?: string,
         values?: boolean
     ): (K | V)[] {
+        // 优先级顺序：用户级 > 共享级 > 系统级
+        // 注意：数组顺序是从低优先级到高优先级，后面的会覆盖前面的
         const keysToCollect = userId ? ["system", "shared", userId] : ["default", "system"];
 
         if (values) {
-            // 收集 values
-            return keysToCollect.flatMap(key => {
+            // 收集 values 并按优先级去重
+            const pluginMap = new Map<string, V>(); // unversionedId -> plugin
+
+            for (const key of keysToCollect) {
                 const inner = store.get(key);
-                return inner ? Array.from(inner.values()) : [];
-            });
+                if (inner) {
+                    for (const [versionedId, plugin] of inner.entries()) {
+                        // 提取 unversionedId 用于去重
+                        const unversionedId = PluginIdentifiers.unversionedFromVersioned(versionedId as any);
+                        // 后面的会覆盖前面的（优先级更高）
+                        pluginMap.set(unversionedId, plugin);
+                    }
+                }
+            }
+
+            return Array.from(pluginMap.values());
         } else {
-            // 收集 keys
-            return keysToCollect.flatMap(key => {
+            // 收集 keys 并按优先级去重
+            const pluginMap = new Map<string, K>(); // unversionedId -> versionedId
+
+            for (const key of keysToCollect) {
                 const inner = store.get(key);
-                return inner ? Array.from(inner.keys()) : [];
-            });
+                if (inner) {
+                    for (const versionedId of inner.keys()) {
+                        // 提取 unversionedId 用于去重
+                        const unversionedId = PluginIdentifiers.unversionedFromVersioned(versionedId as any);
+                        // 后面的会覆盖前面的（优先级更高）
+                        pluginMap.set(unversionedId, versionedId);
+                    }
+                }
+            }
+
+            return Array.from(pluginMap.values());
         }
     }
 
@@ -122,7 +148,9 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
         // fetch the last deployed state
         // const plugins = this.deployedBackendPlugins.get(userId ?? 'default');
         // return plugins ? Array.from(plugins.values()) : [];
-        return this.collectFromStore<PluginIdentifiers.VersionedId, DeployedPlugin>(this.deployedBackendPlugins, userId, true) as DeployedPlugin[];
+        const plugins = this.collectFromStore<PluginIdentifiers.VersionedId, DeployedPlugin>(this.deployedBackendPlugins, userId, true) as DeployedPlugin[];
+        // 🆕 实时计算 tags，确保永远准确
+        return this.attachTagsToPlugins(plugins, userId);
     }
 
     async getDeployedPlugins(userId?: string): Promise<DeployedPlugin[]> {
@@ -135,14 +163,18 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
         // const backend = Array.from(this.deployedBackendPlugins.get(key)?.values() ?? []);
         const backend = this.collectFromStore<PluginIdentifiers.VersionedId, DeployedPlugin>(this.deployedBackendPlugins, userId, true) as DeployedPlugin[];
         const frontend = this.collectFromStore<PluginIdentifiers.VersionedId, DeployedPlugin>(this.deployedFrontendPlugins, userId, true) as DeployedPlugin[];
-        return [...frontend, ...backend];
+        const allPlugins = [...frontend, ...backend];
+        // 🆕 实时计算 tags，确保永远准确
+        return this.attachTagsToPlugins(allPlugins, userId);
     }
 
 
     async getSystemPlugins(): Promise<DeployedPlugin[]> {
         await this.frontendPluginsMetadataDeferred.promise;
         await this.backendPluginsMetadataDeferred.promise;
-        return Array.from(this.systemPlugins.values());
+        const plugins = Array.from(this.systemPlugins.values());
+        // 🆕 实时计算 tags，确保永远准确
+        return this.attachTagsToPlugins(plugins, undefined);
     }
 
     getDeployedPluginsById(pluginId: string, userId?: string): DeployedPlugin[] {
@@ -159,16 +191,33 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
         const frontend = this.collectFromStore<PluginIdentifiers.VersionedId, DeployedPlugin>(this.deployedFrontendPlugins, userId, true) as DeployedPlugin[];
         handle(backend);
         handle(frontend);
-        return matches;
+        // 🆕 实时计算 tags，确保永远准确
+        return this.attachTagsToPlugins(matches, userId);
     }
 
     getDeployedPlugin(pluginId: PluginIdentifiers.VersionedId, userId?: string): DeployedPlugin | undefined {
         const key = userId ?? 'default';
         let plugin = this.deployedBackendPlugins.get('system')?.get(pluginId) ?? this.deployedFrontendPlugins.get('system')?.get(pluginId);
-        if (plugin) { return plugin; }
+        if (plugin) {
+            // 🆕 实时计算 tags
+            const storageKey = this.determineStorageKey(plugin, userId);
+            plugin.tags = this.calculatePluginTags(pluginId, plugin.type!, storageKey, { userId });
+            return plugin;
+        }
         plugin = this.deployedBackendPlugins.get('shared')?.get(pluginId) ?? this.deployedFrontendPlugins.get('shared')?.get(pluginId);
-        if (plugin) { return plugin; }
-        return this.deployedBackendPlugins.get(key)?.get(pluginId) ?? this.deployedFrontendPlugins.get(key)?.get(pluginId);
+        if (plugin) {
+            // 🆕 实时计算 tags
+            const storageKey = this.determineStorageKey(plugin, userId);
+            plugin.tags = this.calculatePluginTags(pluginId, plugin.type!, storageKey, { userId });
+            return plugin;
+        }
+        plugin = this.deployedBackendPlugins.get(key)?.get(pluginId) ?? this.deployedFrontendPlugins.get(key)?.get(pluginId);
+        if (plugin) {
+            // 🆕 实时计算 tags
+            const storageKey = this.determineStorageKey(plugin, userId);
+            plugin.tags = this.calculatePluginTags(pluginId, plugin.type!, storageKey, { userId });
+        }
+        return plugin;
     }
 
     /**
@@ -303,6 +352,9 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             const { type } = entry;
             const deployed: DeployedPlugin = { metadata, type };
             deployed.contributes = await this.reader.readContribution(manifest);
+
+            // 🆕 注意：tags 不在这里计算，而是在返回给前端时实时计算
+            // 这样可以确保 tags 永远是最新的，不会因为共享/内置插件变化而过时
 
             // 记录系统插件
             if (type === PluginType.System) {
@@ -541,6 +593,100 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
             return options.shared ? PluginScope.Shared : PluginScope.Admin;
         }
         return options.userId;
+    }
+
+    /**
+     * 🆕 为插件数组实时附加 tags
+     * 这确保即使共享/内置插件被删除或更新，tags 也永远是最新的
+     */
+    protected attachTagsToPlugins(plugins: DeployedPlugin[], userId?: string): DeployedPlugin[] {
+        return plugins.map(plugin => {
+            const versionedId = PluginIdentifiers.componentsToVersionedId(plugin.metadata.model);
+            const storageKey = this.determineStorageKey(plugin, userId);
+
+            // 实时计算 tags
+            plugin.tags = this.calculatePluginTags(versionedId, plugin.type!, storageKey, { userId });
+
+            return plugin;
+        });
+    }
+
+    /**
+     * 🆕 根据插件类型和用户确定存储 key
+     */
+    protected determineStorageKey(plugin: DeployedPlugin, userId?: string): string {
+        // 系统插件
+        if (plugin.type === PluginType.System) {
+            return PluginScope.System;
+        }
+
+        // 通过路径判断是否是共享插件
+        if (plugin.metadata.model.packagePath.includes(`/.baosky/${SharedStorage}/${PluginStorageKey}/`)) {
+            return PluginScope.Shared;
+        }
+
+        // 用户插件
+        return userId ?? PluginScope.Default;
+    }
+
+    /**
+     * Calculate plugin tags to identify available versions and current activation level.
+     * This enables frontend to correctly classify plugins in different views.
+     */
+    protected calculatePluginTags(
+        pluginId: PluginIdentifiers.VersionedId,
+        currentType: PluginType,
+        storageKey: string,
+        options?: PluginDeployOptions
+    ): import('../../common/plugin-protocol').PluginTags {
+        const unversionedId = PluginIdentifiers.unversionedFromVersioned(pluginId);
+
+        // Initialize tags
+        const tags: import('../../common/plugin-protocol').PluginTags = {
+            hasBuiltinVersion: false,
+            hasSharedVersion: false,
+            hasUserVersion: false,
+            currentLevel: 'user'
+        };
+
+        // Check for builtin version
+        const builtinPlugin = this.systemPlugins.get(unversionedId);
+        if (builtinPlugin) {
+            tags.hasBuiltinVersion = true;
+            tags.builtinVersion = builtinPlugin.metadata.model.version;
+        }
+
+        // Check for shared version
+        const sharedPluginBackend = this.deployedBackendPlugins.get(PluginScope.Shared)?.get(unversionedId);
+        const sharedPluginFrontend = this.deployedFrontendPlugins.get(PluginScope.Shared)?.get(unversionedId);
+        const sharedPlugin = sharedPluginBackend || sharedPluginFrontend;
+        if (sharedPlugin) {
+            tags.hasSharedVersion = true;
+            tags.sharedVersion = sharedPlugin.metadata.model.version;
+        }
+
+        // Check for user version (check the current user's scope)
+        const userId = options?.userId;
+        if (userId && userId !== PluginScope.Admin) {
+            const userPluginBackend = this.deployedBackendPlugins.get(userId)?.get(unversionedId);
+            const userPluginFrontend = this.deployedFrontendPlugins.get(userId)?.get(unversionedId);
+            const userPlugin = userPluginBackend || userPluginFrontend;
+            if (userPlugin) {
+                tags.hasUserVersion = true;
+                tags.userVersion = userPlugin.metadata.model.version;
+            }
+        }
+
+        // Determine current level based on storage key
+        if (storageKey === PluginScope.System) {
+            tags.currentLevel = 'builtin';
+        } else if (storageKey === PluginScope.Shared) {
+            tags.currentLevel = 'shared';
+        } else {
+            tags.currentLevel = 'user';
+        }
+
+        return tags;
     }
 
     async undeployPlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean> {

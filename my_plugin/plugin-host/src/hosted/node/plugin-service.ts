@@ -65,14 +65,31 @@ export class HostedPluginServerImpl implements HostedPluginServer {
         @inject(HostedPluginSupport) private readonly hostedPlugin: HostedPluginSupport) {
     }
 
-    async getAllDeployedPlugins(): Promise<DeployedPlugin[]> {
+    async getAllDeployedPlugins(userId?: string): Promise<DeployedPlugin[]> {
         await this.initialized.promise;
-        const activePlugins = await this.deployerHandler.getDeployedPlugins();
+        const activePlugins = await this.deployerHandler.getDeployedPlugins(userId);
         const systemPlugins = await this.deployerHandler.getSystemPlugins();
 
-        // Merge lists, ensuring we include persistent system plugins even if inactive
-        const allPlugins = [...activePlugins, ...systemPlugins];
+        // 🆕 Merge and deduplicate by unversionedId
+        // activePlugins already contains priority-filtered plugins (user > shared > system)
+        // Only add system plugins that are not already in activePlugins
+        const pluginMap = new Map<string, DeployedPlugin>();
 
+        // First add all active plugins (these have priority)
+        for (const plugin of activePlugins) {
+            const unversionedId = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
+            pluginMap.set(unversionedId, plugin);
+        }
+
+        // Then add system plugins only if not already present
+        for (const plugin of systemPlugins) {
+            const unversionedId = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
+            if (!pluginMap.has(unversionedId)) {
+                pluginMap.set(unversionedId, plugin);
+            }
+        }
+
+        const allPlugins = Array.from(pluginMap.values());
         return Promise.all(allPlugins.map(plugin => this.localizationService.localizePlugin(plugin)));
     }
     getClient?(): HostedPluginClient | undefined {

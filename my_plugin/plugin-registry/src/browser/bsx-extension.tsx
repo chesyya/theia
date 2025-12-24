@@ -163,8 +163,6 @@ export class BSXExtension implements BSXExtensionData, TreeElement {
     protected _installed: boolean = false;
     protected _enabled: boolean = true;
     protected _needsRestart: boolean = false;
-    protected _builtinVersion?: string;
-    protected _sharedVersion?: string;
 
     protected registryUri: Promise<string>;
 
@@ -229,28 +227,24 @@ export class BSXExtension implements BSXExtensionData, TreeElement {
     }
 
     get builtin(): boolean {
-        return !!this._builtinVersion || !!this._sharedVersion || this.plugin?.type === PluginType.System;
+        // 🆕 使用 tags 系统判断是否是内置插件
+        return this.hasBuiltinVersion || this.plugin?.type === PluginType.System;
     }
 
     get systemActive(): boolean {
-        return this.plugin?.type === PluginType.System || this.shared;
+        const plugin = this.plugin;
+        // 如果 plugin 存在，根据 type 或 shared 属性判断
+        if (plugin) {
+            return plugin.type === PluginType.System || this.shared;
+        }
+        // 如果 plugin 不存在（例如刚卸载了用户覆盖版本），但它是内置插件
+        // 此时我们假定它回退到系统级（等待 Reload）
+        if (this.builtin) {
+            return true;
+        }
+        return false;
     }
 
-    get builtinVersion(): string | undefined {
-        return this._builtinVersion;
-    }
-
-    set builtinVersion(version: string | undefined) {
-        this._builtinVersion = version;
-    }
-
-    get sharedVersion(): string | undefined {
-        return this._sharedVersion;
-    }
-
-    set sharedVersion(version: string | undefined) {
-        this._sharedVersion = version;
-    }
 
         /**
      * 是否可以卸载
@@ -258,35 +252,18 @@ export class BSXExtension implements BSXExtensionData, TreeElement {
      */
     get canUninstall(): boolean {
         const plugin = this.plugin;
+        // 如果 plugin 不存在，肯定不能卸载（可能是等待 reload 状态）
         if (!plugin) {
             return false;
         }
 
-        // 获取当前激活的版本类型
-        // const activeOriginType = plugin.overrideInfo?.activeOriginType || plugin.originType;
+        // 如果是系统级激活状态，且是内置插件，则不能卸载（只能卸载覆盖的用户版本）
+        // 注意：systemActive 包含了 PluginType.System 和 shared
+        if (this.systemActive && this.builtin) {
+            return false;
+        }
 
-        // // 调试日志
-        // if (plugin.type === PluginType.System) {
-        //     console.debug(
-        //         `[canUninstall] ${this.id}: type=${plugin.type}, originType=${plugin.originType}, ` +
-        //         `activeOriginType=${activeOriginType}, isActive=${plugin.isActive}`
-        //     );
-        // }
-
-        // // 如果是内置插件（type=0）
-        // if (plugin.type === PluginType.System) {
-        //     // 只有当前激活版本是用户级或共享级时才能卸载（卸载覆盖版本，回退到内置版本）
-        //     return activeOriginType === 'user' || activeOriginType === 'shared';
-        // }
-
-        // // 共享插件：检查是否是当前用户可卸载的
-        // if (this.shared) {
-        //     // 如果是 admin 用户，可以卸载共享插件
-        //     // 如果是普通用户且当前激活的是用户版本，可以卸载
-        //     return this.admin || activeOriginType === 'user';
-        // }
-
-        // 普通用户级插件，可以卸载
+        // 其他情况（用户级插件，或非内置的共享插件）允许卸载
         return true;
     }
 
@@ -422,6 +399,36 @@ export class BSXExtension implements BSXExtensionData, TreeElement {
         if(plugin?.metadata.model.packagePath.includes(`/.baosky/${SharedStorage}/${PluginStorageKey}/`))
             return true;
         return false;
+    }
+
+    // 🆕 Tags-based getters for plugin version classification
+    get tags(): import('@baosky/plugin-host/lib/common/plugin-protocol').PluginTags | undefined {
+        return this.plugin?.tags;
+    }
+
+    get hasBuiltinVersion(): boolean {
+        return this.tags?.hasBuiltinVersion ?? false;
+    }
+
+    get hasSharedVersion(): boolean {
+        return this.tags?.hasSharedVersion ?? false;
+    }
+
+    get hasUserVersion(): boolean {
+        return this.tags?.hasUserVersion ?? false;
+    }
+
+    get currentLevel(): 'builtin' | 'shared' | 'user' | undefined {
+        return this.tags?.currentLevel;
+    }
+
+    get isSystemLevel(): boolean {
+        const level = this.currentLevel;
+        return level === 'builtin' || level === 'shared';
+    }
+
+    get isUserLevel(): boolean {
+        return this.currentLevel === 'user';
     }
 
     get namespaceAccess(): VSXExtensionNamespaceAccess | undefined {
@@ -777,16 +784,22 @@ export abstract class AbstractBSXExtensionComponent<Props extends AbstractBSXExt
         const installed = !!plugin;
         const outOfSynch = plugin?.metadata.outOfSync;
 
+        // 内置插件特殊处理
         if (builtin && !(shared && admin)) {
-            return <div >
-                {outOfSynch && systemActive && (
-                    <button className="theia-button action prominent" onClick={this.reloadWindow}>{this.props.extension.reload}</button>
-                )}
-                {!systemActive && (
-                    <button className="theia-button action" onClick={this.uninstall}>{this.props.extension.undeploy}</button>
-                )}
-            </div>;
+            // 如果是系统级激活状态
+            if (systemActive) {
+                // 如果标记为不同步，或者插件实例丢失（意味着刚卸载了覆盖版本），显示 Reload
+                if (outOfSynch || !plugin) {
+                    return <button className="theia-button action prominent" onClick={this.reloadWindow}>{this.props.extension.reload}</button>;
+                }
+                // 正常的系统级插件，不显示卸载按钮（除非有特殊逻辑，但在 BSXExtension.canUninstall 中已限制）
+                return <div />;
+            } else {
+                // 非系统级激活状态（即用户覆盖版本），显示卸载按钮
+                return <button className="theia-button action" onClick={this.uninstall}>{this.props.extension.undeploy}</button>;
+            }
         }
+        
         if (busy) {
             if (installed) {
                 return <button className="theia-button action theia-mod-disabled">{this.props.extension.uninstalling}</button>;
