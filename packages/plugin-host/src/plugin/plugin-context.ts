@@ -248,7 +248,7 @@ import { TextEditorExt } from './text-editor';
 import { ClipboardExt } from './clipboard-ext';
 import { WebviewsExtImpl } from './webviews';
 import { ExtHostFileSystemEventService } from './file-system-event-service-ext-impl';
-import { LabelServiceExtImpl } from './label-service';
+import { LabelServiceExtImpl } from '../plugin/label-service';
 import { TimelineExtImpl } from './timeline';
 import { ThemingExtImpl } from './theming';
 import { CommentsExtImpl } from './comments';
@@ -514,7 +514,7 @@ export function createAPIFactory(
             async getProjectInfo(): Promise<baosky.projects.ProjectObject> {
                 return await platformServiceExt.getProjectInfo();
             },
-            async getDeviceParamsByPath(uri: URI): Promise<baosky.platform.DeviceParams> {
+            async getDeviceParamsByPath(uri: URI): Promise<baosky.DeviceParams> {
                 return await platformServiceExt.getDeviceParamsByPath(uri as any);
             },
             async getDevicePathByName(name: string): Promise<URI> {
@@ -595,7 +595,7 @@ export function createAPIFactory(
             async getMatchedPLCModelVersionByProject(projectVersion: number): Promise<number> {
                 return versionServiceExt.getMatchedPLCModelVersionByProject(projectVersion);
             },
-            async focusInfoViewTab(type: string, stopAutoScroll?: boolean): Promise<void> {
+            async focusInfoViewTab(type: string, stopAutoScroll?: boolean): Promise<void>{
                 return platformServiceExt.focusInfoViewTab(type, stopAutoScroll);
             }
         }
@@ -618,6 +618,10 @@ export function createAPIFactory(
 
                 getAllReferenceLibElement(plcUri: baosky.Uri) {
                     return libraryExt.getAllReferenceLibElement(plcUri);
+                },
+
+                getAllLibraryInfo(type: baosky.LibraryCategory){
+                    return libraryExt.getAllLibraryInfo(type);
                 }
             },
 
@@ -637,6 +641,9 @@ export function createAPIFactory(
         }
 
         const window: typeof baosky.window = {
+            // registerToolbarButton(libraryName: string, button: baosky.UserLibraryButton): Disposable {
+            //     return plcExt.registerToolbarButton(libraryName, button);
+            // },
 
             selection() {
                 return platformServiceExt.selection();
@@ -915,6 +922,7 @@ export function createAPIFactory(
              */
             get fs(): baosky.FileSystem {
                 const originalFs = fileSystemExt.fileSystem.apiObject;
+                const currentPlugin = plugin;
 
                 return new Proxy(originalFs, {
                     get(target, prop, receiver) {
@@ -931,12 +939,12 @@ export function createAPIFactory(
                                         }
                                         return typeof arg === 'string' ? arg : '[object]';
                                     }),
-                                    pluginId: plugin.model.id,
-                                    pluginName: plugin.model.displayName || plugin.model.name
+                                    pluginId: currentPlugin.model.id,
+                                    pluginName: currentPlugin.model.displayName || currentPlugin.model.name
                                 };
 
                                 // 调用 main 端的权限检查服务
-                                await modulePermissionService.$checkModulePermission(operation, plugin);
+                                await modulePermissionService.$checkModulePermission(operation, currentPlugin);
 
                                 // 权限检查通过后，调用原方法
                                 return original.apply(target, args);

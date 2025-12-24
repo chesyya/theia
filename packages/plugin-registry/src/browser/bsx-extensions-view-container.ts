@@ -150,6 +150,10 @@ export class BSXExtensionsViewContainer extends ViewContainer {
                 return [generateExtensionWidgetId(BSXExtensionsSourceOptions.INSTALLED)];
             case BSXSearchMode.Recommended:
                 return [generateExtensionWidgetId(BSXExtensionsSourceOptions.RECOMMENDED)];
+            case BSXSearchMode.SystemLevel:
+                return [generateExtensionWidgetId(BSXExtensionsSourceOptions.SYSTEM_LEVEL)];
+            case BSXSearchMode.UserLevel:
+                return [generateExtensionWidgetId(BSXExtensionsSourceOptions.USER_LEVEL)];
             case BSXSearchMode.Search:
                 return [generateExtensionWidgetId(BSXExtensionsSourceOptions.SEARCH_RESULT)];
             case BSXSearchMode.None:

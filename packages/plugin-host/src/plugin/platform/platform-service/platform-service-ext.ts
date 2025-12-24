@@ -38,7 +38,7 @@ export class PlatformServiceExtImpl implements PlatformServiceExt {
     public async getProjectInfo(): Promise<baosky.projects.ProjectObject> {
         return await this.proxy.$getProjectInfo();
     }
-    public async getDeviceParamsByPath(uri: baosky.Uri): Promise<baosky.platform.DeviceParams> {
+    public async getDeviceParamsByPath(uri: baosky.Uri): Promise<baosky.DeviceParams> {
         return await this.proxy.$getDeviceParamsByPath(uri);
     }
     public async getDevicePathByName(name: string): Promise<baosky.Uri> {
@@ -91,7 +91,7 @@ export class PlatformServiceExtImpl implements PlatformServiceExt {
     registerPreference<T extends baosky.BasePreferenceSchema>(schema: T): void {
         this.proxy.$registerPreference(schema);
     }
-    async executeCrossReference(params: baosky.platform.CrossReferenceParam): Promise<baosky.platform.CrossRefTableDataType[] | baosky.platform.CrossReferenceResponse> {
+    async executeCrossReference(params: baosky.CrossReferenceParam): Promise<baosky.CrossRefTableDataType[] | baosky.CrossReferenceResponse> {
         return await this.proxy.$executeCrossReference(params);
     }
 

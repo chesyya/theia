@@ -28,7 +28,7 @@ import { RPCProtocol } from '../common/rpc-protocol';
 import { Emitter, Event } from '@theia/core/lib/common/event';
 import { WebviewsExtImpl } from './webviews';
 import { URI as Uri } from './types-impl';
-import { InternalSecretsExt, SecretStorageExt } from './secrets-ext';
+import { InternalSecretsExt, SecretStorageExt } from '../plugin/secrets-ext';
 import { PluginExt } from './plugin-context';
 import { Deferred } from '@theia/core/lib/common/promise-util';
 
@@ -100,7 +100,7 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
     private readonly loadedPlugins = new Map<string, Promise<boolean>>();
     private readonly activatedPlugins = new Map<string, ActivatedPlugin>();
     private readonly pluginContextsMap = new Map<string, theia.PluginContext>();
-    private readonly pluginExportedCommands = new Map<string, string[]>();
+    private readonly pluginExportedCommands = new Map<string, string[]>(); 
     private readonly exportedCommandSet = new Set<string>();
 
 
@@ -400,8 +400,8 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
         if (typeof pluginMain[plugin.lifecycle.startMethod] === 'function') {
             await this.localization.initializeLocalizedMessages(plugin, this.envExt.language);
             const pluginExport = await pluginMain[plugin.lifecycle.startMethod].apply(getGlobal(), [pluginContext]);
-            if (typeof pluginExport === 'object' && 'exportedCommands' in pluginExport && Array.isArray(pluginExport.exportedCommands))
-                this.registerPluginCommands(plugin.model.id, pluginExport.exportedCommands);
+            if(typeof pluginExport === 'object' && 'exportedCommands' in pluginExport && Array.isArray(pluginExport.exportedCommands))
+               this.registerPluginCommands(plugin.model.id, pluginExport.exportedCommands);
             console.log(`calling activation function on ${id}`);
             this.activatedPlugins.set(plugin.model.id, new ActivatedPlugin(pluginContext, pluginExport, stopFn));
         } else {
@@ -434,7 +434,7 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
         this.pluginExportedCommands.set(pluginId, cmds);
         for (const c of cmds) {
             this.exportedCommandSet.add(c);
-        }
+            }
     }
 
     unregisterPluginCommands(pluginId: string): void {

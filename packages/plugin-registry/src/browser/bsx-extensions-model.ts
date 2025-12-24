@@ -56,6 +56,8 @@ export class BSXExtensionsModelImpl implements BSXExtensionsModel {
     protected _installed = new Set<string>();
     protected _recommended = new Set<string>();
     protected _searchResult = new Set<string>();
+    protected _systemLevel = new Set<string>();
+    protected _userLevel = new Set<string>();
     protected _searchError?: string;
 
     protected searchCancellationTokenSource = new CancellationTokenSource();
@@ -160,6 +162,14 @@ export class BSXExtensionsModelImpl implements BSXExtensionsModel {
 
     get recommended(): IterableIterator<string> {
         return this._recommended.values();
+    }
+
+    get systemLevel(): IterableIterator<string> {
+        return this._systemLevel.values();
+    }
+
+    get userLevel(): IterableIterator<string> {
+        return this._userLevel.values();
     }
 
     setOnlyShowVerifiedExtensions(bool: boolean): void {
@@ -443,6 +453,8 @@ export class BSXExtensionsModelImpl implements BSXExtensionsModel {
         return this.doChange(async () => {
             const plugins = this.pluginSupport.plugins;
             const currInstalled = new Set<string>();
+            const currSystemLevel = new Set<string>();
+            const currUserLevel = new Set<string>();
             const refreshing: Promise<BSXExtension | undefined>[] = [];
             for (const plugin of plugins) {
                 if (['baosky', 'vscode'].includes(plugin.model.engine.type)) {
@@ -453,6 +465,37 @@ export class BSXExtensionsModelImpl implements BSXExtensionsModel {
                     extension.builtinVersion = (this.pluginSupport as any).getBuiltinVersion ? (this.pluginSupport as any).getBuiltinVersion(id) : undefined;
                     extension.sharedVersion = (this.pluginSupport as any).getSharedVersion ? (this.pluginSupport as any).getSharedVersion(id) : undefined;
                     currInstalled.add(extension.id);
+
+                    // // 获取 DeployedPlugin 以访问 type、originType 等属性
+                    // const deployedPlugin = this.pluginSupport.getPlugin(id as any);
+                    // if (deployedPlugin) {
+                    //     // 分类插件到系统级或用户级（基于当前激活的版本）
+                    //     const isSystem = this.isSystemLevelPlugin(deployedPlugin);
+                    //     const isUser = this.isUserLevelPlugin(deployedPlugin);
+
+                    //     // 一个插件只能在系统级或用户级其中一个
+                    //     // 后端已经通过 isActive 字段标记了激活的版本，所以不应该同时是两个级别
+                    //     if (isSystem && isUser) {
+                    //         console.error(
+                    //             `[updateInstalled] BUG: Plugin ${id} is classified as both system and user level. ` +
+                    //             `This should not happen as backend already filters by isActive. ` +
+                    //             `type=${deployedPlugin.type}, originType=${deployedPlugin.originType}, ` +
+                    //             `activeOriginType=${deployedPlugin.overrideInfo?.activeOriginType}, ` +
+                    //             `isActive=${deployedPlugin.isActive}`
+                    //         );
+                    //         // 根据 activeOriginType 决定分类（后端数据为准）
+                    //         if (deployedPlugin.overrideInfo?.activeOriginType === 'user') {
+                    //             currUserLevel.add(extension.id);
+                    //         } else {
+                    //             currSystemLevel.add(extension.id);
+                    //         }
+                    //     } else if (isSystem) {
+                    //         currSystemLevel.add(extension.id);
+                    //     } else if (isUser) {
+                    //         currUserLevel.add(extension.id);
+                    //     }
+                    // }
+
                     refreshing.push(this.refresh(id, version));
                 }
             }

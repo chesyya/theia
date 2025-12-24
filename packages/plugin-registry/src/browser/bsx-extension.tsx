@@ -252,6 +252,44 @@ export class BSXExtension implements BSXExtensionData, TreeElement {
         this._sharedVersion = version;
     }
 
+        /**
+     * 是否可以卸载
+     * 内置插件只有在当前激活版本是用户级或 admin 共享级时才能卸载
+     */
+    get canUninstall(): boolean {
+        const plugin = this.plugin;
+        if (!plugin) {
+            return false;
+        }
+
+        // 获取当前激活的版本类型
+        // const activeOriginType = plugin.overrideInfo?.activeOriginType || plugin.originType;
+
+        // // 调试日志
+        // if (plugin.type === PluginType.System) {
+        //     console.debug(
+        //         `[canUninstall] ${this.id}: type=${plugin.type}, originType=${plugin.originType}, ` +
+        //         `activeOriginType=${activeOriginType}, isActive=${plugin.isActive}`
+        //     );
+        // }
+
+        // // 如果是内置插件（type=0）
+        // if (plugin.type === PluginType.System) {
+        //     // 只有当前激活版本是用户级或共享级时才能卸载（卸载覆盖版本，回退到内置版本）
+        //     return activeOriginType === 'user' || activeOriginType === 'shared';
+        // }
+
+        // // 共享插件：检查是否是当前用户可卸载的
+        // if (this.shared) {
+        //     // 如果是 admin 用户，可以卸载共享插件
+        //     // 如果是普通用户且当前激活的是用户版本，可以卸载
+        //     return this.admin || activeOriginType === 'user';
+        // }
+
+        // 普通用户级插件，可以卸载
+        return true;
+    }
+
     get authorized(): boolean {
         return this._authorized;
     }
@@ -450,7 +488,7 @@ export class BSXExtension implements BSXExtensionData, TreeElement {
 
         }
 
-        // if (status == AuthorizationStatus.DENIED) { 
+        // if (status == AuthorizationStatus.DENIED) {
         //     // const choice = await new ConfirmDialog({
         //     //     title: bnls.localize('theia/vsx-registry/confirmDialogTitle', 'Are you sure you want to proceed with the installation ?'),
         //     //     msg: bnls.localize('theia/vsx-registry/confirmDialogMessage', 'The extension "{0}" is unverified and might pose a security risk.', this.displayName)
@@ -733,14 +771,21 @@ export abstract class AbstractBSXExtensionComponent<Props extends AbstractBSXExt
     };
 
     protected renderAction(host?: TreeWidget): React.ReactNode {
-        const { builtin, busy, plugin, enabled, shared, admin } = this.props.extension;
+        const { builtin, busy, plugin, enabled, shared, admin, systemActive } = this.props.extension;
         const isFocused = (host?.model.getFocusedNode() as TreeElementNode)?.element === this.props.extension;
         const tabIndex = (!host || isFocused) ? 0 : undefined;
         const installed = !!plugin;
         const outOfSynch = plugin?.metadata.outOfSync;
 
         if (builtin && !(shared && admin)) {
-            return <div className="codicon codicon-settings-gear action" tabIndex={tabIndex} onClick={this.manage}></div>;
+            return <div >
+                {outOfSynch && systemActive && (
+                    <button className="theia-button action prominent" onClick={this.reloadWindow}>{this.props.extension.reload}</button>
+                )}
+                {!systemActive && (
+                    <button className="theia-button action" onClick={this.uninstall}>{this.props.extension.undeploy}</button>
+                )}
+            </div>;
         }
         if (busy) {
             if (installed) {
@@ -750,11 +795,11 @@ export abstract class AbstractBSXExtensionComponent<Props extends AbstractBSXExt
         }
         if (installed) {
             return <div>
-                {enabled ? (
+                {/* {enabled ? (
                     <button className="theia-button action" onClick={this.disablePlugin}>{this.props.extension.disable}</button>
                 ) : (
                     <button className="theia-button action prominent" onClick={this.enablePlugin}>{this.props.extension.enable}</button>
-                )}
+                )} */}
                 {outOfSynch ? (
                     <button className="theia-button action prominent" onClick={this.reloadWindow}>{this.props.extension.reload}</button>
                 ) : (
@@ -789,7 +834,7 @@ export namespace BSXExtensionComponent {
 
 export class BSXExtensionComponent<Props extends BSXExtensionComponent.Props = BSXExtensionComponent.Props> extends AbstractBSXExtensionComponent<Props> {
     override render(): React.ReactNode {
-        const { iconUrl, publisher, displayName, description, version, downloadCount, averageRating, tooltip, verified, authorized, shared, enabled } = this.props.extension;
+        const { iconUrl, builtin, publisher, displayName, description, version, downloadCount, averageRating, tooltip, verified, authorized, shared, enabled, systemActive } = this.props.extension;
 
         // 构建CSS类名，包含授权状态
         let className = 'theia-vsx-extension noselect';
@@ -820,19 +865,6 @@ export class BSXExtensionComponent<Props extends BSXExtensionComponent.Props = B
                 <div className='title'>
                     <div className='noWrapInfo'>
                         <span className='name'>{displayName}</span> <span className='version'>{BSXExtension.formatVersion(version)}</span>
-                        {/* 显示系统级/用户级状态 */}
-                        {this.props.extension.builtin && (
-                            <span className={this.props.extension.systemActive ? 'system-plugin' : 'user-plugin'}>
-                                {this.props.extension.systemActive ? localizeSystem : localizeUser}
-                            </span>
-                        )}
-                        {/* 显示授权和禁用状态 */}
-                        {!authorized && <span className='unauthorized-status'>{this.props.extension.unauthorizedText}</span>}
-                        {shared && <span className='shared-plugin'>{this.props.extension.sharedText}</span>}
-                        {/* 灰色的系统级图标：表示存在被覆盖的系统版本 */}
-                        {this.props.extension.builtin && !this.props.extension.systemActive && (
-                            <i className={codicon('server')} title={localizeSystem} style={{ color: 'gray', marginLeft: '4px' }} />
-                        )}
                     </div>
                     <div className='stat'>
                         {!!downloadCount && <span className='download-count'><i className={codicon('cloud-download')} />{downloadCompactFormatter.format(downloadCount)}</span>}
@@ -843,16 +875,24 @@ export class BSXExtensionComponent<Props extends BSXExtensionComponent.Props = B
                 <div className='theia-vsx-extension-action-bar'>
                     <div className='theia-vsx-extension-publisher-container'>
                         {authorized === true ? (
-                            <i className={codicon('verified-filled')} />
-                        ) : authorized === false ? (
-                            <i className={codicon('verified')} />
-                        ) : (
-                            <i className={codicon('question')} />
-                        )}
-                        {/* 禁用状态图标 */}
-                        {enabled === false && (
-                            <i className={codicon('circle-slash')} title={bnls.localizeByDefault('已禁用')} />
-                        )}
+                            <i className='codicon plugin-verified' />
+                        ) :
+                            <i className='codicon plugin-unverified' />
+                        }
+                        {/* 多图标显示逻辑 - 系统级标签 */}
+                        {
+                            builtin && !systemActive &&                             <i className={
+                                'codicon system-level-badge inactive'}>
+                            </i>
+                        }
+                        {systemActive ? (
+                            <i className={
+                                'codicon system-level-badge active'}>
+                            </i>
+                        ) : <i className={
+                                'codicon user-level-badge'}>
+                            </i>}
+
                         <span className='noWrapInfo theia-vsx-extension-publisher'>{publisher}</span>
                     </div>
                     {this.renderAction(this.props.host)}

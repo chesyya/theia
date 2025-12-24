@@ -121,7 +121,7 @@ export class PluginDeployerImpl implements PluginDeployer {
             type: PluginType.System
         }));
         const resolvePlugins = this.measure('resolvePlugins');
-        const plugins = await this.resolvePlugins([...unresolvedUserEntries, ...unresolvedSystemEntries]);
+        const plugins = await this.resolvePlugins([...unresolvedSystemEntries, ...unresolvedUserEntries]);
         resolvePlugins.log('Resolve plugins list');
         await this.deployPlugins(plugins);
         deployPlugins.log('Deploy plugins list');
@@ -129,7 +129,7 @@ export class PluginDeployerImpl implements PluginDeployer {
 
     async uninstall(pluginId: PluginIdentifiers.VersionedId, options?: PluginUninstallOptions): Promise<void> {
         await this.pluginDeployerHandler.uninstallPlugin(pluginId, options);
-        
+
         // 自动尝试恢复/重部署：
         // 当用户卸载了一个插件（例如 v1.1）后，可能存在一个被覆盖的系统插件（例如 v1.0）。
         // 我们通过重新触发该插件 ID 的部署流程，让解析器重新扫描。
@@ -140,18 +140,18 @@ export class PluginDeployerImpl implements PluginDeployer {
                 // 使用 unversioned ID 触发重新发现
                 const unversionedId = metadata.id;
                 this.logger.info(`[Plugin Auto-Restore] Triggering re-deployment check for ${unversionedId} after uninstall.`);
-                
+
                 // 构造一个 UnresolvedPluginEntry 进行重新部署
                 // 我们尝试 System 类型，因为如果是用户插件被卸载，我们通常期望恢复的是 System 插件
                 // 如果还有其他用户版本，resolvers 也会找到。
                 const restoreEntry: UnresolvedPluginEntry = {
                     id: unversionedId,
-                    type: PluginType.System 
+                    type: PluginType.System
                 };
-                
+
                 // deploy 方法内部会调用 resolvePlugins -> findBestVersion
                 // 如果磁盘上还有 v1.0 (System)，它会被选中并部署
-                await this.deploy(restoreEntry, { userId: options?.userId });
+                await this.deploy(restoreEntry, { version: '', userId: options?.userId });
             }
         } catch (error) {
             this.logger.error(`[Plugin Auto-Restore] Failed to restore plugin after uninstall: ${pluginId}`, error);

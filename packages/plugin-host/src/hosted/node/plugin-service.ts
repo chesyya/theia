@@ -7,6 +7,7 @@ import { HostedPluginDeployerHandler } from './hosted-plugin-deployer-handler';
 import { PluginDeployerImpl } from '../../main/node/plugin-deployer-impl';
 import { HostedPluginLocalizationService } from './hosted-plugin-localization-service';
 import { PluginUninstallationManager } from '../../main/node/plugin-uninstallation-manager';
+import { Deferred } from '@theia/core/lib/common/promise-util';
 
 export const BackendPluginHostableFilter = Symbol('BackendPluginHostableFilter');
 /**
@@ -42,6 +43,9 @@ export class HostedPluginServerImpl implements HostedPluginServer {
 
     protected client: HostedPluginClient | undefined;
     protected toDispose = new DisposableCollection();
+    protected readonly initialized = new Deferred<void>();
+    protected uninstalledPlugins: Set<PluginIdentifiers.VersionedId>;
+    protected disabledPlugins: Set<PluginIdentifiers.VersionedId>;
 
     protected _ignoredPlugins?: Map<string, Set<PluginIdentifiers.VersionedId>>;
 
@@ -61,49 +65,60 @@ export class HostedPluginServerImpl implements HostedPluginServer {
         @inject(HostedPluginSupport) private readonly hostedPlugin: HostedPluginSupport) {
     }
 
+    async getAllDeployedPlugins(): Promise<DeployedPlugin[]> {
+        await this.initialized.promise;
+        const activePlugins = await this.deployerHandler.getDeployedPlugins();
+        const systemPlugins = await this.deployerHandler.getSystemPlugins();
+
+        // Merge lists, ensuring we include persistent system plugins even if inactive
+        const allPlugins = [...activePlugins, ...systemPlugins];
+
+        return Promise.all(allPlugins.map(plugin => this.localizationService.localizePlugin(plugin)));
+    }
+    getClient?(): HostedPluginClient | undefined {
+        throw new Error('Method not implemented.');
+    }
+
     @postConstruct()
     protected init(): void {
         if (!this.backendPluginHostableFilter) {
             this.backendPluginHostableFilter = () => true;
         }
 
-        this.toDispose.pushAll([
-            this.pluginDeployer.onDidDeploy((userId) => this.client?.onDidDeploy(userId)),
+        this.uninstalledPlugins = new Set(this.uninstallationManager.getUninstalledPluginIds());
 
-            this.uninstallationManager.onDidChangeUninstalledPlugins(event => {
-                const currentUninstalled = event.versionIds;
+        const asyncInit = async () => {
+            // this.disabledPlugins = new Set(await this.uninstallationManager.getDisabledPluginIds());
 
-                if (this._ignoredPlugins) {
-                    const uninstalled = new Set(currentUninstalled);
-
-                    let ignoredForKey = this._ignoredPlugins.get(
-                        event.type === 'default' ? 'default' : event.userId
-                    );
-                    if (!ignoredForKey) {
-                        ignoredForKey = new Set();
-                        this._ignoredPlugins.set(
-                            event.type === 'default' ? 'default' : event.userId,
-                            ignoredForKey
-                        );
-                    }
-
-                    for (const previouslyUninstalled of [...ignoredForKey]) {
-                        if (!uninstalled.has(previouslyUninstalled)) {
-                            ignoredForKey.delete(previouslyUninstalled);
+            this.toDispose.pushAll([
+                this.pluginDeployer.onDidDeploy(() => this.client?.onDidDeploy()),
+                this.uninstallationManager.onDidChangeUninstalledPlugins(currentUninstalled => {
+                    if (this.uninstalledPlugins) {
+                        const uninstalled = new Set(currentUninstalled.versionIds);
+                        for (const previouslyUninstalled of this.uninstalledPlugins) {
+                            if (!uninstalled.has(previouslyUninstalled)) {
+                                this.uninstalledPlugins.delete(previouslyUninstalled);
+                            }
                         }
                     }
-                }
-
-                if (event.type === "user") {
-                    this.client?.onDidDeploy(event.userId);
-                } else {
                     this.client?.onDidDeploy();
-                }
-            }),
-            this.deployerHandler.onDidUninstall(() => this.client?.onDidUninstall()),
-            this.deployerHandler.onDidUninstallSharedPlugin((pluginId) => this.client?.onDidUninstallSharedPlugin(pluginId)),
-            Disposable.create(() => this.hostedPlugin.clientClosed()),
-        ]);
+                }),
+                // this.uninstallationManager.onDidChangeDisabledPlugins(currentlyDisabled => {
+                //     if (this.disabledPlugins) {
+                //         const disabled = new Set(currentlyDisabled);
+                //         for (const previouslyUninstalled of this.disabledPlugins) {
+                //             if (!disabled.has(previouslyUninstalled)) {
+                //                 this.disabledPlugins.delete(previouslyUninstalled);
+                //             }
+                //         }
+                //     }
+                //     this.client?.onDidDeploy();
+                // }),
+                Disposable.create(() => this.hostedPlugin.clientClosed()),
+            ]);
+            this.initialized.resolve();
+        };
+        asyncInit();
     }
 
     protected getServerName(): string {

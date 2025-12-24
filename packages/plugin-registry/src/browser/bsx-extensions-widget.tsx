@@ -130,6 +130,10 @@ export class BSXExtensionsWidget extends SourceTreeWidget implements BadgeWidget
                 return bnls.localizeByDefault('内置插件');
             case BSXExtensionsSourceOptions.RECOMMENDED:
                 return bnls.localizeByDefault('推荐');
+            case BSXExtensionsSourceOptions.SYSTEM_LEVEL:
+                return bnls.localizeByDefault('系统级');
+            case BSXExtensionsSourceOptions.USER_LEVEL:
+                return bnls.localizeByDefault('用户级');
             case BSXExtensionsSourceOptions.SEARCH_RESULT:
                 return bnls.localizeByDefault('天行插件商店');
             default:

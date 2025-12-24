@@ -562,7 +562,7 @@ export interface PlatformMessageServiceExt {
 
 export interface PlatformServiceExt {
     selection(): Promise<baosky.GlobalSelection[]>;
-    executeCrossReference(params: baosky.platform.CrossReferenceParam): Promise<baosky.platform.CrossRefTableDataType[] | baosky.platform.CrossReferenceResponse>;
+    executeCrossReference(params: baosky.CrossReferenceParam): Promise<baosky.CrossRefTableDataType[] | baosky.CrossReferenceResponse>;
 
     gotoService(gotoInfo: baosky.platform.GotoOptions): Promise<void>;
 
@@ -588,7 +588,7 @@ export interface PlatformServiceExt {
     /**
      * @description 通过子节点路径获取设备参数
      */
-    getDeviceParamsByPath(uri: baosky.Uri): Promise<baosky.platform.DeviceParams>;
+    getDeviceParamsByPath(uri: baosky.Uri): Promise<baosky.DeviceParams>;
     /**
      * @description 通过plc名字获取设备路径
      */
@@ -649,7 +649,7 @@ export interface PlatformServiceExt {
 
 export interface PlatformServiceMain {
     $selection(): Promise<baosky.GlobalSelection[]>;
-    $executeCrossReference(params: baosky.platform.CrossReferenceParam): Promise<baosky.platform.CrossRefTableDataType[] | baosky.platform.CrossReferenceResponse>;
+    $executeCrossReference(params: baosky.CrossReferenceParam): Promise<baosky.CrossRefTableDataType[] | baosky.CrossReferenceResponse>;
 
     $decorateInteractiveTarget(target: baosky.platform.InteractiveTarget): Promise<void>;
 
@@ -683,7 +683,7 @@ export interface PlatformServiceMain {
     /**
      * @description 通过子节点路径获取设备参数
      */
-    $getDeviceParamsByPath(uri: baosky.Uri): Promise<baosky.platform.DeviceParams>;
+    $getDeviceParamsByPath(uri: baosky.Uri): Promise<baosky.DeviceParams>;
     /**
      * @description 通过plc名字获取设备路径
      */
@@ -786,7 +786,9 @@ export interface PlcExt {
      */
     getDefaultNamespace(plcName: string): Promise<string>;
 
-    importPLCopen(options: baosky.ImportPLCopenOptions): Promise<void>
+    importPLCopen(options: baosky.ImportPLCopenOptions): Promise<void>;
+
+    // registerToolbarButton(libraryName: string, button: baosky.UserLibraryButton): Disposable;
 }
 
 export interface PlcMain {
@@ -798,7 +800,9 @@ export interface PlcMain {
 
     $invokeFunction(callbackId: number): Promise<void>;
 
-    $importPLCopen(options: baosky.ImportPLCopenOptions): Promise<void>
+    $importPLCopen(options: baosky.ImportPLCopenOptions): Promise<void>;
+
+    // $registerToolbarButton(libraryName: string, button: baosky.UserLibraryButton): Disposable;
 }
 
 export interface LibraryExt {
@@ -808,6 +812,8 @@ export interface LibraryExt {
     getAllLibraryElements(options: { plcUri: baosky.Uri; filterId: baosky.LibraryFilterId; withVersion?: boolean; }): Promise<baosky.LibraryElement[]>;
 
     getAllReferenceLibElement(plcUri: baosky.Uri): Promise<baosky.LibraryElement[]>;
+
+    getAllLibraryInfo(type: baosky.LibraryCategory): Promise<baosky.LibraryRoot>;
 }
 
 export interface LibraryMain {
@@ -816,6 +822,8 @@ export interface LibraryMain {
     $getAllLibraryElements(options: { plcUri: UriComponents; filterId: baosky.LibraryFilterId; withVersion?: boolean; }): Promise<baosky.LibraryElement[]>;
 
     $getAllReferenceLibElement(plcUri: UriComponents): Promise<baosky.LibraryElement[]>;
+
+    $getAllLibraryInfo(type: baosky.LibraryCategory);
 }
 
 //#endregion

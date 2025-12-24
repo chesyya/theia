@@ -23,6 +23,7 @@ import { PluginEnvironment } from '../common/plugin-environment';
 import { PluginTheiaDeployerParticipant } from './plugin-theia-deployer-participant';
 import { WebviewBackendSecurityWarnings } from './webview-backend-security-warnings';
 import { PluginUninstallationManager } from './plugin-uninstallation-manager';
+// import { PluginOverrideManager } from './plugin-override-manager';
 import { LocalizationServerImpl } from '@theia/core/lib/node/i18n/localization-server';
 import { PluginLocalizationServer } from './plugin-localization-server';
 import { PluginMgmtCliContribution } from './plugin-mgmt-cli-contribution';
@@ -35,6 +36,7 @@ import { UserPluginDirectoryResolver } from './resolvers/user-plugin-directory-r
 import { UserPluginDeployerParticipant } from './user-plugin-management/user-plugin-deployer-participant';
 import { UserPluginEnvironment } from '../common/user-plugin-management/user-plugin-environment-service';
 import { bindUserStorage } from './plugin-adapter/bind';
+import { bindPluginData } from './plugin-data/bind';
 
 export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind): void {
     bind(PluginApiContribution).toSelf().inSingletonScope();
@@ -47,6 +49,7 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
     bind(BackendApplicationContribution).toService(PluginDeployerContribution);
 
     bind(PluginUninstallationManager).toSelf().inSingletonScope();
+    // bind(PluginOverrideManager).toSelf().inSingletonScope();
 
     //绑定plugin resolver
     bind(PluginDeployerResolver).to(LocalDirectoryPluginDeployerResolver).inSingletonScope();
@@ -102,5 +105,7 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
     bind(PluginDocumentationServiceImpl).toSelf().inSingletonScope();
 
     bindUserStorage(bind);
+
+    bindPluginData(bind);
 
 }

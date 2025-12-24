@@ -43,7 +43,6 @@ import { postConstruct } from '@theia/core/shared/inversify';
 import { AuthorizationFrontendProxy } from './authorization/authorization-frontend-proxy';
 import { PLUGIN_FOLDER_NODE_SYMBOL } from './project-tree-node/folder-node/plugin-folder-node-object';
 import { PLUGIN_FILE_NODE_SYMBOL } from './project-tree-node/file-node/plugin-file-node-object';
-import { UsermanualRegistry } from './plugin-usermanual/plugin-usermanual-command';
 import { IPluginCommandManager } from './command/plugin-command-manager-protocol';
 
 @injectable()
@@ -143,9 +142,6 @@ export class PluginContributionHandler {
 
     @inject(AuthorizationFrontendProxy)
     protected readonly authorizationFrontendProxy: AuthorizationFrontendProxy;
-
-    @inject(UsermanualRegistry)
-    protected readonly usermanualRegistry: UsermanualRegistry;
 
     @inject(MenuModelRegistry)
     protected readonly menuModelRegistry: MenuModelRegistry;
@@ -304,16 +300,6 @@ export class PluginContributionHandler {
         pushContribution('commands', () => this.registerCommands(contributions, plugin.metadata.model.id));
         pushContribution('menus', () => this.menusContributionHandler.handle(plugin));
         pushContribution('keybindings', () => this.keybindingsContributionHandler.handle(contributions));
-
-        if (contributions.usermanual) {
-            const pluginId = plugin.metadata.model.id;
-            for (const usermanual of contributions.usermanual) {
-                const key = `usermanuals.${pluginId}.${usermanual.path}`;
-                pushContribution(key, () =>
-                    this.usermanualRegistry.registerCommandsAndMenus(plugin, usermanual, this.commands, this.menuModelRegistry)
-                );
-            }
-        }
 
         if (contributions.customEditors) {
             for (const customEditor of contributions.customEditors) {

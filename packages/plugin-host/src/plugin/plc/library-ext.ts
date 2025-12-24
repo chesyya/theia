@@ -20,4 +20,8 @@ export class LibraryExtImpl implements LibraryExt {
     getAllReferenceLibElement(plcUri: baosky.Uri): Promise<baosky.LibraryElement[]> {
         return this.proxy.$getAllReferenceLibElement(plcUri);
     };
+
+    getAllLibraryInfo(type: baosky.LibraryCategory): Promise<baosky.LibraryRoot> {
+        return this.proxy.$getAllLibraryInfo(type);
+    }
 }
