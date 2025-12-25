@@ -168,6 +168,7 @@ export interface EnvInit {
     shell: string;
     uiKind: UIKind;
     appName: string;
+    appEndpoint: string;
     appHost: string;
     appRoot: string;
     appUriScheme: string;
@@ -291,9 +292,10 @@ export interface CommandRegistryMain {
 }
 
 export interface CommandRegistryExt {
-    registerCommand(command: baosky.CommandDescription | string, handler?: (...args: any[]) => any, thisArg?: any): Disposable;
-    registerHandler(commandId: string, handler: (...args: any[]) => any, thisArg?: any): Disposable
-    $executeCommand<T>(id: string, ...ars: any[]): PromiseLike<T | undefined>;
+    registerCommand(command: baosky.CommandDescription, handler?: baosky.CommandHandler, thisArg?: any): Disposable
+    registerHandler(commandId: string, handler: baosky.CommandHandler): Disposable;
+    $executeCommand<T>(id: string, ...ars: any[]): Promise<T | undefined>;
+    $isEnabled(commandId: string, ...args: any[]): Promise<boolean>;
     executeCommand<T>(commandId: string, ...args: any[]): PromiseLike<T | undefined>
     registerArgumentProcessor(processor: ArgumentProcessor): void;
     getKeyBindingForCommand(commandId: string): PromiseLike<baosky.CommandKeyBinding[] | undefined>
@@ -524,17 +526,6 @@ export interface SystemEventMain {
     $unsubscribeSysEvent(subscribeId: string): void;
 }
 
-
-export interface PluginPreferencesExt {
-    registerPreference<T extends baosky.BasePreferenceSchema>(schema: T): void;
-    $onPreferenceChanged(settingKey: string): void;
-}
-
-export interface PluginPreferencesMain {
-
-    $onDidChangePreferences(settingKeys: string[]): void;
-}
-
 export interface PluginTreeNodeExt {
     registerTreeNodeProvider(provider: baosky.projects.TreeNodeProvider, plugin: Plugin): baosky.projects.TreeNodeController;
     $onDbclick(uri: string): void;
@@ -553,22 +544,24 @@ export interface PluginTreeNodeMain {
 }
 
 export interface PlatformMessageServiceMain {
-    $pushRoutineInfo(routineInfo: baosky.platform.RoutineInfo): void;
+    $pushRoutineInfo(routineInfo: baosky.RoutineInfo): void;
 }
 
 export interface PlatformMessageServiceExt {
-    sendRoutineInfo(routineInfo: baosky.platform.RoutineInfo): void;
+    sendRoutineInfo(routineInfo: baosky.RoutineInfo): void;
 }
 
 export interface PlatformServiceExt {
     selection(): Promise<baosky.GlobalSelection[]>;
     executeCrossReference(params: baosky.CrossReferenceParam): Promise<baosky.CrossRefTableDataType[] | baosky.CrossReferenceResponse>;
 
-    gotoService(gotoInfo: baosky.platform.GotoOptions): Promise<void>;
+    gotoService(gotoInfo: baosky.GotoOptions): Promise<void>;
 
     gotoHelp(route: string, plugin: Plugin): Promise<void>;
 
-    openDialog(dialogProps: baosky.platform.DialogProps, plugin: Plugin): Promise<void>;
+    registerMenuAction(location: baosky.MenuLocation, menuId: string, menuActions: baosky.MenuActions[]): Promise<Map<string, Disposable>>
+
+    openDialog(dialogProps: baosky.DialogProps, plugin: Plugin): Promise<void>;
 
     gotoProblem(problem: baosky.ProblemLocation): Promise<void>;
     registerPreference<T extends baosky.BasePreferenceSchema>(schema: T): void;
@@ -580,11 +573,11 @@ export interface PlatformServiceExt {
     /**
      * @description 获取项目路径
      */
-    getProjectPath(): Promise<baosky.Uri>
+    getProjectPath(): Promise<string>
     /**
      * @description 获取项目信息
      */
-    getProjectInfo(): Promise<baosky.projects.ProjectObject>;
+    getProjectInfo(): Promise<baosky.ProjectObject>;
     /**
      * @description 通过子节点路径获取设备参数
      */
@@ -592,11 +585,7 @@ export interface PlatformServiceExt {
     /**
      * @description 通过plc名字获取设备路径
      */
-    getDevicePathByName(name: string): Promise<baosky.Uri>;
-    /**
-     * @description 通过设备路径获取某个指定类型的object的路径
-     */
-    getChildPathByDevice(uri: baosky.Uri, objectType: baosky.platform.CoreObject): Promise<baosky.Uri | undefined>;
+    getDevicePathByName(name: string): Promise<string>;
     /**
      * @description 获取当前plc的数据模型版本
      */
@@ -608,7 +597,7 @@ export interface PlatformServiceExt {
     /**
      * @description 往device Container里面加载对象
      */
-    loadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.platform.LoadOptions, ctx?: baosky.platform.DataContext): Promise<void>;
+    loadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.LoadOptions, ctx?: baosky.DataContext): Promise<void>;
     /**
      * @description 卸载device Container里面的path相关所有对象
      */
@@ -616,7 +605,7 @@ export interface PlatformServiceExt {
     /**
      * @description 往device Container里面重载对象
      */
-    reloadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.platform.LoadOptions, ctx?: baosky.platform.DataContext): Promise<void>;
+    reloadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.LoadOptions, ctx?: baosky.DataContext): Promise<void>;
     /**
      *@description  重载container
      */
@@ -624,15 +613,15 @@ export interface PlatformServiceExt {
     /**
      * @description 验证名称的合法性
      */
-    validateName(name: string, nameSourceType: string, options?: baosky.platform.NameValidationOptions): Promise<baosky.platform.ValidationResult[]>;
+    validateName(name: string, nameSourceType: string, options?: baosky.NameValidationOptions): Promise<baosky.ValidationResult[]>;
     /**
      * @description 获取下一个新名字
      */
-    getNextName(location: baosky.Uri, options: baosky.platform.NextNameOptions): Promise<string>;
+    getNextName(location: baosky.Uri, options: baosky.NextNameOptions): Promise<string>;
     /**
      * @Description 获取下一个可用名称，并缓存
      **/
-    tryGetNextName(location: baosky.Uri, options: baosky.platform.NextNameOptions, nameList?: string[]): Promise<string>;
+    tryGetNextName(location: baosky.Uri, options: baosky.NextNameOptions, nameList?: string[]): Promise<string>;
     /**
      * @Description 释放缓存的名称
      **/
@@ -648,16 +637,18 @@ export interface PlatformServiceExt {
 }
 
 export interface PlatformServiceMain {
+    $registerMenuAction(location: baosky.MenuLocation, menuId: string, menuActions: baosky.MenuActions[]): Promise<{menuId: string, actions: string[]} | undefined>;
+    $removeMenuAction(menuId: string, commandId: string);
     $selection(): Promise<baosky.GlobalSelection[]>;
     $executeCrossReference(params: baosky.CrossReferenceParam): Promise<baosky.CrossRefTableDataType[] | baosky.CrossReferenceResponse>;
 
-    $decorateInteractiveTarget(target: baosky.platform.InteractiveTarget): Promise<void>;
+    $decorateInteractiveTarget(target: baosky.InteractiveTarget): Promise<void>;
 
-    $goto(gotoInfo: baosky.platform.GotoOptions): Promise<void>;
+    $goto(gotoInfo: baosky.GotoOptions): Promise<void>;
 
     $gotoHelp(pluginId: string, route: string): Promise<void>;
 
-    $openDialog(dialogProps: baosky.platform.DialogProps, callbackId: string[]): Promise<boolean>;
+    $openDialog(dialogProps: baosky.DialogProps, callbackId: string[]): Promise<boolean>;
 
     $triggerCallback(callbackId: string[], paras: string[] | string[][], multiTrigger: boolean[]): void;
 
@@ -675,11 +666,11 @@ export interface PlatformServiceMain {
     /**
      * @description 获取项目路径
      */
-    $getProjectPath(): Promise<baosky.Uri>
+    $getProjectPath(): Promise<string>
     /**
      * @description 获取项目信息
      */
-    $getProjectInfo(): Promise<baosky.projects.ProjectObject>;
+    $getProjectInfo(): Promise<baosky.ProjectObject>;
     /**
      * @description 通过子节点路径获取设备参数
      */
@@ -687,11 +678,7 @@ export interface PlatformServiceMain {
     /**
      * @description 通过plc名字获取设备路径
      */
-    $getDevicePathByName(name: string): Promise<baosky.Uri>;
-    /**
-     * @description 通过设备路径获取某个指定类型的object的路径
-     */
-    $getChildPathByDevice(uri: baosky.Uri, objectType: baosky.platform.CoreObject): Promise<baosky.Uri | undefined>;
+    $getDevicePathByName(name: string): Promise<string>;
     /**
      * @description 获取当前plc的数据模型版本
      */
@@ -703,7 +690,7 @@ export interface PlatformServiceMain {
     /**
     * @description 往device Container里面加载对象
     */
-    $loadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.platform.LoadOptions, ctx?: baosky.platform.DataContext): Promise<void>;
+    $loadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.LoadOptions, ctx?: baosky.DataContext): Promise<void>;
     /**
      * @description 卸载device Container里面的path相关所有对象
      */
@@ -711,7 +698,7 @@ export interface PlatformServiceMain {
     /**
      * @description 往device Container里面重载对象
      */
-    $reloadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.platform.LoadOptions, ctx?: baosky.platform.DataContext): Promise<void>;
+    $reloadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.LoadOptions, ctx?: baosky.DataContext): Promise<void>;
     /**
      *@description  重载container
      */
@@ -719,15 +706,15 @@ export interface PlatformServiceMain {
     /**
      * @description 验证名称的合法性
      */
-    $validateName(name: string, nameSourceType: string, options?: baosky.platform.NameValidationOptions): Promise<baosky.platform.ValidationResult[]>;
+    $validateName(name: string, nameSourceType: string, options?: baosky.NameValidationOptions): Promise<baosky.ValidationResult[]>;
     /**
      * @description 获取下一个新名字
      */
-    $getNextName(location: baosky.Uri, options: baosky.platform.NextNameOptions): Promise<string>;
+    $getNextName(location: baosky.Uri, options: baosky.NextNameOptions): Promise<string>;
     /**
      * @Description //获取下一个可用名称，并缓存
      **/
-    $tryGetNextName(location: baosky.Uri, options: baosky.platform.NextNameOptions, nameList?: string[]): Promise<string>;
+    $tryGetNextName(location: baosky.Uri, options: baosky.NextNameOptions, nameList?: string[]): Promise<string>;
     /**
      * @Description //释放缓存的名称
      **/
@@ -743,11 +730,11 @@ export interface PlatformServiceMain {
 }
 
 export interface EditorRegistryExt {
-    registerToolbar(toolbarItems: baosky.platform.ToolbarItem[]): Promise<Disposable[]>;
+    registerToolbar(toolbarItems: baosky.ToolbarItem[]): Promise<Disposable[]>;
 }
 
 export interface EditorRegistryMain {
-    $registerToolbar(toolbarItems: baosky.platform.ToolbarItem[]): Promise<ToolbarInfo[]>;
+    $registerToolbar(toolbarItems: baosky.ToolbarItem[]): Promise<ToolbarInfo[]>;
 
     $unregisterToolbar(toolbarInfo: ToolbarInfo): void;
 }
@@ -766,13 +753,13 @@ export interface PluginRegistryExt {
 
 
 export interface UserServiceExt {
-    getUserInfo(): Promise<baosky.platform.UserInfo | undefined>;
+    getUserInfo(): Promise<baosky.UserInfo | undefined>;
 
     isAdminUser(): boolean;
 }
 
 export interface UserServiceMain {
-    $getUserInfo(): Promise<baosky.platform.UserInfo | undefined>;
+    $getUserInfo(): Promise<baosky.UserInfo | undefined>;
 
     $isAdminUser(): boolean;
 }

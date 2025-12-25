@@ -227,6 +227,9 @@ export class PluginDeployerImpl implements PluginDeployer {
                         const pluginData = await this.pluginDeployerHandler.getPluginDependencies(deployerEntry);
                         const versionedId = pluginData && PluginIdentifiers.componentsToVersionedId(pluginData.metadata.model);
                         const unversionedId = versionedId && PluginIdentifiers.componentsToUnversionedId(pluginData.metadata.model);
+                        if(type == PluginType.System && unversionedId){
+                            this.pluginDeployerHandler.registerSystemPlugin(unversionedId, pluginData.metadata.model.version)
+                        }
                         if (unversionedId && !pluginsToDeploy.has(versionedId)) {
                             pluginsToDeploy.set(versionedId, deployerEntry);
                             if (pluginData.mapping) {

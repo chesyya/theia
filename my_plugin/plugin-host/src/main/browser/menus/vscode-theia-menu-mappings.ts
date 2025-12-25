@@ -94,6 +94,7 @@ export const implementedVSCodeContributionPoints = [
     'pu/ld/instanceName',
     'pu/ld/label',
     'pu/ld/st',
+    'pu/st/body',
     'menubar/help/document'
 
 ] as const;
@@ -168,6 +169,7 @@ export const codeToTheiaMappings = new Map<ContributionPoint, MenuPath[]>([
     ['pu/ld/instanceName', [['LD-context-menu-8-instance-name']]],
     ['pu/ld/label', [['LD-context-menu-9-lable']]],
     ['pu/ld/st', [['LD-context-menu-10-st-code']]],
+    ['pu/st/body', [['editor_context_menu']]],
 
     ['table/head/context', [['text-table-menu']]],
     ['table/cell/context', [['text-table-cell-menu']]],

@@ -24,7 +24,7 @@ export class EditorRegistryMainImpl implements EditorRegistryMain {
         this.tabToolbarButtonRegistry = container.get(TabToolbarButtonRegistry);
         this.commandRegistry = container.get(CommandRegistry);
     }
-    async $registerToolbar(toolbarItems: baosky.platform.ToolbarItem[]): Promise<ToolbarInfo[]> {
+    async $registerToolbar(toolbarItems: baosky.ToolbarItem[]): Promise<ToolbarInfo[]> {
         const toolbarInfo: ToolbarInfo[] = [];
         toolbarItems.forEach(item => {
             const commands = item.commands.map(command => {

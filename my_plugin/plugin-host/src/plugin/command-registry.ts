@@ -19,7 +19,7 @@ export class CommandRegistryImpl implements CommandRegistryExt {
 
     private proxy: CommandRegistryMain;
     private readonly commands = new Set<string>();
-    private readonly handlers = new Map<string, Handler>();
+    private readonly handlers = new Map<string, theia.CommandHandler>();
     private readonly argumentProcessors: ArgumentProcessor[];
     private readonly commandsConverter: CommandsConverter;
     private readonly pluginCommands = new Map<string, string>()
@@ -40,7 +40,7 @@ export class CommandRegistryImpl implements CommandRegistryExt {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    registerCommand(command: theia.CommandDescription, handler?: Handler, thisArg?: any): Disposable {
+    registerCommand(command: theia.CommandDescription, handler?: theia.CommandHandler, thisArg?: any): Disposable {
         if (this.commands.has(command.id)) {
             throw new Error(`Command ${command.id} already exist`);
         }
@@ -49,7 +49,7 @@ export class CommandRegistryImpl implements CommandRegistryExt {
 
         const toDispose: Disposable[] = [];
         if (handler) {
-            toDispose.push(this.registerHandler(command.id, handler, thisArg));
+            toDispose.push(this.registerHandler(command.id, handler));
         }
         toDispose.push(Disposable.create(() => {
             this.commands.delete(command.id);
@@ -59,13 +59,12 @@ export class CommandRegistryImpl implements CommandRegistryExt {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    registerHandler(commandId: string, handler: Handler, thisArg?: any): Disposable {
+    registerHandler(commandId: string, handler: theia.CommandHandler): Disposable {
         if (this.handlers.has(commandId)) {
             throw new Error(`Command "${commandId}" already has handler`);
         }
         this.proxy.$registerHandler(commandId);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        this.handlers.set(commandId, (...args: any[]) => handler.apply(thisArg, args));
+        this.handlers.set(commandId, handler);
         this.pluginCommands.set(commandId, this._pluginId);
         return Disposable.create(() => {
             this.handlers.delete(commandId);
@@ -75,7 +74,7 @@ export class CommandRegistryImpl implements CommandRegistryExt {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    $executeCommand<T>(id: string, ...args: any[]): PromiseLike<T | undefined> {
+    $executeCommand<T>(id: string, ...args: any[]): Promise<T | undefined> {
         if (this.handlers.has(id)) {
             return this.executeLocalCommand(id, ...args);
         } else {
@@ -108,6 +107,19 @@ export class CommandRegistryImpl implements CommandRegistryExt {
             return this.proxy.$executeCommand({ commandId: id, pluginId: this._pluginId }, ...args);
         }
     }
+
+    $isEnabled(id: string, ...args: any[]): Promise<boolean> {
+        if (this.handlers.has(id)) {
+            const handler = this.handlers.get(id);
+
+            if (handler && typeof handler.isEnabled === 'function') {
+                return Promise.resolve(handler.isEnabled(...args));
+            }
+
+            return Promise.resolve(true);
+        }
+        return Promise.resolve(false);
+    }
     /* eslint-enable @typescript-eslint/no-explicit-any */
 
     getKeyBindingForCommand(commandId: string): PromiseLike<theia.CommandKeyBinding[] | undefined> {
@@ -124,13 +136,26 @@ export class CommandRegistryImpl implements CommandRegistryExt {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private async executeLocalCommand<T>(id: string, ...args: any[]): Promise<T | undefined> {
-        const handler = this.handlers.get(id);
-        if (handler) {
-            return handler<T>(...args.map(arg => this.argumentProcessors.reduce((r, p) => p.processArgument(r), arg)));
-        } else {
-            throw new Error(`No handler exists for command '${id}'`);
+            const handler = this.handlers.get(id);
+
+            if (handler) {
+                const processedArgs = args.map(arg =>
+                    this.argumentProcessors.reduce((currentValue, processor) => processor.processArgument(currentValue), arg)
+                );
+
+                if (typeof handler === 'function') {
+                    return (handler as Function)(...processedArgs);
+                }
+                else if (typeof handler === 'object' && handler.execute) {
+                    return handler.execute(...processedArgs);
+                }
+                else {
+                    throw new Error(`Invalid handler format for command '${id}'`);
+                }
+            } else {
+                throw new Error(`No handler exists for command '${id}'`);
+            }
         }
-    }
 
     async getCommands(filterUnderscoreCommands: boolean = false): Promise<string[]> {
         const result = await this.proxy.$getCommands();
@@ -177,7 +202,12 @@ export class CommandsConverter {
         }
 
         if (!this.isSafeCommandRegistered) {
-            this.commands.registerCommand({ id: this.safeCommandId }, this.executeSafeCommand, this);
+            this.commands.registerCommand(
+                { id: this.safeCommandId },
+                {
+                    execute: (...args: any[]) => Promise.resolve(this.executeSafeCommand(...args))
+                }
+            );
             this.isSafeCommandRegistered = true;
         }
 

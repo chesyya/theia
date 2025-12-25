@@ -478,7 +478,7 @@ export class BSXExtensionsModelImpl implements BSXExtensionsModel {
             // 🆕 处理未激活的内置插件（例如覆盖版本刚卸载，系统版本等待重启加载）
             // 确保它们出现在系统级列表中
             if ((this.pluginSupport as any).getBuiltinPluginIds) {
-                const builtinIds = (this.pluginSupport as any).getBuiltinPluginIds() as string[];
+                const builtinIds = this.pluginSupport.getBuiltinPluginIds() as string[];
                 for (const id of builtinIds) {
                     if (!currInstalled.has(id)) {
                         const extension = this.setExtension(id);

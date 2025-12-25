@@ -1,5 +1,11 @@
+/*
+ * @Author: tengzhiyu tengzhiyu@baosight.com
+ * @Date: 2025-12-12 15:08:12
+ * @FilePath: /workdir/packages/plugin-host/src/main/browser/project/user-service-main.ts
+ * Copyright (c) 2025 by Baosight, All Rights Reserved. 
+ * @Description: 
+ */
 import * as baosky from '@baosky/plugin';
-import { RoutineInfoService } from '@baosky/platform/lib/browser/info-view/routine/routine-info-service'
 import { interfaces } from "@theia/core/shared/inversify";
 import { UserServiceMain } from "../../../common";
 import { UserLoginController } from '@baosky/project/lib/browser/es-server/controller/user-login-controller'
@@ -15,7 +21,7 @@ export class UserServiceMainImpl implements UserServiceMain {
         return this.userLoginController.isAdminLogin();
     }
 
-    async $getUserInfo(): Promise<baosky.platform.UserInfo | undefined> {
+    async $getUserInfo(): Promise<baosky.UserInfo | undefined> {
         const userInfo = await this.userLoginController.getCurrentUser();
         return userInfo ?? undefined;
     }

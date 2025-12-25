@@ -913,7 +913,7 @@ export interface PluginCommand {
     iconUrl?: IconUrl;
     themeIcon?: string;
     enablement?: string;
-    permissionLevel?: baosky.platform.CommandPermissionLevel
+    permissionLevel?: baosky.CommandPermissionLevel
 }
 
 /**
@@ -1061,7 +1061,7 @@ export interface PluginDeployerHandler {
 
     getDeployedPlugin(pluginId: PluginIdentifiers.VersionedId): DeployedPlugin | undefined;
 
-    getSystemPlugins(): Promise<DeployedPlugin[]>;
+    // getSystemPlugins(): Promise<DeployedPlugin[]>;
 
     // getSharedPlugins(): Promise<DeployedPlugin[]>;
 
@@ -1077,6 +1077,8 @@ export interface PluginDeployerHandler {
     undeployPlugin(pluginId: PluginIdentifiers.VersionedId): Promise<boolean>;
 
     getPluginDependencies(pluginToBeInstalled: PluginDeployerEntry): Promise<PluginDependencies | undefined>;
+
+    registerSystemPlugin(unversionedId: string, entryId: string): void;
 }
 
 export interface GetDeployedPluginsParams {
@@ -1132,7 +1134,7 @@ export interface HostedPluginServer extends RpcServer<HostedPluginClient> {
 
     getDeployedPlugins(params: GetDeployedPluginsParams, userId?: string): Promise<DeployedPluginWithInitpath[]>;
 
-    getAllDeployedPlugins(userId?: string): Promise<DeployedPlugin[]>;
+    // getAllDeployedPlugins(userId?: string): Promise<DeployedPlugin[]>;
 
     getExtPluginAPI(): Promise<ExtPluginApi[]>;
 

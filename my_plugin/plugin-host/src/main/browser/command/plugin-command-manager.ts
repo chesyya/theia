@@ -2,8 +2,8 @@
  * @Author: tengzhiyu tengzhiyu@baosight.com
  * @Date: 2025-12-02 14:29:06
  * @FilePath: /workdir/packages/plugin-host/src/main/browser/command/plugin-command-manager.ts
- * Copyright (c) 2025 by Baosight, All Rights Reserved. 
- * @Description: 
+ * Copyright (c) 2025 by Baosight, All Rights Reserved.
+ * @Description:
  */
 import { CommonConfirmDialog } from "@baosky/platform/lib/browser/common-dialog/common-confirm-dialog";
 import { CommandHandler, CommandRegistry, Disposable } from "@theia/core";
@@ -11,6 +11,7 @@ import { IPluginCommandManager } from "./plugin-command-manager-protocol";
 import { inject, injectable } from "@theia/core/shared/inversify";
 import { BaoskyCommand, CommandPermissionLevel } from "@baosky/platform/lib/browser/framework/command/baosky-command";
 import { bnls } from '@baosky/platform/lib/common/bnls';
+import * as baosky from '@baosky/plugin'
 
 
 const PERMITTED_PLUGIN_COMMANDS: string[] = [
@@ -28,7 +29,7 @@ const PERMITTED_PLUGIN_COMMANDS: string[] = [
 
 //TODO:这里的plugin的undefined配置项等后续  所有plugin适配后再改成强制string
 /**
- * @description 插件command管理服务 
+ * @description 插件command管理服务
  * @date 2025-12-02
  * @author 滕志宇
  *
@@ -42,11 +43,11 @@ export class PluginCommandManagerImp implements IPluginCommandManager {
     @inject(CommandRegistry)
     protected readonly commandRegistry: CommandRegistry;
 
-    private readonly _commandHandlers = new Map<string, CommandHandler['execute'] | undefined>();
+    private readonly _commandHandlers = new Map<string, undefined | baosky.CommandHandler>();
     private pluginCommands = new Map<string, { [commandId: string]: string }>();
 
     /**
-     * @description 获取插件command权限 
+     * @description 获取插件command权限
      */
     public getPluginPermission(pluginId: string): boolean {
         //TODO:待确认
@@ -54,7 +55,7 @@ export class PluginCommandManagerImp implements IPluginCommandManager {
     }
 
 
-    //内置的  有天行授权的并且是天行自己的  有天行授权并且是第三方    
+    //内置的  有天行授权的并且是天行自己的  有天行授权并且是第三方
 
     public registerCommand(pluginId: string | undefined, command: BaoskyCommand, handler?: CommandHandler): Disposable {
         if (command.permissionLevel === undefined) {
@@ -89,15 +90,19 @@ export class PluginCommandManagerImp implements IPluginCommandManager {
         return this.commandRegistry.registerHandler(id, handler);
     }
 
-    public registerPluginHandler(id: string, handler: CommandHandler['execute']): void {
-        this._commandHandlers.set(id, handler);
+    public registerPluginHandler(id: string, handler: CommandHandler['execute'] | baosky.CommandHandler): void {
+        if (typeof handler === 'function') {
+            this._commandHandlers.set(id, { execute: handler });
+        } else {
+            this._commandHandlers.set(id, handler);
+        }
     }
 
     public unregisterPluginHandler(id: string): void {
         this._commandHandlers.delete(id);
     }
 
-    public getPluginHandler(id: string): CommandHandler['execute'] | undefined {
+    public getPluginHandler(id: string): undefined | baosky.CommandHandler{
         return this._commandHandlers.get(id);
     }
 

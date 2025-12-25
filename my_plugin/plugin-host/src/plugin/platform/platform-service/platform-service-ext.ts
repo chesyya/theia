@@ -4,19 +4,33 @@ import { RPCProtocol } from "../../../common/rpc-protocol";
 import { UUID } from "@theia/core/shared/@phosphor/coreutils";
 import { Plugin } from "../../../common/plugin-api-rpc";
 import { URI } from "@theia/core";
+import { Disposable } from "../../types-impl";
 
 
 export class PlatformServiceExtImpl implements PlatformServiceExt {
     protected readonly proxy: PlatformServiceMain;
-    protected loadingFunMap = new Map<string, baosky.platform.LoadingFun>();
+    protected loadingFunMap = new Map<string, baosky.LoadingFun>();
     protected callbackIds: string[];
     protected numTag = 0;
 
     constructor(rpc: RPCProtocol) {
         this.proxy = rpc.getProxy(PLUGIN_RPC_CONTEXT.PLATFORM_SERVICE_MAIN);
     }
+    async registerMenuAction(location: baosky.MenuLocation, menuId: string, actions: baosky.MenuActions[]): Promise<Map<string, Disposable>> {
+        let disposeMap = new Map();
+        const actionIds = await this.proxy.$registerMenuAction(location, menuId, actions);
+        if(!actionIds)
+            throw new Error('未能成功注册菜单项，注册点不对或已存在重复')
+        actionIds?.actions.forEach((item) => {
+            const dispose = {
+            dispose: () => this.proxy.$removeMenuAction(actionIds.menuId, item)
+        };
+            disposeMap.set(item, dispose);
+        })
+        return disposeMap;
+    }
 
-    public async loadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.platform.LoadOptions, ctx?: baosky.platform.DataContext): Promise<void> {
+    public async loadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.LoadOptions, ctx?: baosky.DataContext): Promise<void> {
         return await this.proxy.$loadObject(deviceName, path, options, ctx);
     }
 
@@ -24,7 +38,7 @@ export class PlatformServiceExtImpl implements PlatformServiceExt {
         return this.proxy.$unloadObject(deviceName, path);
     }
 
-    public async reloadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.platform.LoadOptions, ctx?: baosky.platform.DataContext): Promise<void> {
+    public async reloadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.LoadOptions, ctx?: baosky.DataContext): Promise<void> {
         return await this.proxy.$reloadObject(deviceName, path, options, ctx);
     }
 
@@ -32,20 +46,17 @@ export class PlatformServiceExtImpl implements PlatformServiceExt {
         return await this.proxy.$reloadContainer(path, newPath);
     }
 
-    public async getProjectPath(): Promise<baosky.Uri> {
-        return await this.proxy.$getProjectPath() as any;
+    public async getProjectPath(): Promise<string> {
+        return await this.proxy.$getProjectPath();
     }
-    public async getProjectInfo(): Promise<baosky.projects.ProjectObject> {
+    public async getProjectInfo(): Promise<baosky.ProjectObject> {
         return await this.proxy.$getProjectInfo();
     }
     public async getDeviceParamsByPath(uri: baosky.Uri): Promise<baosky.DeviceParams> {
         return await this.proxy.$getDeviceParamsByPath(uri);
     }
-    public async getDevicePathByName(name: string): Promise<baosky.Uri> {
+    public async getDevicePathByName(name: string): Promise<string> {
         return await this.proxy.$getDevicePathByName(name);
-    }
-    public async getChildPathByDevice(uri: baosky.Uri, objectType: baosky.platform.CoreObject): Promise<baosky.Uri | undefined> {
-        return await this.proxy.$getChildPathByDevice(uri, objectType);
     }
     public async getModelVersion(name: string): Promise<number> {
         return await this.proxy.$getModelVersion(name);
@@ -53,13 +64,13 @@ export class PlatformServiceExtImpl implements PlatformServiceExt {
     public async getAppVersion(): Promise<number> {
         return await this.proxy.$getAppVersion();
     }
-    public async validateName(name: string, nameSourceType: string, options?: baosky.platform.NameValidationOptions): Promise<baosky.platform.ValidationResult[]> {
+    public async validateName(name: string, nameSourceType: string, options?: baosky.NameValidationOptions): Promise<baosky.ValidationResult[]> {
         return await this.proxy.$validateName(name, nameSourceType, options);
     }
-    public async getNextName(location: baosky.Uri, options: baosky.platform.NextNameOptions): Promise<string> {
+    public async getNextName(location: baosky.Uri, options: baosky.NextNameOptions): Promise<string> {
         return await this.proxy.$getNextName(location, options);
     }
-    public async tryGetNextName(location: baosky.Uri, options: baosky.platform.NextNameOptions, nameList?: string[]): Promise<string> {
+    public async tryGetNextName(location: baosky.Uri, options: baosky.NextNameOptions, nameList?: string[]): Promise<string> {
         return await this.proxy.$tryGetNextName(location, options, nameList);
     }
     public async releaseName(): Promise<void> {
@@ -95,7 +106,7 @@ export class PlatformServiceExtImpl implements PlatformServiceExt {
         return await this.proxy.$executeCrossReference(params);
     }
 
-    async gotoService(gotoOptions: baosky.platform.GotoOptions): Promise<void> {
+    async gotoService(gotoOptions: baosky.GotoOptions): Promise<void> {
         await this.proxy.$goto(gotoOptions);
     }
 
@@ -103,17 +114,17 @@ export class PlatformServiceExtImpl implements PlatformServiceExt {
         await this.proxy.$gotoHelp(plugin.model.id, route);
     }
 
-    async openDialog(dialogProps: baosky.platform.DialogProps): Promise<void> {
+    async openDialog(dialogProps: baosky.DialogProps): Promise<void> {
         switch (dialogProps.type) {
             case 'loadingDialog': await this.openLoadingDialog(dialogProps);
         }
     }
 
-    async decorateInteractiveTarget(target: baosky.platform.InteractiveTarget): Promise<void> {
+    async decorateInteractiveTarget(target: baosky.InteractiveTarget): Promise<void> {
         await this.proxy.$decorateInteractiveTarget(target);
     }
 
-    async openLoadingDialog(dialogProps: baosky.platform.DialogProps) {
+    async openLoadingDialog(dialogProps: baosky.DialogProps) {
         if (!dialogProps.loading || !dialogProps.epoch)
             return;
         this.callbackIds = [];
@@ -144,7 +155,7 @@ export class PlatformServiceExtImpl implements PlatformServiceExt {
     }
     SLEEP = async (t: number) => new Promise(r => (setTimeout(() => r(t), t)));
 
-    async focusInfoViewTab(type: string, stopAutoScroll?: boolean): Promise<void>{
+    async focusInfoViewTab(type: string, stopAutoScroll?: boolean): Promise<void> {
         await this.proxy.$focusInfoViewTab(type, stopAutoScroll);
     }
 }

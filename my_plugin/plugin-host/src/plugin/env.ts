@@ -21,6 +21,7 @@ export abstract class EnvExtImpl {
     private applicationRoot: string;
     private appUriScheme: string;
     private _remoteName: string | undefined;
+    private _appEndpoint: string | undefined;
 
     constructor() {
         this.envSessionId = generateUuid();
@@ -62,6 +63,10 @@ export abstract class EnvExtImpl {
         this.lang = lang;
     }
 
+    setAppEndpoint(appEndpoint: string | undefined): void {
+        this._appEndpoint = appEndpoint;
+    }
+
     setUIKind(uiKind: theia.UIKind): void {
         this.ui = uiKind;
     }
@@ -80,6 +85,10 @@ export abstract class EnvExtImpl {
 
     getClientOperatingSystem(): Promise<theia.OperatingSystem> {
         return this.proxy.$getClientOperatingSystem();
+    }
+
+    get appEndpoint(): string | undefined {
+        return this._appEndpoint;
     }
 
     get appName(): string {

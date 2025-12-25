@@ -18,6 +18,7 @@ import { injectable, inject, postConstruct } from '@theia/core/shared/inversify'
 import { TreeSource, TreeElement } from '@theia/core/lib/browser/source-tree';
 import { BSXExtensionsModelImpl } from './bsx-extensions-model';
 import debounce = require('@theia/core/shared/lodash.debounce');
+import { BSXExtension } from './bsx-extension';
 
 @injectable()
 export class BSXExtensionsSourceOptions {
@@ -84,7 +85,7 @@ export class BSXExtensionsSource extends TreeSource {
         }
     }
 
-    protected shouldShowInInstalled(extension: any): boolean {
+    protected shouldShowInInstalled(extension: BSXExtension): boolean {
         // 🆕 已安装视图：显示用户或管理员主动安装的插件
         // 排除纯内置插件（只有 builtin，没有 user/shared）
 
@@ -102,17 +103,17 @@ export class BSXExtensionsSource extends TreeSource {
         return false;
     }
 
-    protected shouldShowInBuiltin(extension: any): boolean {
+    protected shouldShowInBuiltin(extension: BSXExtension): boolean {
         // 🆕 内置视图：显示所有有内置版本的插件
         return extension.hasBuiltinVersion;
     }
 
-    protected shouldShowInSystemLevel(extension: any): boolean {
+    protected shouldShowInSystemLevel(extension: BSXExtension): boolean {
         // 🆕 系统级视图：当前激活的是系统级或共享级
         return extension.isSystemLevel;
     }
 
-    protected shouldShowInUserLevel(extension: any): boolean {
+    protected shouldShowInUserLevel(extension: BSXExtension): boolean {
         // 🆕 用户级视图：当前激活的是用户级
         return extension.isUserLevel;
     }

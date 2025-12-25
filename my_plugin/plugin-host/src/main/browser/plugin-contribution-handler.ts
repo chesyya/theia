@@ -44,6 +44,7 @@ import { AuthorizationFrontendProxy } from './authorization/authorization-fronte
 import { PLUGIN_FOLDER_NODE_SYMBOL } from './project-tree-node/folder-node/plugin-folder-node-object';
 import { PLUGIN_FILE_NODE_SYMBOL } from './project-tree-node/file-node/plugin-file-node-object';
 import { IPluginCommandManager } from './command/plugin-command-manager-protocol';
+import * as baosky from '@baosky/plugin';
 
 @injectable()
 export class PluginContributionHandler {
@@ -509,10 +510,49 @@ export class PluginContributionHandler {
             return Disposable.NULL;
         }
 
+        const toDispose = new DisposableCollection();
+
+        let cachedPluginEnabled = false;
+
+        let isFetching = false;
+
+        const onDidChangeEnabledEmitter = new Emitter<void>();
+        toDispose.push(onDidChangeEnabledEmitter);
+
+        const checkPluginStatusAsync = async () => {
+            if (isFetching) return;
+
+            isFetching = true;
+
+            try {
+                const handler = this.commandManager.getPluginHandler(command.id);
+                if (typeof handler === 'object' && handler && handler.isEnabled) {
+                    const newResult = await Promise.resolve(handler.isEnabled());
+                    if (!!newResult !== cachedPluginEnabled) {
+                        cachedPluginEnabled = !!newResult;
+                        onDidChangeEnabledEmitter.fire();
+                    }
+                } else {
+                    if (cachedPluginEnabled !== true) {
+                        cachedPluginEnabled = true;
+                        onDidChangeEnabledEmitter.fire();
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+                if (cachedPluginEnabled !== false) {
+                    cachedPluginEnabled = true;
+                    onDidChangeEnabledEmitter.fire();
+                }
+            } finally {
+                isFetching = false;
+            }
+        };
+
         const commandHandler: CommandHandler = {
             execute: async (...args) => {
-                // 检查插件授权状态
                 const handler = this.commandManager.getPluginHandler(command.id);
+
                 if (!handler) {
                     throw new Error(`command '${command.id}' not found`);
                 }
@@ -530,50 +570,55 @@ export class PluginContributionHandler {
                         args = [{ uri: args[0].path?.path?.raw ?? '' }];
                     }
                 }
-
-                return handler(...args);
-            },
-            // Always enabled - a command can be executed programmatically or via the commands palette.
-            isEnabled: () => {
-                if (enablement) {
-                    return this.contextKeyService.match(enablement);
+                if (typeof handler === 'object' && handler.execute) {
+                    return handler.execute(...args);
                 }
-                return true;
+                else {
+                    console.error(`Invalid handler format for command '${command.id}'`, handler);
+                    throw new Error(`Invalid handler format for command '${command.id}'`);
+                }
             },
-            // Visibility rules are defined via the `menus` contribution point.
-            isVisible(): boolean { return true; }
+
+            isEnabled: () => {
+                if (enablement && !this.contextKeyService.match(enablement)) {
+                    return false;
+                }
+                checkPluginStatusAsync();
+                return cachedPluginEnabled;
+            },
+
+            onDidChangeEnabled: onDidChangeEnabledEmitter.event,
+            isVisible: () => true,
         };
 
         if (enablement) {
             const contextKeys = this.contextKeyService.parseKeys(enablement);
             if (contextKeys && contextKeys.size > 0) {
-                commandHandler.onDidChangeEnabled = (listener: () => void) => this.contextKeyService.onDidChange(e => {
+                toDispose.push(this.contextKeyService.onDidChange(e => {
                     if (e.affects(contextKeys)) {
-                        listener();
+                        onDidChangeEnabledEmitter.fire();
                     }
-                });
+                }));
             }
         }
 
-        const toDispose = new DisposableCollection();
         if (this.commands.getCommand(command.id)) {
-            // overriding built-in command, i.e. `type` by the VSCodeVim extension
             toDispose.push(this.commandManager.registerCommandHandler(command.id, commandHandler));
         } else {
             toDispose.push(this.commandManager.registerCommand(pluginId, command, commandHandler));
         }
-
         toDispose.push(Disposable.create(() => this.commandManager.unregisterCommand(command.id, pluginId)));
+
         return toDispose;
     }
 
-    registerCommandHandler(id: string, execute: CommandHandler['execute']): Disposable {
+    registerCommandHandler(id: string, handler: baosky.CommandHandler): Disposable {
         if (this.hasCommandHandler(id)) {
             console.warn(`command handler '${id}' already registered`);
             return Disposable.NULL;
         }
 
-        this.commandManager.registerPluginHandler(id, execute);
+        this.commandManager.registerPluginHandler(id, handler);
         this.onDidRegisterCommandHandlerEmitter.fire(id);
         return Disposable.create(() => this.commandManager.unregisterPluginHandler(id));
     }

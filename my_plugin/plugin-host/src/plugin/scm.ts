@@ -14,7 +14,7 @@ import {
     SourceControlGroupFeatures
 } from '../common';
 import { Disposable, DisposableCollection } from '@theia/core/lib/common/disposable';
-import { CommandRegistryImpl } from './command-registry';
+import { CommandRegistryImpl } from '../plugin/command-registry';
 import { Splice } from '../common/arrays';
 import { UriComponents } from '../common/uri-components';
 import { Command } from '../common/plugin-api-rpc-model';

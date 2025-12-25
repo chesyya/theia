@@ -1,6 +1,6 @@
-import '../style/status-bar.css';
-import './style/index.css';
-import './style/comments.css';
+import '../../../src/main/style/status-bar.css';
+import '../../../src/main/browser/style/index.css';
+import '../../../src/main/browser/style/comments.css';
 
 import { ContainerModule } from '@theia/core/shared/inversify';
 import {
@@ -54,7 +54,7 @@ import { CommentingRangeDecorator } from './comments/comments-decorator';
 import { CommentsContribution } from './comments/comments-contribution';
 import { CommentsContextKeyService } from './comments/comments-context-key-service';
 import { PluginCustomEditorRegistry } from './custom-editors/plugin-custom-editor-registry';
-import { CustomEditorWidgetFactory } from './custom-editors/custom-editor-widget-factory';
+import { CustomEditorWidgetFactory } from '../browser/custom-editors/custom-editor-widget-factory';
 import { CustomEditorWidget } from './custom-editors/custom-editor-widget';
 import { CustomEditorService } from './custom-editors/custom-editor-service';
 import { WebviewFrontendSecurityWarnings } from './webview/webview-frontend-security-warnings';

@@ -471,6 +471,7 @@ export class HostedPluginSupport extends AbstractHostedPluginSupport<PluginManag
                     appName: FrontendApplicationConfigProvider.get().applicationName,
                     appHost: isElectron ? 'desktop' : 'web', // TODO: 'web' could be the embedder's name, e.g. 'github.dev'
                     appRoot,
+                    appEndpoint: window.location.origin,
                     appUriScheme: FrontendApplicationConfigProvider.get().electron.uriScheme
                 },
                 extApi,

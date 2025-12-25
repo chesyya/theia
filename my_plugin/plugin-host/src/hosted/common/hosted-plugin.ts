@@ -79,7 +79,6 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
 
     protected readonly onUserPluginsDeployedEmitter = new Emitter<string>();
 
-
     protected readonly deferredWillStart = new Deferred<void>();
 
     protected checkMenubarPlugin = false;
@@ -125,7 +124,6 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
         const contributions = this.contributions.get(id);
         return contributions && contributions.plugin;
     }
-
 
     /** do not call it, except from the plugin frontend contribution */
     async onStart(container: interfaces.Container): Promise<void> {
@@ -222,10 +220,9 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
         let didChangeInstallationStatus = false;
         try {
             const newPluginIds: PluginIdentifiers.VersionedId[] = [];
-            const [deployedPluginIds, uninstalledPluginIds, allDeployedPlugins] = await Promise.all([
+            const [deployedPluginIds, uninstalledPluginIds] = await Promise.all([
                 this.server.getDeployedPluginIds(userInfo?.userId),
-                this.server.getUninstalledPluginIds(userInfo?.userId),
-                this.server.getAllDeployedPlugins(userInfo?.userId)
+                this.server.getUninstalledPluginIds(userInfo?.userId)
             ]);
 
 
@@ -245,16 +242,16 @@ export abstract class AbstractHostedPluginSupport<PM extends AbstractPluginManag
                 const unversionedId = PluginIdentifiers.unversionedFromVersioned(versionedId);
 
                 // 清理逻辑：如果已经存在该插件且版本不一致，则强制触发卸载和重新部署
-                const existing = this.contributions.get(unversionedId);
-                if (existing) {
-                    const existingVersionedId = PluginIdentifiers.componentsToVersionedId(existing.plugin.metadata.model);
-                    if (existingVersionedId !== versionedId) {
-                        this.logger.info(`[PLUGIN-HOST] 版本变化检测：${unversionedId} (${existingVersionedId} -> ${versionedId})。准备清理并重新部署。`);
-                        // 不从 toUnload 中删除，使其在后续循环中被 dispose
-                        newPluginIds.push(versionedId);
-                        continue;
-                    }
-                }
+                // const existing = this.contributions.get(unversionedId);
+                // if (existing) {
+                //     const existingVersionedId = PluginIdentifiers.componentsToVersionedId(existing.plugin.metadata.model);
+                //     if (existingVersionedId !== versionedId) {
+                //         this.logger.info(`[PLUGIN-HOST] 版本变化检测：${unversionedId} (${existingVersionedId} -> ${versionedId})。准备清理并重新部署。`);
+                //         // 不从 toUnload 中删除，使其在后续循环中被 dispose
+                //         newPluginIds.push(versionedId);
+                //         continue;
+                //     }
+                // }
 
                 toUnload.delete(unversionedId);
                 if (!this.contributions.has(unversionedId)) {

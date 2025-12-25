@@ -248,7 +248,7 @@ import { TextEditorExt } from './text-editor';
 import { ClipboardExt } from './clipboard-ext';
 import { WebviewsExtImpl } from './webviews';
 import { ExtHostFileSystemEventService } from './file-system-event-service-ext-impl';
-import { LabelServiceExtImpl } from './label-service';
+import { LabelServiceExtImpl } from '../plugin/label-service';
 import { TimelineExtImpl } from './timeline';
 import { ThemingExtImpl } from './theming';
 import { CommentsExtImpl } from './comments';
@@ -391,15 +391,31 @@ export function createAPIFactory(
         }
         const commands: typeof baosky.commands = {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            registerCommand(command: baosky.CommandDescription | string, handler?: <T>(...args: any[]) => T | Thenable<T | undefined>, thisArg?: any): Disposable {
-                // use of the ID when registering commands
-                if (typeof command === 'string') {
-                    if (handler && commandIsDeclaredInPackage(command, plugin.rawModel)) {
-                        return commandRegistry.registerHandler(command, handler, thisArg) as any;
+            registerCommand(
+                command: baosky.CommandDescription | string,
+                handler?: baosky.CommandHandler | ((...args: any[]) => any),
+                thisArg?: any
+            ): Disposable {
+
+                let normalizedHandler: baosky.CommandHandler | undefined;
+
+                if (handler) {
+                    if (typeof handler === 'function') {
+                        normalizedHandler = {
+                            execute: thisArg ? handler.bind(thisArg) : handler
+                        };
+                    } else {
+                        normalizedHandler = handler;
                     }
-                    return commandRegistry.registerCommand({ id: command }, handler, thisArg) as any;
                 }
-                return commandRegistry.registerCommand(command, handler, thisArg) as any;
+
+                if (typeof command === 'string') {
+                    if (normalizedHandler && commandIsDeclaredInPackage(command, plugin.rawModel)) {
+                        return commandRegistry.registerHandler(command, normalizedHandler) as any;
+                    }
+                    return commandRegistry.registerCommand({ id: command }, normalizedHandler) as any;
+                }
+                return commandRegistry.registerCommand(command, normalizedHandler) as any;
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             executeCommand<T>(commandId: string, ...args: any[]): PromiseLike<T | undefined> {
@@ -424,13 +440,21 @@ export function createAPIFactory(
                         console.warn('An error occurred while running command ' + command, err);
                     });
                 };
+
+                const commandHandlerObject = {
+                    execute: internalHandler
+                };
+
                 return commandIsDeclaredInPackage(command, plugin.rawModel)
-                    ? commandRegistry.registerHandler(command, internalHandler) as any
-                    : commandRegistry.registerCommand({ id: command }, internalHandler) as any;
+                    ? commandRegistry.registerHandler(command, commandHandlerObject) as any
+                    : commandRegistry.registerCommand({ id: command }, commandHandlerObject) as any;
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             registerHandler(commandId: string, handler: (...args: any[]) => any, thisArg?: any): Disposable {
-                return commandRegistry.registerHandler(commandId, handler, thisArg) as any;
+                const normalizedHandler = {
+                            execute: thisArg ? handler.bind(thisArg) : handler
+                        };
+                return commandRegistry.registerHandler(commandId, normalizedHandler) as any;
             },
             getKeyBindingForCommand(commandId: string): PromiseLike<baosky.CommandKeyBinding[] | undefined> {
                 return commandRegistry.getKeyBindingForCommand(commandId);
@@ -485,13 +509,13 @@ export function createAPIFactory(
         const registerPreferenceSettings = platformServiceExt.registerPreference.bind(platformServiceExt);
         const getPreferenceValue = platformServiceExt.getPreferenceValue.bind(platformServiceExt);
         const getPreferenceChecked = platformServiceExt.getPreferenceChecked.bind(platformServiceExt);
-        const platform = {
+        const platform: typeof baosky.platform = {
             registerPreferenceSettings,
             getPreferenceChecked,
             getPreferenceValue,
             getUserInfo,
+            isAdminUser,
             sendRoutineInfo,
-            InfoLevel,
             registerToolbar,
             gotoService,
             executeCrossReference,
@@ -505,23 +529,20 @@ export function createAPIFactory(
             async gotoHelp(route: string): Promise<void> {
                 return await platformServiceExt.gotoHelp(route, plugin);
             },
-            async openDialog(dialogProps: baosky.platform.DialogProps): Promise<void> {
+            async openDialog(dialogProps: baosky.DialogProps): Promise<void> {
                 return await platformServiceExt.openDialog(dialogProps);
             },
-            async getProjectPath(): Promise<URI> {
-                return await platformServiceExt.getProjectPath() as any;
+            async getProjectPath(): Promise<string> {
+                return await platformServiceExt.getProjectPath();
             },
-            async getProjectInfo(): Promise<baosky.projects.ProjectObject> {
+            async getProjectInfo(): Promise<baosky.ProjectObject> {
                 return await platformServiceExt.getProjectInfo();
             },
             async getDeviceParamsByPath(uri: URI): Promise<baosky.DeviceParams> {
                 return await platformServiceExt.getDeviceParamsByPath(uri as any);
             },
-            async getDevicePathByName(name: string): Promise<URI> {
+            async getDevicePathByName(name: string): Promise<string> {
                 return await platformServiceExt.getDevicePathByName(name) as any;
-            },
-            async getChildPathByDevice(uri: baosky.Uri, objectType: baosky.platform.CoreObject): Promise<baosky.Uri | undefined> {
-                return await platformServiceExt.getChildPathByDevice(uri, objectType);
             },
             async getModelVersion(name: string): Promise<number> {
                 return await platformServiceExt.getModelVersion(name);
@@ -529,25 +550,25 @@ export function createAPIFactory(
             async getAppVersion(): Promise<number> {
                 return await platformServiceExt.getAppVersion();
             },
-            async loadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.platform.LoadOptions, ctx?: baosky.platform.DataContext): Promise<void> {
+            async loadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.LoadOptions, ctx?: baosky.DataContext): Promise<void> {
                 return await platformServiceExt.loadObject(deviceName, path, options, ctx);
             },
             unloadObject(deviceName: string, path: string | baosky.Uri): void {
                 return platformServiceExt.unloadObject(deviceName, path);
             },
-            async reloadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.platform.LoadOptions, ctx?: baosky.platform.DataContext): Promise<void> {
+            async reloadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.LoadOptions, ctx?: baosky.DataContext): Promise<void> {
                 return await platformServiceExt.reloadObject(deviceName, path, options, ctx);
             },
             async reloadContainer(path: baosky.Uri, newPath?: baosky.Uri): Promise<void> {
                 return await platformServiceExt.reloadContainer(path, newPath);
             },
-            async validateName(name: string, nameSourceType: string, options?: baosky.platform.NameValidationOptions): Promise<baosky.platform.ValidationResult[]> {
+            async validateName(name: string, nameSourceType: string, options?: baosky.NameValidationOptions): Promise<baosky.ValidationResult[]> {
                 return await platformServiceExt.validateName(name, nameSourceType, options);
             },
-            async getNextName(location: baosky.Uri, options: baosky.platform.NextNameOptions): Promise<string> {
+            async getNextName(location: baosky.Uri, options: baosky.NextNameOptions): Promise<string> {
                 return await platformServiceExt.getNextName(location, options);
             },
-            async tryGetNextName(location: baosky.Uri, options: baosky.platform.NextNameOptions, nameList?: string[]): Promise<string> {
+            async tryGetNextName(location: baosky.Uri, options: baosky.NextNameOptions, nameList?: string[]): Promise<string> {
                 return await platformServiceExt.tryGetNextName(location, options, nameList);
             },
             async releaseName(): Promise<void> {
@@ -641,9 +662,9 @@ export function createAPIFactory(
         }
 
         const window: typeof baosky.window = {
-            // registerToolbarButton(libraryName: string, button: baosky.UserLibraryButton): Disposable {
-            //     return plcExt.registerToolbarButton(libraryName, button);
-            // },
+            registerMenuAction(location: baosky.MenuLocation, menuId: string, actions: baosky.MenuActions[]) {
+                return platformServiceExt.registerMenuAction(location, menuId, actions);
+            },
 
             selection() {
                 return platformServiceExt.selection();
@@ -1151,6 +1172,7 @@ export function createAPIFactory(
                 return createAPIObject(telemetryExt.createTelemetryLogger(sender, options));
             },
             get remoteName(): string | undefined { return envExt.remoteName; },
+            get appEndpoint(): string | undefined { return envExt.appEndpoint; },
             get machineId(): string { return envExt.machineId; },
             get sessionId(): string { return envExt.sessionId; },
             get uriScheme(): string { return envExt.uriScheme; },

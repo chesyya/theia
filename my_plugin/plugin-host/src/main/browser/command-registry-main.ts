@@ -70,11 +70,27 @@ export class CommandRegistryMainImpl implements CommandRegistryMain, Disposable 
     }
 
     $registerHandler(id: string): void {
-        this.handlers.set(id, this.contributions.registerCommandHandler(id, (...args) =>
-            this.proxy.$executeCommand(id, ...args.map(arg => this.argumentProcessors.reduce((currentValue, processor) => processor.processArgument(currentValue), arg)))
-        ));
+        const proxyHandler: theia.CommandHandler = {
+            execute: (...args) => {
+                const convertedArgs = args.map(arg =>
+                    this.argumentProcessors.reduce((val, processor) => processor.processArgument(val), arg)
+                );
+                return this.proxy.$executeCommand(id, ...convertedArgs);
+            },
+
+            isEnabled: (...args) => {
+                const convertedArgs = args.map(arg =>
+                    this.argumentProcessors.reduce((val, processor) => processor.processArgument(val), arg)
+                );
+                return this.proxy.$isEnabled(id, ...convertedArgs);
+            }
+        };
+
+        this.handlers.set(id, this.contributions.registerCommandHandler(id, proxyHandler));
+
         this.toDispose.push(Disposable.create(() => this.$unregisterHandler(id)));
     }
+
     $unregisterHandler(id: string): void {
         this.commandManager.unregisterPluginHandler(id);
         const handler = this.handlers.get(id);
@@ -88,7 +104,7 @@ export class CommandRegistryMainImpl implements CommandRegistryMain, Disposable 
 
     /**
      * @description 1.内置插件的command目前是全部允许直接调用的，后续会应用命令级别的不同权限管理
-     * 2.自己的组件比如说语言服务这些有一个白名单 
+     * 2.自己的组件比如说语言服务这些有一个白名单
      * @date 2025-12-02
      * @author 滕志宇
      *

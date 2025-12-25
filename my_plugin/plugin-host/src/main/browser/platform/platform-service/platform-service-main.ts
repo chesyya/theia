@@ -25,6 +25,9 @@ import { NavigateService, IRootContainerObjectLoadService } from '@baosky/platfo
 import { DirectiveExecutorService } from "@baosky/platform/lib/browser/directive";
 import { NameService } from "@baosky/platform/lib/browser/name/service/name-service";
 import { InfoViewContribution } from "@baosky/platform/lib/browser/info-view/info-view-contribution";
+import { IPluginCommandManager } from "../../command/plugin-command-manager-protocol";
+import { GotoCustomRoute, GotoCustomRouteService } from '@baosky/platform/lib/browser/framework/custom-route/goto-custom-route/goto-custom-route-protocol'
+import { UriComponents } from "@theia/core/lib/common/uri";
 
 
 export class PlatformServiceMainImpl implements PlatformServiceMain {
@@ -53,6 +56,8 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
     protected directiveExecutorService: DirectiveExecutorService;
     protected nameService: NameService;
     protected infoViewContribution: InfoViewContribution;
+    protected iPluginCommandManager: IPluginCommandManager;
+    protected gotoCustomRouteService: GotoCustomRouteService;
 
     constructor(container: interfaces.Container) {
         this.gototoService = container.get(GotoService);
@@ -81,6 +86,34 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
         this.directiveExecutorService = container.get(DirectiveExecutorService);
         this.nameService = container.get(NameService);
         this.infoViewContribution = container.get(InfoViewContribution);
+        this.iPluginCommandManager = container.get(IPluginCommandManager);
+        this.gotoCustomRouteService = container.get(GotoCustomRouteService);
+    }
+    async $registerMenuAction(location: baosky.MenuLocation, menuId: string, actions: baosky.MenuActions[]) {
+        if(location == 'tooltip'){
+            const options = actions.map((menu) => {
+                const handler = this.iPluginCommandManager.getPluginHandler(menu.command.command);
+                if(!handler)
+                    throw new Error(`command '${menu.command.command}' not found`);
+                const gotoUnit: GotoCustomRoute = {
+                    routeId: menu.command.command,
+                    label: menu.command.title,
+                    isEnable: handler.isEnabled,
+                    handle: handler.execute
+                }
+                return gotoUnit;
+            })
+            const success = this.gotoCustomRouteService.registerGotoCustomRoute(menuId, options);
+            return {
+                menuId: menuId,
+                actions: Array.from(success.keys())
+            }
+        }
+        return;
+    }
+
+    $removeMenuAction(menuId: string, commandId: string) {
+        this.gotoCustomRouteService.unRegisterGotoCustomRoute(menuId, commandId);
     }
 
     async $selection(): Promise<baosky.GlobalSelection[]> {
@@ -188,14 +221,14 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
         const result = await this.languageService.crossreference(newPara) as baosky.CrossReferenceResponse;
         return result;
     }
-    async $decorateInteractiveTarget(target: baosky.platform.InteractiveTarget): Promise<void> {
+    async $decorateInteractiveTarget(target: baosky.InteractiveTarget): Promise<void> {
         return this.infoPanelTabBarDecorateService.decorateTabBar(InfoPanelTitleKind[target.id]);
     }
     async $gotoHelp(pluginId: string, route: string): Promise<void> {
         this.goToHelpService.goToHelpRelativePath(`${route}`, 'Plugins');
     }
 
-    async $goto(gotoOptions: baosky.platform.GotoOptions): Promise<void> {
+    async $goto(gotoOptions: baosky.GotoOptions): Promise<void> {
         const path = URI.fromFilePath(gotoOptions.path.path);
         const gotoInfo = new GotoInfo({
             path,
@@ -204,7 +237,7 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
         await this.gototoService.goto(gotoInfo);
     }
 
-    async $openDialog(dialogProps: baosky.platform.DialogProps, callbackId: string[]): Promise<boolean> {
+    async $openDialog(dialogProps: baosky.DialogProps, callbackId: string[]): Promise<boolean> {
         switch (dialogProps.type) {
             case 'loadingDialog': {
                 const dialog = this.commonLoadingPageDialogFactory(dialogProps.props);
@@ -218,24 +251,22 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
         }
     }
 
-    public async $getProjectPath(): Promise<baosky.Uri> {
-        return this.navigateService.getProjectPath() as any;
+    public async $getProjectPath(): Promise<string> {
+        const uri = this.navigateService.getProjectPath();
+        return uri.path.fsPath();
     }
 
-    public async $getProjectInfo(): Promise<baosky.projects.ProjectObject> {
+    public async $getProjectInfo(): Promise<baosky.ProjectObject> {
         return this.navigateService.getProjectInfo();
     }
 
-    public async $getDeviceParamsByPath(uri: baosky.Uri): Promise<baosky.DeviceParams> {
-        return this.navigateService.getDeviceParamsByPath(uri as any);
+    public async $getDeviceParamsByPath(uri: UriComponents): Promise<baosky.DeviceParams> {
+        return this.navigateService.getDeviceParamsByPath(URI.fromComponents(uri));
     }
 
-    public async $getDevicePathByName(name: string): Promise<baosky.Uri> {
-        return this.navigateService.getDevicePathByName(name) as any;
-    }
-
-    public async $getChildPathByDevice(uri: baosky.Uri, objectType: baosky.platform.CoreObject): Promise<baosky.Uri | undefined> {
-        return this.navigateService.getChildPathByDevice(uri as any, objectType as any) as any;
+    public async $getDevicePathByName(name: string): Promise<string> {
+        const uri = this.navigateService.getDevicePathByName(name);
+        return uri.path.fsPath();
     }
 
     public async $getModelVersion(name: string): Promise<number> {
@@ -246,32 +277,32 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
         return this.navigateService.getAppVersion();
     }
 
-    public async $loadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.platform.LoadOptions, ctx?: baosky.platform.DataContext): Promise<void> {
-        return await this.rootContainerObjectLoadService.loadObject(deviceName, path as any, options as any, ctx);
+    public async $loadObject(deviceName: string, path: string | UriComponents, options?: baosky.LoadOptions, ctx?: baosky.DataContext): Promise<void> {
+        return await this.rootContainerObjectLoadService.loadObject(deviceName, typeof(path) == 'string' ? path : URI.fromComponents(path), options as any, ctx);
     }
 
-    public $unloadObject(deviceName: string, path: string | baosky.Uri): void {
-        return this.rootContainerObjectLoadService.unloadObject(deviceName, path as any);
+    public $unloadObject(deviceName: string, path: string | UriComponents): void {
+        return this.rootContainerObjectLoadService.unloadObject(deviceName, typeof(path) == 'string' ? path : URI.fromComponents(path));
     }
 
-    public async $reloadObject(deviceName: string, path: string | baosky.Uri, options?: baosky.platform.LoadOptions, ctx?: baosky.platform.DataContext): Promise<void> {
-        return await this.rootContainerObjectLoadService.reloadObject(deviceName, path as any, options as any, ctx);
+    public async $reloadObject(deviceName: string, path: string | UriComponents, options?: baosky.LoadOptions, ctx?: baosky.DataContext): Promise<void> {
+        return await this.rootContainerObjectLoadService.reloadObject(deviceName, typeof(path) == 'string' ? path : URI.fromComponents(path), options as any, ctx);
     }
 
-    public async $reloadContainer(path: baosky.Uri, newPath?: baosky.Uri): Promise<void> {
-        return await this.rootContainerObjectLoadService.reloadContainer(path as any, newPath as any);
+    public async $reloadContainer(path: UriComponents, newPath?: UriComponents): Promise<void> {
+        return await this.rootContainerObjectLoadService.reloadContainer(URI.fromComponents(path), newPath ? URI.fromComponents(newPath) : undefined);
     }
 
-    public async $validateName(name: string, nameSourceType: string, options?: baosky.platform.NameValidationOptions): Promise<baosky.platform.ValidationResult[]> {
+    public async $validateName(name: string, nameSourceType: string, options?: baosky.NameValidationOptions): Promise<baosky.ValidationResult[]> {
         return await this.nameService.validateName(name, nameSourceType, options);
     }
 
-    public async $getNextName(location: baosky.Uri, options: baosky.platform.NextNameOptions): Promise<string> {
-        return await this.nameService.getNextName(location as any, options)
+    public async $getNextName(location: UriComponents, options: baosky.NextNameOptions): Promise<string> {
+        return await this.nameService.getNextName(URI.fromComponents(location), options)
     }
 
-    public async $tryGetNextName(location: baosky.Uri, options: baosky.platform.NextNameOptions, nameList?: string[]): Promise<string> {
-        return await this.nameService.tryGetNextName(location as any, options, nameList)
+    public async $tryGetNextName(location: UriComponents, options: baosky.NextNameOptions, nameList?: string[]): Promise<string> {
+        return await this.nameService.tryGetNextName(URI.fromComponents(location), options, nameList)
     }
 
     public async $releaseName(): Promise<void> {
@@ -316,7 +347,9 @@ export class PlatformServiceMainImpl implements PlatformServiceMain {
      * @param {?boolean} [stopAutoScroll]
      * @returns {Promise<void>}
      */
-    public async $focusInfoViewTab(type: string, stopAutoScroll?: boolean): Promise<void>{
+    public async $focusInfoViewTab(type: string, stopAutoScroll?: boolean): Promise<void> {
         await this.infoViewContribution.focusTab(type, stopAutoScroll);
     }
 }
+
+

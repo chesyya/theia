@@ -23,7 +23,6 @@ import { PluginEnvironment } from '../common/plugin-environment';
 import { PluginTheiaDeployerParticipant } from './plugin-theia-deployer-participant';
 import { WebviewBackendSecurityWarnings } from './webview-backend-security-warnings';
 import { PluginUninstallationManager } from './plugin-uninstallation-manager';
-// import { PluginOverrideManager } from './plugin-override-manager';
 import { LocalizationServerImpl } from '@theia/core/lib/node/i18n/localization-server';
 import { PluginLocalizationServer } from './plugin-localization-server';
 import { PluginMgmtCliContribution } from './plugin-mgmt-cli-contribution';
@@ -49,7 +48,6 @@ export function bindMainBackend(bind: interfaces.Bind, unbind: interfaces.Unbind
     bind(BackendApplicationContribution).toService(PluginDeployerContribution);
 
     bind(PluginUninstallationManager).toSelf().inSingletonScope();
-    // bind(PluginOverrideManager).toSelf().inSingletonScope();
 
     //绑定plugin resolver
     bind(PluginDeployerResolver).to(LocalDirectoryPluginDeployerResolver).inSingletonScope();
