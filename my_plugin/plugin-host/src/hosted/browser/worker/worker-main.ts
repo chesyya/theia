@@ -180,7 +180,7 @@ const handler = {
             defaultApi = apiFactory(emptyPlugin);
         }
 
-        return (defaultApi as any)[name];
+        return defaultApi;
     }
 };
 ctx['baosky'] = new Proxy(Object.create(null), handler);
