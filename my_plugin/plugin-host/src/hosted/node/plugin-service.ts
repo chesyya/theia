@@ -112,10 +112,15 @@ export class HostedPluginServerImpl implements HostedPluginServer {
                 this.uninstallationManager.onDidChangeUninstalledPlugins(currentUninstalled => {
                     if (this.uninstalledPlugins) {
                         const uninstalled = new Set(currentUninstalled.versionIds);
+                        // Remove plugins that are no longer uninstalled
                         for (const previouslyUninstalled of this.uninstalledPlugins) {
                             if (!uninstalled.has(previouslyUninstalled)) {
                                 this.uninstalledPlugins.delete(previouslyUninstalled);
                             }
+                        }
+                        // Add newly uninstalled plugins
+                        for (const newUninstalled of uninstalled) {
+                            this.uninstalledPlugins.add(newUninstalled);
                         }
                     }
                     this.client?.onDidDeploy();

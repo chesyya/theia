@@ -453,8 +453,8 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
                 : [key]; // 其他用户只查自己对应的作用域
             scopesToCheck.forEach(scope => {
                 // Don't delete from deployed plugins - keep them for outOfSync mechanism
-                this.deployedBackendPlugins.get(scope)?.delete(pluginId);
-                this.deployedFrontendPlugins.get(scope)?.delete(pluginId);
+                // this.deployedBackendPlugins.get(scope)?.delete(pluginId);
+                // this.deployedFrontendPlugins.get(scope)?.delete(pluginId);
                 const scopeOptions = this.createOptionsForScope(scope);
                 this.uninstallationManager.markAsUninstalled(scopeOptions, pluginId);
             })
