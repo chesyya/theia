@@ -32,11 +32,17 @@ export const VsxExtensionsPreferenceSchema: PreferenceSchema = {
             default: false,
             description: nls.localize('theia/vsx-registry/onlyShowVerifiedExtensionsDescription', 'This allows the {0} to only show verified extensions.', 'Open VSX Registry')
         },
+        'extensions.recommendedApiUrl': {
+            type: 'string',
+            description: nls.localize('theia/vsx-registry/recommendedApiUrlDescription', 'URL of the API endpoint to fetch recommended extensions dynamically.'),
+            default: ''
+        },
     }
 };
 
 export interface VsxExtensionsConfiguration {
     'extensions.onlyShowVerifiedExtensions': boolean;
+    'extensions.recommendedApiUrl': string;
 }
 
 export const VsxExtensionsPreferenceContribution = Symbol('VsxExtensionsPreferenceContribution');

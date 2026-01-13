@@ -34,6 +34,7 @@ import { OVSXClientProvider } from '../common/ovsx-client-provider';
 import { RequestContext, RequestService } from '@theia/core/shared/@theia/request';
 import { OVSXApiFilterProvider } from '@theia/ovsx-client';
 import { ApplicationServer } from '@theia/core/lib/common/application-protocol';
+import { VSXRecommendedApiService } from '../common/vsx-recommended-api';
 
 @injectable()
 export class VSXExtensionsModel {
@@ -89,14 +90,20 @@ export class VSXExtensionsModel {
     @inject(ApplicationServer)
     protected readonly applicationServer: ApplicationServer;
 
+    @inject(VSXRecommendedApiService)
+    protected readonly recommendedApiService: VSXRecommendedApiService;
+
     @postConstruct()
     protected init(): void {
         this.initialized = this.doInit().catch(console.error);
     }
 
     protected async doInit(): Promise<void> {
+        // 优先初始化已安装的插件，避免与在线商店数据冲突
+        await this.initInstalled();
+
+        // 然后并行初始化搜索结果和推荐列表
         await Promise.all([
-            this.initInstalled(),
             this.initSearchResult(),
             this.initRecommended(),
         ]);
@@ -434,6 +441,7 @@ export class VSXExtensionsModel {
             const allRecommendations = new Set<string>();
             const allUnwantedRecommendations = new Set<string>();
 
+            // 1. 从配置文件中获取推荐列表（保留原有逻辑）
             const updateRecommendationsForScope = (scope: PreferenceInspectionScope, root?: URI) => {
                 const { recommendations, unwantedRecommendations } = this.getRecommendationsForScope(scope, root);
                 recommendations.forEach(recommendation => allRecommendations.add(recommendation));
@@ -448,6 +456,20 @@ export class VSXExtensionsModel {
             if (this.workspaceService.saved) {
                 updateRecommendationsForScope('workspaceValue');
             }
+
+            // 2. 从接口动态获取推荐列表（新增逻辑）
+            try {
+                const apiRecommendations = await this.recommendedApiService.fetchRecommendedExtensions();
+                if (apiRecommendations) {
+                    apiRecommendations.recommendations.forEach(recommendation => allRecommendations.add(recommendation));
+                    apiRecommendations.unwantedRecommendations?.forEach(unwantedRecommendation => allUnwantedRecommendations.add(unwantedRecommendation));
+                }
+            } catch (error) {
+                console.error('[VSXExtensionsModel] 从接口获取推荐插件失败:', error);
+                // 即使接口失败，也继续使用配置文件中的推荐列表
+            }
+
+            // 3. 合并、排序并应用
             const recommendedSorted = new Set(Array.from(allRecommendations).sort((a, b) => this.compareExtensions(a, b)));
             allUnwantedRecommendations.forEach(unwantedRecommendation => recommendedSorted.delete(unwantedRecommendation));
             this._recommended = recommendedSorted;

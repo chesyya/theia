@@ -41,6 +41,8 @@ import { LanguageQuickPickService } from '@theia/core/lib/browser/i18n/language-
 import { VSXLanguageQuickPickService } from './vsx-language-quick-pick-service';
 import { VsxExtensionArgumentProcessor } from './vsx-extension-argument-processor';
 import { ArgumentProcessorContribution } from '@theia/plugin-ext/lib/main/browser/command-registry-main';
+import { VSXRecommendedApiService } from '../common/vsx-recommended-api';
+import { VSXRecommendedApiServiceImpl } from './vsx-recommended-api-impl';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(VSXEnvironment)
@@ -52,6 +54,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
         child.bind(VSXExtensionOptions).toConstantValue(option);
         return child.get(VSXExtension);
     });
+    bind(VSXRecommendedApiService).to(VSXRecommendedApiServiceImpl).inSingletonScope();
     bind(VSXExtensionsModel).toSelf().inSingletonScope();
 
     bind(VSXExtensionEditor).toSelf();
