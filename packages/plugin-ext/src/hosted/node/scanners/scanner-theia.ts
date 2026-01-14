@@ -185,7 +185,10 @@ export class TheiaPluginScanner extends AbstractPluginScanner {
             frontend: plugin.theiaPlugin!.frontend,
             backend: plugin.theiaPlugin!.backend
         };
-        if (plugin.theiaPlugin?.headless) {
+        // Support VSCode-style root-level headless field first, fallback to Theia-specific extension
+        if (plugin.headless) {
+            result.headless = plugin.headless;
+        } else if (plugin.theiaPlugin?.headless) {
             result.headless = plugin.theiaPlugin.headless;
         }
         return result;

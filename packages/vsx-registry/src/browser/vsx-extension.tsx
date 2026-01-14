@@ -182,23 +182,24 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
         return !!this.plugin?.metadata.model.disabled;
     }
 
-    async enable(): Promise<void> {
-        const plugin = this.plugin;
-        if (plugin) {
-            const id = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
-            await this.pluginServer.enable(id);
-            this.reloadWindow();
-        }
-    }
+    // TODO: Re-enable when PluginServer.enable/disable are implemented
+    // async enable(): Promise<void> {
+    //     const plugin = this.plugin;
+    //     if (plugin) {
+    //         const id = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
+    //         await this.pluginServer.enable(id);
+    //         this.reloadWindow();
+    //     }
+    // }
 
-    async disable(): Promise<void> {
-        const plugin = this.plugin;
-        if (plugin) {
-            const id = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
-            await this.pluginServer.disable(id);
-            this.reloadWindow();
-        }
-    }
+    // async disable(): Promise<void> {
+    //     const plugin = this.plugin;
+    //     if (plugin) {
+    //         const id = PluginIdentifiers.componentsToUnversionedId(plugin.metadata.model);
+    //         await this.pluginServer.disable(id);
+    //         this.reloadWindow();
+    //     }
+    // }
 
     update(data: Partial<VSXExtensionData>): void {
         for (const key of VSXExtensionData.KEYS) {
@@ -460,10 +461,14 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
 
     readonly updateExtension = async (event?: React.MouseEvent) => {
         event?.stopPropagation();
+        const latestVersion = this.props.extension.latestVersion;
+        if (!latestVersion) {
+            return;
+        }
         this.forceUpdate();
         try {
             const pending = this.props.extension.install({
-                version: this.props.extension.latestVersion,
+                version: latestVersion,
                 ignoreOtherVersions: true
             });
             this.forceUpdate();
@@ -473,15 +478,16 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
         }
     };
 
-    readonly enable = async (event?: React.MouseEvent) => {
-        event?.stopPropagation();
-        this.props.extension.enable();
-    };
+    // TODO: Re-enable when PluginServer.enable/disable are implemented
+    // readonly enable = async (event?: React.MouseEvent) => {
+    //     event?.stopPropagation();
+    //     this.props.extension.enable();
+    // };
 
-    readonly disable = async (event?: React.MouseEvent) => {
-        event?.stopPropagation();
-        this.props.extension.disable();
-    };
+    // readonly disable = async (event?: React.MouseEvent) => {
+    //     event?.stopPropagation();
+    //     this.props.extension.disable();
+    // };
 
     readonly reloadWindow = (event?: React.MouseEvent) => {
         event?.stopPropagation();
@@ -495,7 +501,8 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
 
     protected renderAction(host?: TreeWidget): React.ReactNode {
         const { builtin, busy, plugin, version, latestVersion } = this.props.extension;
-        const disabled = this.props.extension.disabled;
+        // TODO: Re-enable when PluginServer.enable/disable are implemented
+        // const disabled = this.props.extension.disabled;
         const isFocused = (host?.model.getFocusedNode() as TreeElementNode)?.element === this.props.extension;
         const tabIndex = (!host || isFocused) ? 0 : undefined;
         const installed = !!plugin;
@@ -519,11 +526,13 @@ export abstract class AbstractVSXExtensionComponent<Props extends AbstractVSXExt
                         ? <button className="theia-button action" onClick={this.reloadWindow}>{nls.localizeByDefault('Reload Window')}</button>
                         : <button className="theia-button action" onClick={this.uninstall}>{nls.localizeByDefault('Uninstall')}</button>
                 }
+                {/* TODO: Re-enable when PluginServer.enable/disable are implemented
                 {
                     disabled
                         ? <button className="theia-button action" onClick={this.enable}>{nls.localizeByDefault('Enable')}</button>
                         : <button className="theia-button action" onClick={this.disable}>{nls.localizeByDefault('Disable')}</button>
                 }
+                */}
 
                 <div className="codicon codicon-settings-gear action" onClick={this.manage}></div>
             </div>;

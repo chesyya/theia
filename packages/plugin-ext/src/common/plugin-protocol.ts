@@ -54,6 +54,8 @@ export interface PluginPackage {
     };
     main?: string;
     browser?: string;
+    /* VSCode-style root-level headless entry point. Requires the `@theia/plugin-ext-headless` extension. */
+    headless?: string;
     displayName: string;
     description: string;
     contributes?: PluginPackageContribution;
@@ -1070,8 +1072,8 @@ export interface PluginServer {
     deploy(pluginEntry: string, type?: PluginType, options?: PluginDeployOptions): Promise<void>;
     uninstall(pluginId: PluginIdentifiers.VersionedId): Promise<void>;
     undeploy(pluginId: PluginIdentifiers.VersionedId): Promise<void>;
-    enable(pluginId: string): Promise<void>;
-    disable(pluginId: string): Promise<void>;
+    // enable(pluginId: string): Promise<void>;
+    // disable(pluginId: string): Promise<void>;
 
     setStorageValue(key: string, value: KeysToAnyValues, kind: PluginStorageKind): Promise<boolean>;
     getStorageValue(key: string, kind: PluginStorageKind): Promise<KeysToAnyValues>;

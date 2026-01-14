@@ -1,4 +1,4 @@
-import { createProxyIdentifier, ProxyIdentifier } from './rpc-protocol';
+import { createProxyIdentifier } from './rpc-protocol';
 
 export interface ActionContext {
     anchorId: string;
@@ -13,7 +13,7 @@ export interface AsyncActionItem {
     tooltip?: string;
     visible?: boolean;
     enabled?: boolean;
-    
+
     // Internal use
     _providerId?: string;
 }

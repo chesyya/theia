@@ -29,12 +29,19 @@ export class TheiaHeadlessPluginScanner extends AbstractPluginScanner {
     }
 
     protected getEntryPoint(plugin: PluginPackage): PluginEntryPoint {
+        // Support VSCode-style root-level headless field first
+        if (plugin?.headless) {
+            return {
+                headless: plugin.headless
+            };
+        }
+        // Fallback to Theia-specific theiaPlugin.headless
         if (plugin?.theiaPlugin?.headless) {
             return {
                 headless: plugin.theiaPlugin.headless
             };
-        };
-
+        }
+        // Finally fallback to main
         return {
             headless: plugin.main
         };

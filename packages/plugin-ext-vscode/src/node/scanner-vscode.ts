@@ -51,9 +51,11 @@ export class VsCodePluginScanner extends TheiaPluginScanner implements PluginSca
             // Default to using backend
             entryPoint.backend = plugin.main;
         }
-        if (plugin.theiaPlugin?.headless) {
-            // Support the Theia-specific extension for headless plugins
-            entryPoint.headless = plugin.theiaPlugin?.headless;
+        // Support VSCode-style root-level headless field first, fallback to Theia-specific extension
+        if (plugin.headless) {
+            entryPoint.headless = plugin.headless;
+        } else if (plugin.theiaPlugin?.headless) {
+            entryPoint.headless = plugin.theiaPlugin.headless;
         }
 
         const result: PluginModel = {

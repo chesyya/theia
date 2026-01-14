@@ -39,7 +39,8 @@ export class HeadlessPluginManagerExtImpl extends AbstractPluginManagerExtImpl<H
     }
 
     protected override getActivationEvents(plugin: Plugin): string[] | undefined {
-        const result = plugin.rawModel?.headless?.activationEvents;
+        // VSCode-style: activationEvents at root level
+        const result = plugin.rawModel?.activationEvents;
         return Array.isArray(result) ? result : undefined;
     }
 

@@ -53,7 +53,7 @@ export class VSXRecommendedApiServiceImpl implements VSXRecommendedApiService {
 
             const response = await this.requestService.request({
                 url: apiUrl,
-                method: 'GET',
+                type: 'GET',
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json'

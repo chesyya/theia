@@ -755,7 +755,7 @@ export function createAPIFactory(
                                     };
 
                                     // 调用 main 端的权限检查服务
-                                    await modulePermissionMain.$checkModulePermission(operation, currentPlugin);
+                                    await modulePermissionMain.$checkModulePermission(operation);
 
                                     // 权限检查通过，加入缓存
                                     permissionCheckedCache.add(cacheKey);

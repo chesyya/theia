@@ -21,13 +21,13 @@ declare module '@theia/plugin-ext' {
    * Extension of the package manifest interface defined by the core plugin framework.
    */
   interface PluginPackage {
-      /**
-       * Analogues of declarations offered by VS Code plugins, but for the headless instantiation.
-       */
-      headless?: {
-          /** Activation events supported in headless mode, if any. */
-          activationEvents?: string[];
-      }
+    /**
+     * Analogues of declarations offered by VS Code plugins, but for the headless instantiation.
+     */
+    // headless?: {
+    /** Activation events supported in headless mode, if any. */
+    activationEvents?: string[];
+    // }
   }
 }
 
