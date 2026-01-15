@@ -18,7 +18,7 @@ import * as path from 'path';
 import { bindContributionProvider } from '@theia/core/lib/common/contribution-provider';
 import { BackendApplicationContribution } from '@theia/core/lib/node';
 import { ContainerModule, interfaces } from '@theia/core/shared/inversify';
-import { ExtPluginApiProvider, HostedPluginServer, PluginHostEnvironmentVariable, PluginScanner } from '@theia/plugin-ext';
+import { ExtPluginApiProvider, HostedPluginServer, MainPluginApiProvider, PluginHostEnvironmentVariable, PluginScanner } from '@theia/plugin-ext';
 import { HostedPluginSupport } from '@theia/plugin-ext/lib/hosted/node/hosted-plugin';
 import { HostedPluginProcess, HostedPluginProcessConfiguration } from '@theia/plugin-ext/lib/hosted/node/hosted-plugin-process';
 import { BackendPluginHostableFilter } from '@theia/plugin-ext/lib/hosted/node/plugin-service';
@@ -28,6 +28,8 @@ import { HeadlessHostedPluginSupport, isHeadlessPlugin } from './headless-hosted
 import { TheiaHeadlessPluginScanner } from './scanners/scanner-theia-headless';
 import { SupportedHeadlessActivationEvents } from '../../common/headless-plugin-protocol';
 import { HeadlessHostedPluginServerImpl } from './headless-plugin-service';
+import { HeadlessServiceMainImpl } from '../../main/node/headless-service-main-impl';
+import { HeadlessServiceExtPluginApiProvider, HeadlessServiceMainPluginApiProvider } from '../../main/node/headless-service-api-provider';
 
 export function bindCommonHostedBackend(bind: interfaces.Bind): void {
     bind(HostedPluginProcess).toSelf().inSingletonScope();
@@ -45,6 +47,13 @@ export function bindCommonHostedBackend(bind: interfaces.Bind): void {
     bind(HostedPluginProcessConfiguration).toConstantValue({
         path: path.join(__dirname, 'plugin-host-headless'),
     });
+
+    // Headless Service API bindings (example extension API)
+    bind(HeadlessServiceMainImpl).toSelf().inSingletonScope();
+    bind(HeadlessServiceExtPluginApiProvider).toSelf().inSingletonScope();
+    bind(Symbol.for(ExtPluginApiProvider)).toService(HeadlessServiceExtPluginApiProvider);
+    bind(HeadlessServiceMainPluginApiProvider).toSelf().inSingletonScope();
+    bind(MainPluginApiProvider).toService(HeadlessServiceMainPluginApiProvider);
 }
 
 export function bindHeadlessHosted(bind: interfaces.Bind): void {

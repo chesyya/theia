@@ -60,6 +60,14 @@ configs.forEach(config => {
     }
 });
 
+// Enable @theia/headless-service API for headless plugins
+if (nodeConfig.config.entry) {
+    nodeConfig.config.entry['headless-service-init'] = {
+        import: require.resolve('@theia/plugin-ext-headless/lib/plugin/headless-service-init'),
+        library: { type: 'commonjs2' }
+    };
+}
+
 module.exports = [
     ...configs,
     nodeConfig.config
