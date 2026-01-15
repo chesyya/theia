@@ -115,9 +115,9 @@ class HeadlessServiceApiFactoryImpl {
             getGlobalState: <T>(key: string) => ext.getGlobalState<T>(key),
             log: (level, message) => ext.log(level, message),
             scheduleTask: (taskId, delayMs, callback) => ext.scheduleTask(taskId, delayMs, callback),
-            cancelTask: (taskId) => ext.cancelTask(taskId),
-            onTaskTriggered: (listener) => ext.onTaskTriggered(listener),
-            onGlobalStateChanged: (listener) => ext.onGlobalStateChanged(listener)
+            cancelTask: taskId => ext.cancelTask(taskId),
+            onTaskTriggered: listener => ext.onTaskTriggered(listener),
+            onGlobalStateChanged: listener => ext.onGlobalStateChanged(listener)
         };
     }
 }

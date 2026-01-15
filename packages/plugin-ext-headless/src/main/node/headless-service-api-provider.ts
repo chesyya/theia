@@ -15,7 +15,6 @@
  * It tells the plugin host where to find the API initialization script.
  */
 
-import * as path from 'path';
 import { injectable, inject } from '@theia/core/shared/inversify';
 import { ExtPluginApiProvider, ExtPluginApi, MainPluginApiProvider } from '@theia/plugin-ext';
 import { RPCProtocol } from '@theia/plugin-ext/lib/common/rpc-protocol';
@@ -29,10 +28,15 @@ import { HEADLESS_SERVICE_PLUGIN_RPC_CONTEXT } from '../../common/headless-servi
 export class HeadlessServiceExtPluginApiProvider implements ExtPluginApiProvider {
 
     provideApi(): ExtPluginApi {
+        // Use dynamic require to prevent webpack from resolving at compile time
+        // This ensures the path is resolved at runtime to an absolute path
+        const modulePath = '@theia/plugin-ext-headless/lib/plugin/headless-service-init';
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const resolvedPath = require('module').createRequire(__filename).resolve(modulePath);
         return {
             // Path to the initialization script that will be loaded in the headless plugin host
             // This script exports the containerModule that sets up the API
-            headlessInitPath: path.join(__dirname, '../../plugin/headless-service-init')
+            headlessInitPath: resolvedPath
         };
     }
 }
