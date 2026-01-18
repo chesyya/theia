@@ -1,4 +1,0 @@
-include:
-  - project: "lishuzhi/template"
-    ref: main
-    file: "/ci/node.yml"

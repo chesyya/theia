@@ -43,11 +43,18 @@ import { VsxExtensionArgumentProcessor } from './vsx-extension-argument-processo
 import { ArgumentProcessorContribution } from '@theia/plugin-ext/lib/main/browser/command-registry-main';
 import { VSXRecommendedApiService } from '../common/vsx-recommended-api';
 import { VSXRecommendedApiServiceImpl } from './vsx-recommended-api-impl';
+import { PluginConfirmationDialogFactory, PluginConfirmationDialog, PluginConfirmationDialogProps } from './plugin-confirmation-dialog';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(VSXEnvironment)
         .toDynamicValue(ctx => WebSocketConnectionProvider.createProxy(ctx.container, VSX_ENVIRONMENT_PATH))
         .inSingletonScope();
+    bind(PluginConfirmationDialogFactory).toFactory(ctx => (props: PluginConfirmationDialogProps) => {
+        const child = ctx.container.createChild();
+        child.bind(PluginConfirmationDialogProps).toConstantValue(props);
+        child.bind(PluginConfirmationDialog).toSelf();
+        return child.get(PluginConfirmationDialog);
+    });
     bind(VSXExtension).toSelf();
     bind(VSXExtensionFactory).toFactory(ctx => (option: VSXExtensionOptions) => {
         const child = ctx.container.createChild();

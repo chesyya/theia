@@ -33,6 +33,7 @@ import { codicon, ConfirmDialog, ContextMenuRenderer, HoverService, TreeWidget }
 import { VSXExtensionNamespaceAccess, VSXUser } from '@theia/ovsx-client/lib/ovsx-types';
 import { WindowService } from '@theia/core/lib/browser/window/window-service';
 import { MarkdownStringImpl } from '@theia/core/lib/common/markdown-rendering';
+import { PluginConfirmationDialogFactory } from './plugin-confirmation-dialog';
 
 export const EXTENSIONS_CONTEXT_MENU: MenuPath = ['extensions_context_menu'];
 
@@ -138,6 +139,9 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
 
     @inject(CommandRegistry)
     readonly commandRegistry: CommandRegistry;
+
+    @inject(PluginConfirmationDialogFactory)
+    protected readonly pluginConfirmationDialogFactory: PluginConfirmationDialogFactory;
 
     protected readonly data: Partial<VSXExtensionData> = {};
 
@@ -340,6 +344,21 @@ export class VSXExtension implements VSXExtensionData, TreeElement {
     }
 
     async install(options?: PluginDeployOptions): Promise<void> {
+        try {
+            const info = await this.pluginServer.resolvePluginInfo(this.uri.toString());
+            if (info) {
+                const dialog = this.pluginConfirmationDialogFactory({
+                    pluginInfo: info,
+                    title: nls.localize('plugin.install.confirmation', 'Confirm Plugin Installation')
+                });
+                if (!(await dialog.open())) {
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to resolve plugin info', e);
+        }
+
         if (!this.verified) {
             const choice = await new ConfirmDialog({
                 title: nls.localize('theia/vsx-registry/confirmDialogTitle', 'Are you sure you want to proceed with the installation ?'),

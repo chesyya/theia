@@ -42,6 +42,10 @@ import { VSXExtensionsViewContainer } from './vsx-extensions-view-container';
 import { ApplicationServer } from '@theia/core/lib/common/application-protocol';
 import debounce = require('@theia/core/shared/lodash.debounce');
 
+import { FileService } from '@theia/filesystem/lib/browser/file-service';
+import { PluginServer } from '@theia/plugin-ext/lib/common/plugin-protocol';
+import { PluginConfirmationDialogFactory } from './plugin-confirmation-dialog';
+
 export namespace VSXCommands {
     export const TOGGLE_EXTENSIONS: Command = {
         id: 'vsxExtensions.toggle',
@@ -63,6 +67,9 @@ export class VSXExtensionsContribution extends AbstractViewContribution<VSXExten
     @inject(ApplicationServer) protected applicationServer: ApplicationServer;
     @inject(QuickInputService) protected quickInput: QuickInputService;
     @inject(SelectionService) protected readonly selectionService: SelectionService;
+    @inject(PluginServer) protected readonly pluginServer: PluginServer;
+    @inject(FileService) protected readonly fileService: FileService;
+    @inject(PluginConfirmationDialogFactory) protected readonly pluginConfirmationDialogFactory: PluginConfirmationDialogFactory;
 
     constructor() {
         super({
@@ -248,6 +255,19 @@ export class VSXExtensionsContribution extends AbstractViewContribution<VSXExten
     protected async installVsixFile(fileURI: URI): Promise<void> {
         const extensionName = this.labelProvider.getName(fileURI);
         try {
+            const fsPath = await this.fileService.fsPath(fileURI);
+            const info = await this.pluginServer.resolvePluginInfo(`local-file:${fsPath}`);
+            
+            if (info) {
+                const dialog = this.pluginConfirmationDialogFactory({
+                    pluginInfo: info,
+                    title: nls.localize('plugin.install.confirmation', 'Confirm Plugin Installation')
+                });
+                if (!(await dialog.open())) {
+                    return;
+                }
+            }
+
             await this.commandRegistry.executeCommand(VscodeCommands.INSTALL_FROM_VSIX.id, fileURI);
             this.messageService.info(nls.localizeByDefault('Completed installing {0} extension from VSIX.', extensionName));
         } catch (e) {

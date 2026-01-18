@@ -20,7 +20,8 @@ import { PluginDeployerImpl } from './plugin-deployer-impl';
 import { PluginsKeyValueStorage } from './plugins-key-value-storage';
 import {
     PluginServer, PluginDeployer, PluginStorageKind, PluginType, UnresolvedPluginEntry, PluginIdentifiers,
-    PluginDeployOptions, PluginDeployerHandler
+    PluginDeployOptions, PluginDeployerHandler,
+    PluginInstallInfo
 } from '../../common/plugin-protocol';
 import { KeysToAnyValues, KeysToKeysToAnyValue } from '../../common/types';
 import { PluginUninstallationManager } from './plugin-uninstallation-manager';
@@ -39,6 +40,14 @@ export class PluginServerImpl implements PluginServer {
 
     @inject(PluginUninstallationManager)
     protected readonly uninstallationManager: PluginUninstallationManager;
+
+    async resolvePluginInfo(pluginEntry: string): Promise<PluginInstallInfo | undefined> {
+        return this.pluginDeployer.resolvePluginInfo(pluginEntry);
+    }
+
+    async cancelDeployment(pluginEntry: string): Promise<void> {
+        return this.pluginDeployer.cancelDeployment(pluginEntry);
+    }
 
     async deploy(pluginEntry: string, arg2?: PluginType | CancellationToken, options?: PluginDeployOptions): Promise<void> {
         const type = typeof arg2 === 'number' ? arg2 as PluginType : undefined;

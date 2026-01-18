@@ -1078,6 +1078,15 @@ export interface PluginServer {
     setStorageValue(key: string, value: KeysToAnyValues, kind: PluginStorageKind): Promise<boolean>;
     getStorageValue(key: string, kind: PluginStorageKind): Promise<KeysToAnyValues>;
     getAllStorageValues(kind: PluginStorageKind): Promise<KeysToKeysToAnyValue>;
+    resolvePluginInfo(pluginEntry: string): Promise<PluginInstallInfo | undefined>;
+    cancelDeployment(pluginEntry: string): Promise<void>;
+}
+
+export interface PluginInstallInfo {
+    model: PluginModel;
+    permissions?: string; // Original XML content (kept for compatibility)
+    apiDescription?: string;    // JSON content from api-description.json
+    installationDeclaration?: string; // Markdown content from INSTALL.md
 }
 
 export const ServerPluginRunner = Symbol('ServerPluginRunner');

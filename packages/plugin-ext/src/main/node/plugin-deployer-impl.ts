@@ -1,28 +1,16 @@
-// *****************************************************************************
-// Copyright (C) 2018 Red Hat, Inc. and others.
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License v. 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0.
-//
-// This Source Code may also be made available under the following Secondary
-// Licenses when the conditions for such availability set forth in the Eclipse
-// Public License v. 2.0 are satisfied: GNU General Public License, version 2
-// with the GNU Classpath Exception which is available at
-// https://www.gnu.org/software/classpath/license.html.
-//
-// SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
-// *****************************************************************************
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import * as decompress from 'decompress';
 import { injectable, optional, multiInject, inject, named } from '@theia/core/shared/inversify';
 import * as semver from 'semver';
 import {
     PluginDeployerResolver, PluginDeployerFileHandler, PluginDeployerDirectoryHandler,
     PluginDeployerEntry, PluginDeployer, PluginDeployerParticipant, PluginDeployerStartContext,
     PluginDeployerResolverInit,
-    PluginDeployerEntryType, PluginDeployerHandler, PluginType, UnresolvedPluginEntry, PluginIdentifiers, PluginDeployOptions
+    PluginDeployerEntryType, PluginDeployerHandler, PluginType, UnresolvedPluginEntry, PluginIdentifiers, PluginDeployOptions,
+    PluginInstallInfo,
+    PluginModel
 } from '../../common/plugin-protocol';
 import { PluginDeployerEntryImpl } from './plugin-deployer-entry-impl';
 import {
@@ -382,6 +370,329 @@ export class PluginDeployerImpl implements PluginDeployer {
         }
 
         return pluginDeployerEntries;
+    }
+
+        async resolvePluginInfo(pluginEntry: string): Promise<PluginInstallInfo | undefined> {
+
+            // Helper to check for file variants
+
+            const findFile = (dir: string, filename: string): string | undefined => {
+
+                // Check root
+
+                let p = path.join(dir, filename);
+
+                if (fs.existsSync(p)) return p;
+
+                // Check extension/ subdir (common in vsix)
+
+                p = path.join(dir, 'extension', filename);
+
+                if (fs.existsSync(p)) return p;
+
+                return undefined;
+
+            };
+
+    
+
+            const readContent = (filePath: string | undefined): string | undefined => {
+
+                if (filePath && fs.existsSync(filePath)) {
+
+                    try {
+
+                        return fs.readFileSync(filePath, 'utf8');
+
+                    } catch (e) {
+
+                        console.warn(`Failed to read ${filePath}`, e);
+
+                    }
+
+                }
+
+                return undefined;
+
+            };
+
+    
+
+            // Optimized handling for local files to avoid polluting the deployment folder with "Zombie" files
+
+            if (pluginEntry.startsWith('local-file:')) {
+
+                const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'plugin-info-'));
+
+                try {
+
+                    const filePath = pluginEntry.replace('local-file:', '');
+
+                                    // Filter to extract only necessary metadata files
+
+                                    await decompress(filePath, tempDir, {
+
+                                        filter: file => {
+
+                                            const name = path.basename(file.path);
+
+                                            return name === 'package.json' || 
+
+                                                   name === 'plugin-api-resources.xml' ||
+
+                                                   name === 'api-description.json' ||
+
+                                                   name === 'INSTALL.md';
+
+                                        }
+
+                                    });
+
+                    
+
+                                    const packageJsonPath = findFile(tempDir, 'package.json');
+
+                    
+
+                                    if (packageJsonPath) {
+
+                                        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+
+                                        // Note: This model might be incomplete compared to full resolver processing, but sufficient for confirmation dialog
+
+                                        const model: PluginModel = {
+
+                                            id: `${packageJson.publisher}.${packageJson.name}`,
+
+                                            name: packageJson.name,
+
+                                            publisher: packageJson.publisher,
+
+                                            version: packageJson.version,
+
+                                            displayName: packageJson.displayName,
+
+                                            description: packageJson.description,
+
+                                            licenseUrl: packageJson.license,
+
+                                            engine: { type: 'vscode', version: '*' },
+
+                                            entryPoint: {},
+
+                                            packageUri: '',
+
+                                            packagePath: ''
+
+                                        };
+
+                    
+
+                                        const xmlPath = findFile(tempDir, 'plugin-api-resources.xml');
+
+                                        const jsonPath = findFile(tempDir, 'api-description.json');
+
+                                        const installPath = findFile(tempDir, 'INSTALL.md');
+
+                    
+
+                                        return {
+
+                                            model,
+
+                                            permissions: readContent(xmlPath),
+
+                                            apiDescription: readContent(jsonPath),
+
+                                            installationDeclaration: readContent(installPath)
+
+                                        };
+
+                                    }
+
+                } catch (e) {
+
+                    console.error('Failed to resolve local plugin info in temp', e);
+
+                } finally {
+
+                    // Always clean up temp dir
+
+                    try {
+
+                        await fs.promises.rm(tempDir, { recursive: true, force: true });
+
+                    } catch (ignore) {}
+
+                }
+
+            }
+
+    
+
+            // Fallback to standard resolution for remote plugins or if local optimization failed
+
+            try {
+
+                const unresolved: UnresolvedPluginEntry = {
+
+                    id: pluginEntry,
+
+                    type: PluginType.User
+
+                };
+
+                const entries = await this.resolvePlugins([unresolved]);
+
+                if (!entries || entries.length === 0) {
+
+                    return undefined;
+
+                }
+
+    
+
+                const entry = entries[0];
+
+                const deps = await this.pluginDeployerHandler.getPluginDependencies(entry);
+
+                if (!deps) {
+
+                    return undefined;
+
+                }
+
+    
+
+                const model = deps.metadata.model;
+
+                const pluginPath = entry.path();
+
+                
+
+                            // The plugin path from resolvePlugins usually points to the extracted root (e.g. including 'extension/' if present? 
+
+                
+
+                            // Actually entry.path() usually points to the root containing package.json)
+
+                
+
+                            
+
+                
+
+                            const xmlPath = path.join(pluginPath, 'plugin-api-resources.xml');
+
+                
+
+                            const jsonPath = path.join(pluginPath, 'api-description.json');
+
+                
+
+                            const installPath = path.join(pluginPath, 'INSTALL.md');
+
+                
+
+                
+
+                
+
+                            const info: PluginInstallInfo = {
+
+                
+
+                                model,
+
+                
+
+                                permissions: readContent(xmlPath),
+
+                
+
+                                apiDescription: readContent(jsonPath),
+
+                
+
+                                installationDeclaration: readContent(installPath)
+
+                
+
+                            };
+
+    
+
+                // CLEANUP: If the plugin is not currently deployed (active), delete the resolved files.
+
+                for (const resolvedEntry of entries) {
+
+                    try {
+
+                        const resolvedDeps = await this.pluginDeployerHandler.getPluginDependencies(resolvedEntry);
+
+                        if (resolvedDeps) {
+
+                            const versionedId = PluginIdentifiers.componentsToVersionedId(resolvedDeps.metadata.model);
+
+                            const isDeployed = !!this.pluginDeployerHandler.getDeployedPlugin(versionedId);
+
+                            
+
+                            if (!isDeployed) {
+
+                                const rootPath = resolvedEntry.rootPath;
+
+                                if (rootPath && fs.existsSync(rootPath)) {
+
+                                    await fs.promises.rm(rootPath, { recursive: true, force: true });
+
+                                }
+
+                            }
+
+                        }
+
+                    } catch (cleanupError) {
+
+                        console.warn(`Failed to cleanup entry ${resolvedEntry.id()}`, cleanupError);
+
+                    }
+
+                }
+
+    
+
+                return info;
+
+            } catch (e) {
+
+                console.error('Failed to resolve plugin info', e);
+
+                return undefined;
+
+            }
+
+        }
+
+    async cancelDeployment(pluginEntry: string): Promise<void> {
+        try {
+            const unresolved: UnresolvedPluginEntry = {
+                id: pluginEntry,
+                type: PluginType.User
+            };
+            // Resolve again to find the path (it should be fast/cached)
+            const entries = await this.resolvePlugins([unresolved]);
+            if (entries && entries.length > 0) {
+                const entry = entries[0];
+                const rootPath = entry.rootPath;
+                if (rootPath && fs.existsSync(rootPath)) {
+                    this.logger.info(`Cleaning up undeployed plugin at ${rootPath}`);
+                    await fs.promises.rm(rootPath, { recursive: true, force: true });
+                }
+            }
+        } catch (e) {
+            this.logger.error(`Failed to cleanup plugin deployment for ${pluginEntry}`, e);
+        }
     }
 
     protected measure(name: string): Measurement {
