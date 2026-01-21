@@ -209,17 +209,19 @@ async function downloadPluginAsync(
     if (!plugin) {
         return;
     }
-    let fileExt: string;
-    if (pluginUrl.endsWith('tar.gz')) {
+    
+    // Default to .vsix for any unrecognized URL pattern.
+    // This supports API URLs (e.g. /download?id=123) and generic shortlinks.
+    // Validity will be ensured during the decompression/installation phase.
+    let fileExt: string = '.vsix';
+    const urlWithoutParams = pluginUrl.split('?')[0].split('#')[0];
+
+    if (urlWithoutParams.endsWith('tar.gz')) {
         fileExt = '.tar.gz';
-    } else if (pluginUrl.endsWith('vsix')) {
-        fileExt = '.vsix';
-    } else if (pluginUrl.endsWith('theia')) {
-        fileExt = '.theia'; // theia plugins.
-    } else {
-        failures.push(chalk.red(`error: '${plugin}' has an unsupported file type: '${pluginUrl}'`));
-        return;
-    }
+    } else if (urlWithoutParams.endsWith('theia')) {
+        fileExt = '.theia';
+    } 
+
     const targetPath = path.resolve(pluginsDir, `${plugin}${packed === true ? fileExt : ''}`);
 
     // Skip plugins which have previously been downloaded.
