@@ -103,7 +103,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
                 const widget = await widgetManager.getOrCreateWidget(VSXExtensionsWidget.ID, { id });
                 viewContainer.addWidget(widget, {
                     initiallyCollapsed: id === VSXExtensionsSourceOptions.BUILT_IN,
-                    initiallyHidden: id === VSXExtensionsSourceOptions.SEARCH_RESULT,
+                    initiallyHidden: (id === VSXExtensionsSourceOptions.SEARCH_RESULT) || (id === VSXExtensionsSourceOptions.INSTALLED),
                     canHide: true
                 });
             }

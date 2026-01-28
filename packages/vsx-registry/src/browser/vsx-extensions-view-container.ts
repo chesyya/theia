@@ -81,10 +81,9 @@ export class VSXExtensionsViewContainer extends ViewContainer {
         const lastState = this.lastModeState.get(currentMode);
         if (lastState) {
             super.doRestoreState(lastState);
-        } else {
-            for (const part of this.getParts()) {
-                this.applyModeToPart(part);
-            }
+        }
+        for (const part of this.getParts()) {
+            this.applyModeToPart(part);
         }
 
         const specialWidgets = this.getWidgetsForMode();
@@ -137,7 +136,9 @@ export class VSXExtensionsViewContainer extends ViewContainer {
             case VSXSearchMode.None:
             case VSXSearchMode.Initial:
                 // Show all views by default, including Open VSX Registry with popular extensions
-                return [];
+                return [generateExtensionWidgetId(VSXExtensionsSourceOptions.BUILT_IN),
+                generateExtensionWidgetId(VSXExtensionsSourceOptions.INSTALLED)
+                ];
             default:
                 return [];
         }
