@@ -70,26 +70,49 @@ export class VSXExtensionsViewContainer extends ViewContainer {
     protected readonly lastModeState = new Map<VSXSearchMode, ViewContainer.State>();
 
     protected updateMode(): void {
-        const currentMode = this.model.search.getModeForQuery();
-        if (currentMode === this.currentMode) {
+        const newMode = this.model.search.getModeForQuery();
+        if (newMode === this.currentMode) {
             return;
         }
-        if (this.currentMode !== VSXSearchMode.Initial) {
-            this.lastModeState.set(this.currentMode, super.doStoreState());
-        }
-        this.currentMode = currentMode;
-        const lastState = this.lastModeState.get(currentMode);
+
+        // ✅ 永远保存当前模式状态（包括 Initial）
+        this.lastModeState.set(this.currentMode, super.doStoreState());
+
+        this.currentMode = newMode;
+
+        const lastState = this.lastModeState.get(newMode);
         if (lastState) {
             super.doRestoreState(lastState);
         }
-        for (const part of this.getParts()) {
-            this.applyModeToPart(part);
+
+        // ✅ 只有 Search 模式才强制控制
+        if (this.currentMode === VSXSearchMode.Search ||
+            this.currentMode === VSXSearchMode.Popular) {
+
+            const searchId = generateExtensionWidgetId(
+                VSXExtensionsSourceOptions.SEARCH_RESULT
+            );
+
+            for (const part of this.getParts()) {
+                if (part.wrapped.id === searchId) {
+                    part.show();
+                    part.collapsed = false;
+                } else {
+                    part.hide();
+                }
+            }
         }
+
+        // for (const part of this.getParts()) {
+        //     this.applyModeToPart(part);
+        // }
 
         const specialWidgets = this.getWidgetsForMode();
         if (specialWidgets?.length) {
             const widgetChecker = new Set(specialWidgets);
-            const relevantParts = this.getParts().filter(part => widgetChecker.has(part.wrapped.id));
+            const relevantParts = this.getParts().filter(part =>
+                widgetChecker.has(part.wrapped.id)
+            );
             relevantParts.forEach(part => {
                 part.collapsed = false;
                 part.show();
@@ -99,7 +122,10 @@ export class VSXExtensionsViewContainer extends ViewContainer {
 
     protected override registerPart(part: ViewContainerPart): void {
         super.registerPart(part);
-        this.applyModeToPart(part);
+        if (this.currentMode === VSXSearchMode.Search ||
+            this.currentMode === VSXSearchMode.Popular) {
+            this.applyModeToPart(part);
+        }
     }
 
     protected applyModeToPart(part: ViewContainerPart): void {
@@ -112,12 +138,13 @@ export class VSXExtensionsViewContainer extends ViewContainer {
 
     protected shouldShowWidget(part: ViewContainerPart): boolean {
         const widgetsToShow = this.getWidgetsForMode();
-        if (widgetsToShow.length) {
+        // 只有当模式明确指定要强制显示哪些 widget 时才接管
+        if (widgetsToShow.length > 0) {
             return widgetsToShow.includes(part.wrapped.id);
         }
-        // In default mode (None/Initial), hide SEARCH_RESULT (Open VSX Registry) by default
-        // User can manually enable it from the view menu
-        return part.wrapped.id !== generateExtensionWidgetId(VSXExtensionsSourceOptions.SEARCH_RESULT);
+
+        // 否则交给 ViewContainer 自己的 state 控制
+        return true;
     }
 
     protected getWidgetsForMode(): string[] {
@@ -136,9 +163,7 @@ export class VSXExtensionsViewContainer extends ViewContainer {
             case VSXSearchMode.None:
             case VSXSearchMode.Initial:
                 // Show all views by default, including Open VSX Registry with popular extensions
-                return [generateExtensionWidgetId(VSXExtensionsSourceOptions.BUILT_IN),
-                generateExtensionWidgetId(VSXExtensionsSourceOptions.INSTALLED)
-                ];
+                return [];
             default:
                 return [];
         }
@@ -158,15 +183,16 @@ export class VSXExtensionsViewContainer extends ViewContainer {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protected override doRestoreState(state: any): void {
+        return;
         // eslint-disable-next-line guard-for-in
-        for (const key in state.modes) {
-            const mode = Number(key) as VSXSearchMode;
-            const modeState = state.modes[mode];
-            if (modeState) {
-                this.lastModeState.set(mode, modeState);
-            }
-        }
-        this.model.search.query = state.query;
+        // for (const key in state.modes) {
+        //     const mode = Number(key) as VSXSearchMode;
+        //     const modeState = state.modes[mode];
+        //     if (modeState) {
+        //         this.lastModeState.set(mode, modeState);
+        //     }
+        // }
+        // this.model.search.query = state.query;
     }
 
     protected override getToggleVisibilityGroupLabel(): string {
