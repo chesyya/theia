@@ -94,13 +94,22 @@
             };
             navigator.serviceWorker.addEventListener('message', versionHandler);
             registration.active.postMessage({ channel: 'version' });
+        }).catch(error => {
+            console.error('Service Worker registration failed. Continuing without Service Worker.', error);
+            resolveWorkerReady();
         });
 
         const forwardFromHostToWorker = (channel) => {
             hostMessaging.onMessage(channel, event => {
-                navigator.serviceWorker.ready.then(registration => {
-                    registration.active.postMessage({ channel: channel, data: event.data.args });
-                });
+                navigator.serviceWorker.ready
+                    .then(registration => {
+                        if (registration.active) {
+                            registration.active.postMessage({ channel: channel, data: event.data.args });
+                        }
+                    })
+                    .catch(error => {
+                        console.warn(`Service Worker is not ready for channel '${channel}'.`, error);
+                    });
             });
         };
         forwardFromHostToWorker('did-load-resource');

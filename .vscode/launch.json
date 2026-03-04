@@ -82,7 +82,8 @@
         "--ovsx-router-config=${workspaceFolder}/examples/ovsx-router-config.json"
       ],
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "development",
+        "THEIA_WEBVIEW_EXTERNAL_ENDPOINT": "{{hostname}}"
       },
       "sourceMaps": true,
       "outFiles": [
