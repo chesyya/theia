@@ -184,9 +184,11 @@ export class HostedPluginDeployerHandler implements PluginDeployerHandler {
                 return success = false;
             }
 
-            // API 兼容性检查（系统插件跳过检查）
-            const isSystemPlugin = entry.type === PluginType.System;
-            const compatibilityResult = await this.compatibilityService.checkCompatibility(pluginPath, isSystemPlugin);
+            // API 兼容性检查：
+            // - 系统插件跳过检查
+            // - 开发中的扩展也跳过检查，因为它们需要支持 VS Code 风格的 extensionDevelopmentPath 工作流
+            const skipCompatibilityCheck = entry.type === PluginType.System || entry.getValue<boolean>('isUnderDevelopment') === true;
+            const compatibilityResult = await this.compatibilityService.checkCompatibility(pluginPath, skipCompatibilityCheck);
             if (!compatibilityResult.compatible) {
                 deployPlugin.error(
                     `Plugin at '${pluginPath}' is not compatible with current IDE API version.\n` +

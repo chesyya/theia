@@ -94,10 +94,12 @@ export class PluginDeployerImpl implements PluginDeployer {
         const pluginsValue = process.env.THEIA_PLUGINS || undefined;
         // check the `--plugins` CLI option
         const defaultPluginsValueViaCli = this.cliContribution.localDir();
+        const extensionDevelopmentPaths = this.cliContribution.extensionDevelopmentPaths();
 
         this.logger.debug('Found the list of default plugins ID on env:', defaultPluginsValue);
         this.logger.debug('Found the list of plugins ID on env:', pluginsValue);
         this.logger.debug('Found the list of default plugins ID from CLI:', defaultPluginsValueViaCli);
+        this.logger.debug('Found extension development paths from CLI:', extensionDevelopmentPaths);
 
         // transform it to array
         const defaultPluginIdList = defaultPluginsValue ? defaultPluginsValue.split(',') : [];
@@ -124,8 +126,12 @@ export class PluginDeployerImpl implements PluginDeployer {
         }));
         const resolvePlugins = this.measure('resolvePlugins');
         const plugins = await this.resolvePlugins([...unresolvedUserEntries, ...unresolvedSystemEntries]);
+        const developmentPlugins = await this.resolvePlugins(
+            extensionDevelopmentPaths.map(id => ({ id, type: PluginType.User }))
+        );
+        developmentPlugins.forEach(entry => entry.storeValue('isUnderDevelopment', true));
         resolvePlugins.log('Resolve plugins list');
-        await this.deployPlugins(plugins);
+        await this.deployPlugins([...plugins, ...developmentPlugins]);
         deployPlugins.log('Deploy plugins list');
     }
 
@@ -261,6 +267,12 @@ export class PluginDeployerImpl implements PluginDeployer {
                 if (!leftPlugin) {
                     return 1;
                 }
+                if (leftPlugin.getValue<boolean>('isUnderDevelopment') && !rightPlugin.getValue<boolean>('isUnderDevelopment')) {
+                    return -1;
+                }
+                if (!leftPlugin.getValue<boolean>('isUnderDevelopment') && rightPlugin.getValue<boolean>('isUnderDevelopment')) {
+                    return 1;
+                }
                 if (leftPlugin.type === PluginType.System && rightPlugin.type === PluginType.User) {
                     return -1;
                 }
@@ -361,6 +373,12 @@ export class PluginDeployerImpl implements PluginDeployer {
                 entry.type = type;
                 pluginDeployerEntries.push(entry);
             });
+        } else if (fs.existsSync(pluginId)) {
+            const localPath = path.isAbsolute(pluginId) ? pluginId : path.resolve(process.cwd(), pluginId);
+            const localEntry = new PluginDeployerEntryImpl(pluginId, path.basename(localPath), localPath);
+            localEntry.setResolvedBy('DirectLocalPathResolver');
+            localEntry.type = type;
+            pluginDeployerEntries.push(localEntry);
         } else {
             // log it for now
             this.logger.error('No plugin resolver found for the entry', pluginId);

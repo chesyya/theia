@@ -376,7 +376,9 @@ export abstract class AbstractPluginManagerExtImpl<P extends Record<string, any>
         const secrets = new SecretStorageExt(plugin, this.secrets);
         const globalStoragePath = join(configStorage.hostGlobalStoragePath, plugin.model.id);
         const extension = new PluginExt(this, plugin);
-        const extensionModeValue = plugin.isUnderDevelopment ? types.ExtensionMode.Development : types.ExtensionMode.Production;
+        const extensionModeValue = plugin.isUnderDevelopment
+            ? (process.env.extensionTestsPath ? types.ExtensionMode.Test : types.ExtensionMode.Development)
+            : types.ExtensionMode.Production;
 
         const pluginContext: theia.PluginContext = {
             extensionPath: extension.extensionPath,

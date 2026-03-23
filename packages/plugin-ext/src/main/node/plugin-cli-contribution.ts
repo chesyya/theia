@@ -23,6 +23,7 @@ import { LocalDirectoryPluginDeployerResolver } from './resolvers/local-director
 export class PluginCliContribution implements CliContribution {
 
     static PLUGINS = 'plugins';
+    static EXTENSION_DEVELOPMENT_PATH = 'extensionDevelopmentPath';
     static PLUGIN_MAX_SESSION_LOGS_FOLDERS = 'plugin-max-session-logs-folders';
     static UNCOMPRESSED_PLUGINS_IN_PLACE = 'uncompressed-plugins-in-place';
     /**
@@ -32,6 +33,7 @@ export class PluginCliContribution implements CliContribution {
     static DEFAULT_PLUGIN_MAX_SESSION_LOGS_FOLDERS = 10;
 
     protected _localDir: string | undefined;
+    protected _extensionDevelopmentPaths: string[] = [];
     protected _maxSessionLogsFolders: number;
     protected _keepUncompressedInPlace = false;
 
@@ -41,6 +43,11 @@ export class PluginCliContribution implements CliContribution {
             description: `Provides further refinement for the plugins. Example: --${PluginCliContribution.PLUGINS}=${LocalDirectoryPluginDeployerResolver.LOCAL_DIR}:path/to/your/plugins`,
             type: 'string',
             nargs: 1
+        });
+        conf.option(PluginCliContribution.EXTENSION_DEVELOPMENT_PATH, {
+            description: 'Path to a plugin or extension under development. Can be provided multiple times.',
+            type: 'string',
+            array: true
         });
 
         const maxLogSessionExample = `Example: --${PluginCliContribution.PLUGIN_MAX_SESSION_LOGS_FOLDERS}=5`;
@@ -63,6 +70,12 @@ export class PluginCliContribution implements CliContribution {
         if (pluginsArg && String(pluginsArg).startsWith(`${LocalDirectoryPluginDeployerResolver.LOCAL_DIR}:`)) {
             this._localDir = pluginsArg;
         }
+        const extensionDevelopmentPathArg = args[PluginCliContribution.EXTENSION_DEVELOPMENT_PATH];
+        if (Array.isArray(extensionDevelopmentPathArg)) {
+            this._extensionDevelopmentPaths = extensionDevelopmentPathArg.map(String);
+        } else if (typeof extensionDevelopmentPathArg === 'string') {
+            this._extensionDevelopmentPaths = [extensionDevelopmentPathArg];
+        }
 
         const maxSessionLogsFoldersArg = args[PluginCliContribution.PLUGIN_MAX_SESSION_LOGS_FOLDERS] as number;
         if (maxSessionLogsFoldersArg && Number.isInteger(maxSessionLogsFoldersArg) && maxSessionLogsFoldersArg > 0) {
@@ -73,6 +86,10 @@ export class PluginCliContribution implements CliContribution {
 
     localDir(): string | undefined {
         return this._localDir;
+    }
+
+    extensionDevelopmentPaths(): string[] {
+        return this._extensionDevelopmentPaths;
     }
 
     maxSessionLogsFolders(): number {

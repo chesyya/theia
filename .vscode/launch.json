@@ -99,6 +99,41 @@
     },
     {
       "type": "node",
+      "request": "launch",
+      "name": "Launch Browser Backend With Extension Tests",
+      "program": "${workspaceFolder}/examples/browser/lib/backend/main.js",
+      "cwd": "${workspaceFolder}/examples/browser",
+      "args": [
+        "--hostname=127.0.0.1",
+        "--port=3100",
+        "--no-cluster",
+        "--app-project-path=${workspaceFolder}/examples/browser",
+        "--plugins=local-dir:../../plugins",
+        "--extensionDevelopmentPath=${workspaceFolder}/sample-plugins/sample-namespace/vscode-api-tests",
+        "--extensionTestsPath=${workspaceFolder}/sample-plugins/sample-namespace/vscode-api-tests/out/singlefolder-tests/index.js",
+        "--hosted-plugin-inspect=9339",
+        "--ovsx-router-config=${workspaceFolder}/examples/ovsx-router-config.json"
+      ],
+      "env": {
+        "NODE_ENV": "development",
+        "THEIA_CONFIG_DIR": "/tmp/theia-config",
+        "THEIA_WEBVIEW_EXTERNAL_ENDPOINT": "{{hostname}}"
+      },
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/examples/browser/src-gen/backend/*.js",
+        "${workspaceFolder}/examples/browser/lib/**/*.js",
+        "${workspaceFolder}/examples/api-samples/lib/**/*.js",
+        "${workspaceFolder}/packages/*/lib/**/*.js",
+        "${workspaceFolder}/dev-packages/*/lib/**/*.js",
+        "${workspaceFolder}/sample-plugins/sample-namespace/vscode-api-tests/out/**/*.js"
+      ],
+      "smartStep": true,
+      "internalConsoleOptions": "openOnSessionStart",
+      "outputCapture": "std"
+    },
+    {
+      "type": "node",
       "request": "attach",
       "name": "Attach to Plugin Host",
       "port": 9339,
@@ -138,6 +173,13 @@
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000/",
+      "webRoot": "${workspaceFolder}/examples/browser"
+    },
+    {
+      "name": "Launch Browser Frontend For Extension Tests",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:3100/",
       "webRoot": "${workspaceFolder}/examples/browser"
     },
     {
@@ -187,6 +229,15 @@
         "Launch Browser Backend",
         "Attach to Plugin Host",
         "Launch Browser Frontend"
+      ],
+      "stopAll": true
+    },
+    {
+      "name": "Launch Extension Tests",
+      "configurations": [
+        "Launch Browser Backend With Extension Tests",
+        "Attach to Plugin Host",
+        "Launch Browser Frontend For Extension Tests"
       ],
       "stopAll": true
     }

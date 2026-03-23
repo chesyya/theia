@@ -1,0 +1,28 @@
+{
+  "private": true,
+  "name": "vscode-api-tests",
+  "version": "1.57.1",
+  "description": "API tests for Theia's VS Code-compatible plugin runtime",
+  "main": "./out/extension",
+  "license": "EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0",
+  "publisher": "theia",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eclipse-theia/theia.git"
+  },
+  "engines": {
+    "vscode": "^1.51.0"
+  },
+  "activationEvents": [],
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.50.0",
+    "mocha": "^10.4.0"
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "prepare": "yarn -s package",
+    "package": "vsce package --yarn"
+  }
+}
