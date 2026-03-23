@@ -96,6 +96,13 @@
             registration.active.postMessage({ channel: 'version' });
         }).catch(error => {
             console.error('Service Worker registration failed. Continuing without Service Worker.', error);
+            if (isLikelyCertificateError(error)) {
+                hostMessaging.postMessage('service-worker-cert-error', {
+                    message: error && error.message ? error.message : String(error),
+                    serviceWorkerUrl: new URL('service-worker.js', window.location.href).toString(),
+                    webviewUrl: window.location.href
+                });
+            }
             resolveWorkerReady();
         });
 
@@ -128,6 +135,14 @@
         } catch (e) {
             return false;
         }
+    }
+
+    function isLikelyCertificateError(error) {
+        if (window.location.protocol !== 'https:') {
+            return false;
+        }
+        const message = error && error.message ? String(error.message).toLowerCase() : String(error).toLowerCase();
+        return ['ssl', 'certificate', 'cert', 'tls', 'secure context'].some(keyword => message.includes(keyword));
     }
 
     window.createWebviewManager({

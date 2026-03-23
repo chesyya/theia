@@ -54,6 +54,7 @@ import { MenuPath } from '@theia/core';
 import { ContextMenuRenderer } from '@theia/core/lib/browser';
 import { ContextKeyService } from '@theia/core/lib/browser/context-key-service';
 import { PluginViewWidget } from '../view/plugin-view-widget';
+import { WebviewCertificateSupportPrompt } from './webview-frontend-security-warnings';
 
 // Style from core
 const TRANSPARENT_OVERLAY_STYLE = 'theia-transparent-overlay';
@@ -76,7 +77,8 @@ export const enum WebviewMessageChannels {
     didMouseDown = 'did-mousedown',
     didMouseUp = 'did-mouseup',
     onconsole = 'onconsole',
-    didcontextmenu = 'did-context-menu'
+    didcontextmenu = 'did-context-menu',
+    serviceWorkerCertError = 'service-worker-cert-error'
 }
 
 export interface WebviewContentOptions {
@@ -164,6 +166,9 @@ export class WebviewWidget extends BaseWidget implements StatefulWidget, Extract
 
     @inject(ContextKeyService)
     protected readonly contextKeyService: ContextKeyService;
+
+    @inject(WebviewCertificateSupportPrompt)
+    protected readonly certificateSupportPrompt: WebviewCertificateSupportPrompt;
 
     viewState: WebviewPanelViewState = {
         visible: false,
@@ -372,6 +377,9 @@ export class WebviewWidget extends BaseWidget implements StatefulWidget, Extract
         this.toHide.push(this.on(WebviewMessageChannels.didcontextmenu, (event: { clientX: number, clientY: number, context: any }) => {
             this.handleContextMenu(event);
         }));
+        this.toHide.push(this.on(WebviewMessageChannels.serviceWorkerCertError, (data: { message?: string }) =>
+            this.handleServiceWorkerCertificateError(data)
+        ));
 
         this.style();
         this.toHide.push(this.themeDataProvider.onDidChangeThemeData(() => this.style()));
@@ -385,6 +393,10 @@ export class WebviewWidget extends BaseWidget implements StatefulWidget, Extract
     protected async loadLocalhost(origin: string): Promise<void> {
         const redirect = await this.getRedirect(origin);
         return this.doSend('did-load-localhost', { origin, location: redirect });
+    }
+
+    protected async handleServiceWorkerCertificateError(data: { message?: string } | undefined): Promise<void> {
+        await this.certificateSupportPrompt.showPromptOnce(data?.message);
     }
 
     protected dispatchMouseEvent(type: string, data: MouseEvent): void {

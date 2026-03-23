@@ -74,7 +74,7 @@ import { PluginCustomEditorRegistry } from './custom-editors/plugin-custom-edito
 import { CustomEditorWidgetFactory } from '../browser/custom-editors/custom-editor-widget-factory';
 import { CustomEditorWidget } from './custom-editors/custom-editor-widget';
 import { CustomEditorService } from './custom-editors/custom-editor-service';
-import { WebviewFrontendSecurityWarnings } from './webview/webview-frontend-security-warnings';
+import { WebviewCertificateSupportPrompt, WebviewFrontendSecurityWarnings } from './webview/webview-frontend-security-warnings';
 import { PluginAuthenticationServiceImpl } from './plugin-authentication-service';
 import { AuthenticationService } from '@theia/core/lib/browser/authentication-service';
 import { bindTreeViewDecoratorUtilities, TreeViewDecoratorService } from './view/tree-view-decorator-service';
@@ -286,6 +286,7 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(CommentsContribution).toSelf().inSingletonScope();
     bind(CommentsContextKeyService).toSelf().inSingletonScope();
 
+    bind(WebviewCertificateSupportPrompt).toSelf().inSingletonScope();
     bind(WebviewFrontendSecurityWarnings).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(WebviewFrontendSecurityWarnings);
 

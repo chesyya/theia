@@ -15,6 +15,7 @@
 // *****************************************************************************
 
 import * as http from 'http';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as url from 'url';
 const vhost = require('vhost');
@@ -30,6 +31,11 @@ import { BackendRemoteService } from '@theia/core/lib/node/remote/backend-remote
 
 @injectable()
 export class PluginApiContribution implements BackendApplicationContribution, WsRequestValidatorContribution {
+
+    static readonly WEBVIEW_CERTIFICATE_ROUTE_PREFIX = '/webview/certificate';
+    static readonly WEBVIEW_CERTIFICATE_SCRIPT_PATH = `${PluginApiContribution.WEBVIEW_CERTIFICATE_ROUTE_PREFIX}/install/linux.sh`;
+    static readonly WEBVIEW_CERTIFICATE_WINDOWS_SCRIPT_PATH = `${PluginApiContribution.WEBVIEW_CERTIFICATE_ROUTE_PREFIX}/install/windows.ps1`;
+    static readonly WEBVIEW_CERTIFICATE_CA_PATH = `${PluginApiContribution.WEBVIEW_CERTIFICATE_ROUTE_PREFIX}/root-ca.crt`;
 
     protected webviewExternalEndpointRegExp: RegExp;
 
@@ -51,6 +57,8 @@ export class PluginApiContribution implements BackendApplicationContribution, Ws
     configure(app: express.Application): void {
         const webviewApp = express();
         webviewApp.use('/webview', express.static(path.join(this.applicationPackage.projectPath, 'lib', 'webview', 'pre')));
+        this.configureCertificateSupportRoutes(app);
+        this.configureCertificateSupportRoutes(webviewApp);
         if (this.remoteService.isRemoteServer()) {
             // Any request to `subdomain.localhost:port/webview/...` will get redirected to the remote system.
             // However, it will get redirected directly to the `localhost:remotePort` address, losing the subdomain info.
@@ -70,6 +78,126 @@ export class PluginApiContribution implements BackendApplicationContribution, Ws
             }
         }
         return true;
+    }
+
+    protected configureCertificateSupportRoutes(app: express.Application): void {
+        app.get(PluginApiContribution.WEBVIEW_CERTIFICATE_CA_PATH, (_request, response) => {
+            const certificate = this.readConfiguredWebviewCertificate();
+            if (!certificate) {
+                response.status(404).type('text/plain').send('Webview root certificate is not configured.');
+                return;
+            }
+
+            response.setHeader('Content-Disposition', `attachment; filename="${certificate.fileName}"`);
+            response.type('application/x-pem-file').send(certificate.content);
+        });
+
+        app.get(PluginApiContribution.WEBVIEW_CERTIFICATE_SCRIPT_PATH, (_request, response) => {
+            const certificate = this.readConfiguredWebviewCertificate();
+            if (!certificate) {
+                response.status(404).type('text/plain').send('Webview root certificate is not configured.');
+                return;
+            }
+
+            response.setHeader('Content-Disposition', 'attachment; filename="install-theia-webview-root-ca.sh"');
+            response.type('application/x-sh').send(this.createLinuxCertificateInstallScript(certificate));
+        });
+
+        app.get(PluginApiContribution.WEBVIEW_CERTIFICATE_WINDOWS_SCRIPT_PATH, (_request, response) => {
+            const certificate = this.readConfiguredWebviewCertificate();
+            if (!certificate) {
+                response.status(404).type('text/plain').send('Webview root certificate is not configured.');
+                return;
+            }
+
+            response.setHeader('Content-Disposition', 'attachment; filename="install-theia-webview-root-ca.ps1"');
+            response.type('text/plain').send(this.createWindowsCertificateInstallScript(certificate));
+        });
+    }
+
+    protected readConfiguredWebviewCertificate(): { content: string, fileName: string } | undefined {
+        const certificatePath = process.env.THEIA_WEBVIEW_CA_CERT_PATH;
+        if (!certificatePath) {
+            return undefined;
+        }
+
+        try {
+            const content = fs.readFileSync(certificatePath, 'utf8');
+            return {
+                content,
+                fileName: path.basename(certificatePath)
+            };
+        } catch (error) {
+            console.error(`Failed to read THEIA_WEBVIEW_CA_CERT_PATH '${certificatePath}':`, error);
+            return undefined;
+        }
+    }
+
+    protected createLinuxCertificateInstallScript(certificate: { content: string, fileName: string }): string {
+        const trustFileName = process.env.THEIA_WEBVIEW_CA_CERT_FILENAME || certificate.fileName || 'theia-webview-root-ca.crt';
+        return `#!/usr/bin/env bash
+set -euo pipefail
+
+CERT_FILE_NAME='${trustFileName.replace(/'/g, `'\\''`)}'
+TEMP_DIR="$(mktemp -d)"
+CERT_PATH="$TEMP_DIR/$CERT_FILE_NAME"
+TARGET_PATH="/usr/local/share/ca-certificates/$CERT_FILE_NAME"
+
+cleanup() {
+    rm -rf "$TEMP_DIR"
+}
+trap cleanup EXIT
+
+cat <<'EOF_CERT' > "$CERT_PATH"
+${certificate.content.trim()}
+EOF_CERT
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "This script must run with administrator privileges."
+    echo "Please rerun it with: sudo bash $0"
+    exit 1
+fi
+
+install -m 0644 "$CERT_PATH" "$TARGET_PATH"
+update-ca-certificates
+
+echo
+echo "Installed Theia Webview root certificate to: $TARGET_PATH"
+echo "Please fully restart your browser before reopening Theia."
+`;
+    }
+
+    protected createWindowsCertificateInstallScript(certificate: { content: string, fileName: string }): string {
+        const trustFileName = process.env.THEIA_WEBVIEW_CA_CERT_FILENAME || certificate.fileName || 'theia-webview-root-ca.crt';
+        const escapedCertificate = certificate.content.replace(/`/g, '``');
+        const escapedFileName = trustFileName.replace(/'/g, "''");
+        return `$ErrorActionPreference = 'Stop'
+
+$certFileName = '${escapedFileName}'
+$tempDir = Join-Path $env:TEMP ('theia-webview-cert-' + [guid]::NewGuid().ToString())
+$certPath = Join-Path $tempDir $certFileName
+
+function Test-IsAdministrator {
+    $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($currentIdentity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+if (-not (Test-IsAdministrator)) {
+    Write-Error 'Please rerun this script in an elevated PowerShell window.'
+}
+
+New-Item -ItemType Directory -Path $tempDir | Out-Null
+@'
+${escapedCertificate.trim()}
+'@ | Set-Content -Path $certPath -Encoding ascii
+
+Import-Certificate -FilePath $certPath -CertStoreLocation 'Cert:\\LocalMachine\\Root' | Out-Null
+
+Write-Host ''
+Write-Host "Installed Theia Webview root certificate to the LocalMachine Root store."
+Write-Host 'Please fully restart your browser before reopening Theia.'
+`;
     }
 
     protected webviewExternalEndpointPattern(): string {
