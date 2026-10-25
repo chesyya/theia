@@ -16,6 +16,7 @@
 
 import { injectable, inject, unmanaged } from 'inversify';
 import { Disposable, MaybePromise, CancellationTokenSource, nls } from '../common';
+import { generateUuid } from '../common/uuid';
 import { Key } from './keyboard/keys';
 import { Widget, BaseWidget, Message, addKeyListener, codiconArray } from './widgets/widget';
 import { FrontendApplicationContribution } from './frontend-application-contribution';
@@ -73,6 +74,58 @@ export namespace Dialog {
     export const CANCEL = nls.localizeByDefault('Cancel');
 }
 
+export type DialogAutomationValue = string | number | boolean | null | DialogAutomationValue[] | {
+    [key: string]: DialogAutomationValue
+};
+
+export interface DialogAutomationState {
+    [key: string]: DialogAutomationValue
+}
+
+export interface DialogAutomationControl {
+    readonly available: boolean;
+    readonly enabled?: boolean;
+    readonly label?: string;
+}
+
+export interface DialogAutomationSnapshot {
+    readonly title: string;
+    readonly contentText: string;
+    readonly validationMessage?: string;
+    readonly confirm: DialogAutomationControl;
+    readonly cancel: DialogAutomationControl;
+}
+
+export interface DialogAutomationConfirmResult {
+    readonly closed: boolean;
+    readonly validationMessage?: string;
+}
+
+export interface DialogAutomationAction {
+    readonly id: string;
+    readonly label: string;
+    readonly enabled: boolean;
+}
+
+/**
+ * A serializable, semantic automation surface for a dialog. It deliberately
+ * does not expose the dialog instance or any DOM nodes.
+ */
+export interface DialogAutomation {
+    getAutomationSnapshot(): DialogAutomationSnapshot;
+    getAutomationState(): DialogAutomationState;
+    setAutomationState(patch: DialogAutomationState): Promise<void>;
+    confirmFromAutomation(): Promise<DialogAutomationConfirmResult>;
+    cancelFromAutomation(): Promise<void>;
+    getAutomationActions(): readonly DialogAutomationAction[];
+    invokeAutomationAction(id: string): Promise<void>;
+}
+
+export interface ActiveDialogAutomation {
+    readonly id: string;
+    readonly dialog: DialogAutomation;
+}
+
 @injectable()
 export class DialogOverlayService implements FrontendApplicationContribution {
 
@@ -85,6 +138,8 @@ export class DialogOverlayService implements FrontendApplicationContribution {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protected readonly dialogs: AbstractDialog<any>[] = [];
     protected readonly documents: Document[] = [];
+    protected readonly automationDialogs = new Map<string, AbstractDialog<unknown>>();
+    protected readonly automationIds = new WeakMap<AbstractDialog<unknown>, string>();
 
     constructor() {
     }
@@ -98,6 +153,19 @@ export class DialogOverlayService implements FrontendApplicationContribution {
         return this.dialogs[0];
     }
 
+    getActiveDialogAutomation(): ActiveDialogAutomation | undefined {
+        const dialog = this.currentDialog;
+        if (!dialog) {
+            return undefined;
+        }
+        const id = this.automationIds.get(dialog);
+        return id ? { id, dialog } : undefined;
+    }
+
+    getDialogAutomation(id: string): DialogAutomation | undefined {
+        return this.automationDialogs.get(id);
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     push(dialog: AbstractDialog<any>): Disposable {
         if (this.documents.findIndex(document => document === dialog.node.ownerDocument) < 0) {
@@ -106,10 +174,17 @@ export class DialogOverlayService implements FrontendApplicationContribution {
             this.documents.push(dialog.node.ownerDocument);
         }
         this.dialogs.unshift(dialog);
+        const automationId = generateUuid();
+        this.automationDialogs.set(automationId, dialog);
+        this.automationIds.set(dialog, automationId);
         return Disposable.create(() => {
             const index = this.dialogs.indexOf(dialog);
             if (index > -1) {
                 this.dialogs.splice(index, 1);
+            }
+            this.automationDialogs.delete(automationId);
+            if (this.automationIds.get(dialog) === automationId) {
+                this.automationIds.delete(dialog);
             }
         });
     }
@@ -133,7 +208,7 @@ export class DialogOverlayService implements FrontendApplicationContribution {
 }
 
 @injectable()
-export abstract class AbstractDialog<T> extends BaseWidget {
+export abstract class AbstractDialog<T> extends BaseWidget implements DialogAutomation {
 
     protected readonly titleNode: HTMLDivElement;
     protected readonly contentNode: HTMLDivElement;
@@ -324,7 +399,18 @@ export abstract class AbstractDialog<T> extends BaseWidget {
     }
 
     protected acceptCancellationSource = new CancellationTokenSource();
-    protected async accept(): Promise<void> {
+    protected acceptPromise: Promise<void> | undefined;
+    protected accept(): Promise<void> {
+        const operation = this.doAcceptDialog();
+        this.acceptPromise = operation;
+        return operation.finally(() => {
+            if (this.acceptPromise === operation) {
+                this.acceptPromise = undefined;
+            }
+        });
+    }
+
+    protected async doAcceptDialog(): Promise<void> {
         if (!this.resolve) {
             return;
         }
@@ -370,6 +456,116 @@ export abstract class AbstractDialog<T> extends BaseWidget {
 
     protected addAcceptAction<K extends keyof HTMLElementEventMap>(element: HTMLElement, ...additionalEventTypes: K[]): void {
         this.addAction(element, () => this.accept(), ...additionalEventTypes);
+    }
+
+    getAutomationSnapshot(): DialogAutomationSnapshot {
+        const validationMessage = this.normalizeAutomationText(this.errorMessageNode.innerText || this.errorMessageNode.textContent || '');
+        return {
+            title: this.normalizeAutomationText(this.titleNode.innerText || this.titleNode.textContent || ''),
+            contentText: this.normalizeAutomationText(this.contentNode.innerText || this.contentNode.textContent || ''),
+            validationMessage: validationMessage || undefined,
+            confirm: {
+                available: !!this.acceptButton,
+                enabled: this.acceptButton ? !this.acceptButton.disabled : undefined,
+                label: this.normalizeAutomationLabel(this.acceptButton)
+            },
+            cancel: {
+                available: true,
+                label: this.normalizeAutomationLabel(this.closeButton)
+            }
+        };
+    }
+
+    getAutomationState(): DialogAutomationState {
+        return {};
+    }
+
+    async setAutomationState(patch: DialogAutomationState): Promise<void> {
+        if (!patch || Array.isArray(patch) || typeof patch !== 'object') {
+            throw new TypeError('Dialog automation state must be an object.');
+        }
+        this.validateAutomationState(patch);
+        await this.applyAutomationState(patch);
+        // Rendering is best-effort. The contract guarantees that the state read
+        // by `value` has changed before this promise resolves, not that the DOM
+        // has committed the corresponding update.
+        this.update();
+    }
+
+    protected applyAutomationState(_patch: DialogAutomationState): MaybePromise<void> {
+        throw this.automationError('DialogStateNotSupportedError', 'This dialog does not expose writable automation state.');
+    }
+
+    async confirmFromAutomation(): Promise<DialogAutomationConfirmResult> {
+        if (!this.acceptButton) {
+            throw this.automationError('DialogActionNotSupportedError', 'This dialog does not expose a standard confirm action.');
+        }
+        if (this.acceptButton.disabled) {
+            await this.accept();
+        } else {
+            const previousOperation = this.acceptPromise;
+            this.acceptButton.click();
+            const operation = this.acceptPromise;
+            if (operation && operation !== previousOperation) {
+                await operation;
+            }
+        }
+        const validationMessage = this.normalizeAutomationText(this.errorMessageNode.innerText || this.errorMessageNode.textContent || '');
+        return {
+            closed: !this.isAttached,
+            validationMessage: validationMessage || undefined
+        };
+    }
+
+    async cancelFromAutomation(): Promise<void> {
+        this.close();
+    }
+
+    getAutomationActions(): readonly DialogAutomationAction[] {
+        return [];
+    }
+
+    async invokeAutomationAction(id: string): Promise<void> {
+        throw this.automationError('DialogActionNotSupportedError', `Unknown dialog automation action: ${id}`);
+    }
+
+    protected normalizeAutomationText(value: string): string {
+        return value.replace(/\r\n/g, '\n').replace(/[ \t]+\n/g, '\n').trim();
+    }
+
+    protected normalizeAutomationLabel(button: HTMLButtonElement | undefined): string | undefined {
+        if (!button) {
+            return undefined;
+        }
+        const label = this.normalizeAutomationText(button.innerText || button.textContent || '');
+        return label || undefined;
+    }
+
+    protected validateAutomationState(state: DialogAutomationState): void {
+        const validate = (value: unknown, path: string): void => {
+            if ((typeof value === 'object' && !value) || typeof value === 'string' || typeof value === 'boolean') {
+                return;
+            }
+            if (typeof value === 'number') {
+                if (Number.isFinite(value)) {
+                    return;
+                }
+            } else if (Array.isArray(value)) {
+                value.forEach((element, index) => validate(element, `${path}[${index}]`));
+                return;
+            } else if (typeof value === 'object') {
+                Object.entries(value).forEach(([key, element]) => validate(element, `${path}.${key}`));
+                return;
+            }
+            throw this.automationError('InvalidDialogStateError', `Dialog state field '${path}' is not JSON serializable.`);
+        };
+        Object.entries(state).forEach(([key, value]) => validate(value, key));
+    }
+
+    protected automationError(name: string, message: string): Error {
+        const error = new Error(message);
+        error.name = name;
+        return error;
     }
 
 }
@@ -522,6 +718,24 @@ export class SingleTextInputDialog extends AbstractDialog<string> {
 
     get value(): string {
         return this.inputField.value;
+    }
+
+    override getAutomationState(): DialogAutomationState {
+        return { value: this.inputField.value };
+    }
+
+    protected override applyAutomationState(patch: DialogAutomationState): void {
+        const unknownFields = Object.keys(patch).filter(key => key !== 'value');
+        if (unknownFields.length) {
+            throw this.automationError('InvalidDialogStateError', `Unknown dialog state field(s): ${unknownFields.join(', ')}`);
+        }
+        if (!Object.prototype.hasOwnProperty.call(patch, 'value')) {
+            return;
+        }
+        if (typeof patch.value !== 'string') {
+            throw this.automationError('InvalidDialogStateError', 'Dialog state field "value" must be a string.');
+        }
+        this.inputField.value = patch.value;
     }
 
     protected override isValid(value: string, mode: DialogMode): MaybePromise<DialogError> {

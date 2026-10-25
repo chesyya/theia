@@ -792,10 +792,55 @@ export interface ThemingExt {
 export interface ThemingMain extends Disposable {
 }
 
+export type DialogAutomationValueDTO = string | number | boolean | null | DialogAutomationValueDTO[] | {
+    [key: string]: DialogAutomationValueDTO
+};
+
+export interface DialogAutomationStateDTO {
+    [key: string]: DialogAutomationValueDTO
+}
+
+export interface DialogAutomationControlDTO {
+    readonly available: boolean;
+    readonly enabled?: boolean;
+    readonly label?: string;
+}
+
+export interface DialogAutomationSnapshotDTO {
+    readonly title: string;
+    readonly contentText: string;
+    readonly validationMessage?: string;
+    readonly confirm: DialogAutomationControlDTO;
+    readonly cancel: DialogAutomationControlDTO;
+}
+
+export interface DialogAutomationConfirmResultDTO {
+    readonly closed: boolean;
+    readonly validationMessage?: string;
+}
+
+export interface DialogAutomationActionDTO {
+    readonly id: string;
+    readonly label: string;
+    readonly enabled: boolean;
+}
+
+export interface DialogAutomationHandleDTO {
+    readonly id: string;
+}
+
 export interface DialogsMain {
     $showOpenDialog(options: OpenDialogOptionsMain): Promise<string[] | undefined>;
     $showSaveDialog(options: SaveDialogOptionsMain): Promise<string | undefined>;
     $showUploadDialog(options: UploadDialogOptionsMain): Promise<string[] | undefined>;
+    $getActiveDialog(): Promise<DialogAutomationHandleDTO | undefined>;
+    $getDialogSnapshot(id: string): Promise<DialogAutomationSnapshotDTO>;
+    $getDialogState(id: string): Promise<DialogAutomationStateDTO>;
+    $setDialogState(id: string, patch: DialogAutomationStateDTO): Promise<void>;
+    $confirmDialog(id: string): Promise<DialogAutomationConfirmResultDTO>;
+    $cancelDialog(id: string): Promise<void>;
+    $getDialogActions(id: string): Promise<readonly DialogAutomationActionDTO[]>;
+    $invokeDialogAction(id: string, actionId: string): Promise<void>;
 }
 
 export interface RegisterTreeDataProviderOptions {

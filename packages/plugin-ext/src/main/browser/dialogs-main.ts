@@ -16,7 +16,10 @@
 
 import { interfaces } from '@theia/core/shared/inversify';
 import { RPCProtocol } from '../../common/rpc-protocol';
-import { OpenDialogOptionsMain, SaveDialogOptionsMain, DialogsMain, UploadDialogOptionsMain } from '../../common/plugin-api-rpc';
+import {
+    OpenDialogOptionsMain, SaveDialogOptionsMain, DialogsMain, UploadDialogOptionsMain, DialogAutomationHandleDTO,
+    DialogAutomationSnapshotDTO, DialogAutomationStateDTO, DialogAutomationConfirmResultDTO, DialogAutomationActionDTO
+} from '../../common/plugin-api-rpc';
 import { OpenFileDialogProps, SaveFileDialogProps, FileDialogService } from '@theia/filesystem/lib/browser';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import URI from '@theia/core/lib/common/uri';
@@ -25,6 +28,8 @@ import { FileService } from '@theia/filesystem/lib/browser/file-service';
 import { FileStat } from '@theia/filesystem/lib/common/files';
 import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
 import { nls } from '@theia/core';
+import { DialogAutomation, DialogOverlayService } from '@theia/core/lib/browser';
+import { FrontendApplicationConfigProvider } from '@theia/core/lib/browser/frontend-application-config-provider';
 
 export class DialogsMainImpl implements DialogsMain {
 
@@ -34,6 +39,7 @@ export class DialogsMainImpl implements DialogsMain {
 
     private fileDialogService: FileDialogService;
     private uploadService: FileUploadService;
+    private dialogOverlayService: DialogOverlayService;
 
     constructor(rpc: RPCProtocol, container: interfaces.Container) {
         this.workspaceService = container.get(WorkspaceService);
@@ -41,6 +47,7 @@ export class DialogsMainImpl implements DialogsMain {
         this.environments = container.get(EnvVariablesServer);
         this.fileDialogService = container.get(FileDialogService);
         this.uploadService = container.get(FileUploadService);
+        this.dialogOverlayService = container.get(DialogOverlayService);
     }
 
     protected async getRootStat(defaultUri: string | undefined): Promise<FileStat | undefined> {
@@ -180,6 +187,64 @@ export class DialogsMainImpl implements DialogsMain {
         }
 
         return undefined;
+    }
+
+    async $getActiveDialog(): Promise<DialogAutomationHandleDTO | undefined> {
+        this.assertDialogAutomationEnabled();
+        const activeDialog = this.dialogOverlayService.getActiveDialogAutomation();
+        return activeDialog ? { id: activeDialog.id } : undefined;
+    }
+
+    async $getDialogSnapshot(id: string): Promise<DialogAutomationSnapshotDTO> {
+        return this.getDialogAutomation(id).getAutomationSnapshot();
+    }
+
+    async $getDialogState(id: string): Promise<DialogAutomationStateDTO> {
+        return this.getDialogAutomation(id).getAutomationState();
+    }
+
+    async $setDialogState(id: string, patch: DialogAutomationStateDTO): Promise<void> {
+        await this.getDialogAutomation(id).setAutomationState(patch);
+    }
+
+    async $confirmDialog(id: string): Promise<DialogAutomationConfirmResultDTO> {
+        return this.getDialogAutomation(id).confirmFromAutomation();
+    }
+
+    async $cancelDialog(id: string): Promise<void> {
+        await this.getDialogAutomation(id).cancelFromAutomation();
+    }
+
+    async $getDialogActions(id: string): Promise<readonly DialogAutomationActionDTO[]> {
+        return this.getDialogAutomation(id).getAutomationActions();
+    }
+
+    async $invokeDialogAction(id: string, actionId: string): Promise<void> {
+        await this.getDialogAutomation(id).invokeAutomationAction(actionId);
+    }
+
+    protected getDialogAutomation(id: string): DialogAutomation {
+        this.assertDialogAutomationEnabled();
+        const dialog = this.dialogOverlayService.getDialogAutomation(id);
+        if (!dialog) {
+            throw this.createDialogAutomationError('DialogClosedError', `Dialog '${id}' is closed or no longer available.`);
+        }
+        return dialog;
+    }
+
+    protected assertDialogAutomationEnabled(): void {
+        if (!FrontendApplicationConfigProvider.get().pluginDialogAutomation) {
+            throw this.createDialogAutomationError(
+                'DialogAutomationDisabledError',
+                'Plugin dialog automation is disabled. Enable the "pluginDialogAutomation" frontend application option for integration tests.'
+            );
+        }
+    }
+
+    protected createDialogAutomationError(name: string, message: string): Error {
+        const error = new Error(message);
+        error.name = name;
+        return error;
     }
 
 }

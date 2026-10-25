@@ -28,6 +28,7 @@ import './theia.proposed.customEditorMove';
 import './theia.proposed.debugVisualization';
 import './theia.proposed.diffCommand';
 import './theia.proposed.documentPaste';
+import './theia.proposed.dialogAutomation';
 import './theia.proposed.editSessionIdentityProvider';
 import './theia.proposed.extensionsAny';
 import './theia.proposed.externalUriOpener';

@@ -548,6 +548,9 @@ export function createAPIFactory(
             showUploadDialog(options: theia.UploadDialogOptions): PromiseLike<URI[] | undefined> {
                 return dialogsExt.showUploadDialog(options);
             },
+            getActiveDialog(): PromiseLike<theia.DialogHandle | undefined> {
+                return dialogsExt.getActiveDialog();
+            },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             setStatusBarMessage(text: string, arg?: number | PromiseLike<any>): Disposable {
                 return statusBarMessageRegistryExt.setStatusBarMessage(text, arg);

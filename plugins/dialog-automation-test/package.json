@@ -1,0 +1,22 @@
+{
+  "name": "dialog-automation-test",
+  "publisher": "theia",
+  "version": "1.0.0",
+  "displayName": "Theia Dialog Automation Test",
+  "description": "End-to-end validation plugin for the proposed dialog automation API.",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [
+    "onCommand:theia-dialog-automation-test.run"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "theia-dialog-automation-test.run",
+        "title": "Dialog Automation: Run End-to-End Verification"
+      }
+    ]
+  }
+}

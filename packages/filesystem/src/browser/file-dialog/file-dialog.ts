@@ -344,7 +344,7 @@ export class OpenFileDialog extends FileDialog<MaybeArray<FileStatNode>> {
             this.widget.model.openNode(selection);
             return;
         }
-        super.accept();
+        await super.accept();
     }
 }
 

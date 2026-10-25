@@ -13,8 +13,14 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0
 // *****************************************************************************
-import { PLUGIN_RPC_CONTEXT as Ext, OpenDialogOptionsMain, DialogsMain, SaveDialogOptionsMain, UploadDialogOptionsMain } from '../common/plugin-api-rpc';
-import { OpenDialogOptions, SaveDialogOptions, UploadDialogOptions } from '@theia/plugin';
+import {
+    PLUGIN_RPC_CONTEXT as Ext, OpenDialogOptionsMain, DialogsMain, SaveDialogOptionsMain, UploadDialogOptionsMain,
+    DialogAutomationHandleDTO
+} from '../common/plugin-api-rpc';
+import {
+    OpenDialogOptions, SaveDialogOptions, UploadDialogOptions, DialogHandle, DialogSnapshot, DialogState,
+    DialogConfirmResult, DialogAction
+} from '@theia/plugin';
 import { RPCProtocol } from '../common/rpc-protocol';
 import { URI } from './types-impl';
 
@@ -93,4 +99,46 @@ export class DialogsExtImpl {
         });
     }
 
+    async getActiveDialog(): Promise<DialogHandle | undefined> {
+        const handle = await this.proxy.$getActiveDialog();
+        return handle ? new DialogHandleImpl(handle, this.proxy) : undefined;
+    }
+
+}
+
+class DialogHandleImpl implements DialogHandle {
+
+    readonly id: string;
+
+    constructor(handle: DialogAutomationHandleDTO, protected readonly proxy: DialogsMain) {
+        this.id = handle.id;
+    }
+
+    getSnapshot(): PromiseLike<DialogSnapshot> {
+        return this.proxy.$getDialogSnapshot(this.id);
+    }
+
+    getState(): PromiseLike<DialogState> {
+        return this.proxy.$getDialogState(this.id);
+    }
+
+    setState(patch: DialogState): PromiseLike<void> {
+        return this.proxy.$setDialogState(this.id, patch);
+    }
+
+    confirm(): PromiseLike<DialogConfirmResult> {
+        return this.proxy.$confirmDialog(this.id);
+    }
+
+    cancel(): PromiseLike<void> {
+        return this.proxy.$cancelDialog(this.id);
+    }
+
+    getActions(): PromiseLike<readonly DialogAction[]> {
+        return this.proxy.$getDialogActions(this.id);
+    }
+
+    invokeAction(id: string): PromiseLike<void> {
+        return this.proxy.$invokeDialogAction(this.id, id);
+    }
 }

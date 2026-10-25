@@ -129,6 +129,7 @@ export namespace FrontendApplicationConfig {
         defaultLocale: '',
         validatePreferencesSchema: true,
         reloadOnReconnect: false,
+        pluginDialogAutomation: false,
         uriScheme: 'theia'
     };
     export interface Partial extends ApplicationConfig {
@@ -181,6 +182,13 @@ export namespace FrontendApplicationConfig {
          * but the back end does not have a connection context for this front end anymore.
          */
         readonly reloadOnReconnect?: boolean;
+
+        /**
+         * Enables the proposed plug-in API for automating active dialogs.
+         *
+         * This API is intended for integration testing and is disabled by default.
+         */
+        readonly pluginDialogAutomation?: boolean;
     }
 }
 
